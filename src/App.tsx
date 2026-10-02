@@ -124,9 +124,9 @@ export default function App() {
             href="#home"
             className="text-3xl tracking-tight text-foreground outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
             style={displayFont}
-            aria-label="Velorah home"
+            aria-label="LumenPelagi home"
           >
-            Velorah<sup className="ml-0.5 text-xs">®</sup>
+            LumenPelagi<sup className="ml-0.5 text-xs">®</sup>
           </a>
 
           <nav
