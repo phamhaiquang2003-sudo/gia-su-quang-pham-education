@@ -229,11 +229,6 @@ export default function App() {
               đó là công việc của cả đời
             </em>
           </h1>
-          <p className="animate-fade-rise-delay mt-8 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            We&apos;re designing tools for deep thinkers, bold creators, and
-            quiet rebels. Amid the chaos, we build digital spaces for sharp
-            focus and inspired work.
-          </p>
           <div className="animate-fade-rise-delay-2 mt-12">
             <DialogTrigger asChild>
               <Button
