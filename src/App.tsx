@@ -122,11 +122,16 @@ export default function App() {
         <header className="relative z-20 mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-8 py-6">
           <a
             href="#home"
-            className="text-3xl tracking-tight text-foreground outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
-            style={displayFont}
+            className="inline-flex shrink-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="LumenPelagi home"
           >
-            LumenPelagi<sup className="ml-0.5 text-xs">®</sup>
+            <img
+              src={`${import.meta.env.BASE_URL}logo-lumenpelagi.png`}
+              alt="LumenPelagi"
+              width={256}
+              height={256}
+              className="size-12 object-contain sm:size-14"
+            />
           </a>
 
           <nav
