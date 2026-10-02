@@ -223,11 +223,10 @@ export default function App() {
             className="animate-fade-rise max-w-7xl text-5xl font-normal leading-[0.95] tracking-[-2.46px] text-foreground sm:text-7xl md:text-8xl"
             style={displayFont}
           >
-            Where <em className="not-italic text-muted-foreground">dreams</em>{" "}
-            rise
+            Học hỏi không phải là công việc của tuổi trẻ;
             <br />
             <em className="not-italic text-muted-foreground">
-              through the silence.
+              đó là công việc của cả đời
             </em>
           </h1>
           <p className="animate-fade-rise-delay mt-8 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
