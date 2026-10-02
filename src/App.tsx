@@ -220,14 +220,15 @@ export default function App() {
         >
           <h1
             id="hero-title"
-            className="animate-fade-rise max-w-7xl text-5xl font-normal leading-[0.95] tracking-[-2.46px] text-foreground sm:text-7xl md:text-8xl"
+            className="animate-fade-rise w-full max-w-7xl text-[clamp(1rem,5vw,4.5rem)] font-normal leading-[1.15] tracking-[-0.02em] text-foreground"
             style={displayFont}
           >
-            Học hỏi không phải là công việc của tuổi trẻ;
-            <br />
-            <em className="not-italic text-muted-foreground">
+            <span className="block whitespace-nowrap">
+              Học hỏi không phải là công việc của tuổi trẻ;
+            </span>{" "}
+            <span className="block whitespace-nowrap">
               đó là công việc của cả đời
-            </em>
+            </span>
           </h1>
           <div className="animate-fade-rise-delay-2 mt-12">
             <DialogTrigger asChild>
