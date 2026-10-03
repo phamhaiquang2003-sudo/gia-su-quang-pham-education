@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "phq-education-admin",
+  "account_id": "61da0c6a6c1718fd635b2de85755686b",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-03",
+  "workers_dev": true,
+  "preview_urls": false,
+  "vars": {
+    "ALLOWED_ORIGIN": "https://phamhaiquang2003-sudo.github.io",
+  },
+  "observability": { "enabled": false },
+}

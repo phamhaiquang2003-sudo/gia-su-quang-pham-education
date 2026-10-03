@@ -1,6 +1,6 @@
 # Kích hoạt Firebase Spark miễn phí cho PHQ Education
 
-Website dùng gói **Spark**, không cần liên kết thanh toán. Authentication và Firestore hoạt động trong hạn mức miễn phí của Firebase. Giáo viên có thể cấp từng tài khoản, cấp hàng loạt và xem danh sách ngay trên website công khai. Các thao tác khóa/mở khóa, cấp lại mật khẩu và xóa tài khoản dùng công cụ quản trị trên máy.
+Website dùng gói **Spark**, không cần liên kết thanh toán. Authentication và Firestore hoạt động trong hạn mức miễn phí của Firebase. Giáo viên có thể cấp từng tài khoản, cấp hàng loạt, xem danh sách và xóa tài khoản ngay trên website công khai. Dịch vụ xóa dùng Cloudflare Workers gói miễn phí. Các thao tác khóa/mở khóa và cấp lại mật khẩu dùng công cụ quản trị trên máy.
 
 ## Kiến trúc
 
@@ -8,10 +8,11 @@ Website dùng gói **Spark**, không cần liên kết thanh toán. Authenticati
 - Firebase Authentication xác thực và quản lý mật khẩu.
 - Firestore `users/{uid}` lưu hồ sơ; `usernames/{username}` giữ tên đăng nhập duy nhất.
 - Khi cấp tài khoản online, một phiên Authentication riêng chỉ lưu trong bộ nhớ tạo tài khoản học sinh; phiên đăng nhập giáo viên được giữ nguyên. Giáo viên dùng phiên quản trị để ghi hồ sơ và giữ chỗ tên trong cùng giao dịch Firestore. Rules chỉ cho quản trị viên có claim và hồ sơ đang hoạt động tạo hồ sơ học sinh, không cho tạo quản trị viên.
+- Khi xóa online, website gửi ID token quản trị tới Cloudflare Worker. Worker xác minh chữ ký, dự án, thời hạn, trạng thái Auth, token thu hồi, claim và hồ sơ quản trị. Worker khóa hồ sơ học sinh trước, xóa Auth rồi xóa hồ sơ và giữ chỗ tên trong một commit có kiểm tra phiên bản. Khóa dịch vụ Firebase được lưu trong Worker Secret. Xem [cloudflare-admin.md](cloudflare-admin.md).
 - Công cụ Node.js trên máy dùng Firebase Admin SDK để tạo/khóa/cấp lại mật khẩu học sinh. Chỉ tài khoản có custom claim `admin: true` và hồ sơ quản trị đang hoạt động được gọi. Dịch vụ chỉ lắng nghe ở `127.0.0.1`.
 - Giáo viên cấp tài khoản học sinh. Form không có đăng ký; tài khoản Auth không có hồ sơ được cấp cũng không được vào hệ thống. Tất cả quyền đọc/ghi được kiểm tra bằng Rules hoặc phía máy chủ.
 - Không lưu mật khẩu hay hash mật khẩu trong Firestore hoặc browser storage. Khi cấp tài khoản online, mật khẩu được gửi trực tiếp đến Firebase Authentication. Khi dùng công cụ trên máy, trình duyệt gửi yêu cầu có ID token đến dịch vụ local.
-- Khi bạn tắt công cụ local, học sinh vẫn đăng nhập và giáo viên vẫn cấp tài khoản trên website công khai. Máy chỉ cần chạy công cụ khi khóa/mở khóa, cấp lại mật khẩu hoặc xóa tài khoản.
+- Khi bạn tắt công cụ local, học sinh vẫn đăng nhập và giáo viên vẫn cấp/xóa tài khoản trên website công khai. Máy chỉ cần chạy công cụ khi khóa/mở khóa hoặc cấp lại mật khẩu.
 - Học sinh đăng nhập thành công được chuyển về trang chủ video. Nút góc trên bên phải là “Đăng xuất”, bấm để đăng xuất trực tiếp. Nút giữa trang là “Xin chào, [họ tên]”, bấm để xem thông tin tài khoản. Tải lại trang vẫn giữ lời chào nếu phiên còn hợp lệ. Đường dẫn `hoc-sinh.html` cũng hiển thị giao diện này sau khi kiểm tra quyền.
 
 ## 1. Cấu hình ứng dụng Web
@@ -73,7 +74,7 @@ node functions/scripts/start-local-admin.js
 
 Chỉ thêm `role: admin` bằng Firestore Console chưa đủ quyền quản trị. Khóa Service Account được đọc ở tiến trình Node.js trên máy, không được đưa vào frontend.
 
-Trang quản trị công khai cho phép giáo viên thêm từng tài khoản, thêm hàng loạt và xem danh sách. Các nút khóa/mở khóa, cấp lại mật khẩu và xóa hoạt động trong công cụ local.
+Trang quản trị công khai cho phép giáo viên thêm từng tài khoản, thêm hàng loạt, xem danh sách và xóa tài khoản. Các nút khóa/mở khóa và cấp lại mật khẩu hoạt động trong công cụ local.
 
 ## 5. Cấp tài khoản học sinh
 
@@ -85,7 +86,7 @@ Mở `quan-tri.html` trên website và đăng nhập bằng tài khoản quản 
 - **Khóa (công cụ local):** đổi trạng thái Firestore ngay để thu hồi quyền, khóa Auth và thu hồi refresh token.
 - **Mở khóa (công cụ local):** mở Auth rồi kích hoạt hồ sơ.
 - **Cấp lại mật khẩu (công cụ local):** cập nhật Auth và thu hồi refresh token. ID token hiện có có thể còn hợp lệ đến khi hết hạn; nếu cần chặn truy cập ngay, khóa tài khoản trước.
-- **Xóa (công cụ local):** khóa hồ sơ, xóa tài khoản Auth, hồ sơ và giữ chỗ tên đăng nhập. Giai đoạn này chưa có bài làm; khi thêm bài làm cần quyết định chính sách giữ lịch sử trước khi mở rộng thao tác xóa.
+- **Xóa (online hoặc công cụ local):** khóa hồ sơ, xóa tài khoản Auth, hồ sơ và giữ chỗ tên đăng nhập. Trên website bấm **Xóa tài khoản → Xác nhận**, không cần mở `.bat`. Giai đoạn này chưa có bài làm; khi thêm bài làm cần quyết định chính sách giữ lịch sử trước khi mở rộng thao tác xóa.
 
 Kết quả tạo hàng loạt được báo riêng từng dòng. Firebase có thể giới hạn tốc độ tạo tài khoản; chia danh sách thành nhóm nhỏ và thử lại sau nếu gặp giới hạn. Nếu cấp hồ sơ bị từ chối, hệ thống cố gắng xóa tài khoản Auth vừa tạo. Khi kết nối mất khiến kết quả chưa xác định, tải lại danh sách trước; chỉ dọn tài khoản Auth chưa có hồ sơ qua Console/công cụ local khi đã kiểm tra rõ.
 

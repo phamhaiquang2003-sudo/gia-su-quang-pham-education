@@ -1,0 +1,17 @@
+{
+  "name": "phq-education-admin-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "login": "wrangler login",
+    "deploy": "wrangler deploy",
+    "check": "wrangler deploy --dry-run",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "jose": "^6.0.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

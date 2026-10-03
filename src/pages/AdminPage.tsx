@@ -23,6 +23,7 @@ import {
   createStudents,
   manageStudent,
   localAdminEnabled,
+  studentDeletionEnabled,
   usernamePattern,
   type AccountProfile,
   type CreationResult,
@@ -206,7 +207,9 @@ export default function AdminPage() {
           <p className="mb-6 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-relaxed text-sky-900">
             {localAdminEnabled
               ? "Quản trị trên máy tính · Firebase Spark. Tài khoản và hồ sơ được lưu trực tiếp trên Firebase."
-              : "Firebase Spark: bạn có thể thêm tài khoản và thêm hàng loạt ngay trên website. Để khóa, mở khóa, cấp lại mật khẩu hoặc xóa tài khoản, mở quan-tri-mien-phi.bat trên máy tính."}
+              : studentDeletionEnabled
+                ? "Bạn có thể thêm tài khoản, thêm hàng loạt và xóa tài khoản ngay trên website. Xóa tài khoản sẽ xóa cả đăng nhập Firebase và hồ sơ học sinh. Firebase Spark và Cloudflare Workers dùng gói miễn phí."
+                : "Firebase Spark: bạn có thể thêm tài khoản và thêm hàng loạt ngay trên website. Để khóa, mở khóa, cấp lại mật khẩu hoặc xóa tài khoản, mở quan-tri-mien-phi.bat trên máy tính."}
           </p>
           <div
             className="mb-6 flex flex-wrap gap-2"
@@ -441,7 +444,11 @@ export default function AdminPage() {
                               key={action}
                               className={`account-button-secondary text-xs ${action === "delete" ? "text-red-700" : ""}`}
                               disabled={
-                                busy || loadingList || !localAdminEnabled
+                                busy ||
+                                loadingList ||
+                                (action === "delete"
+                                  ? !studentDeletionEnabled
+                                  : !localAdminEnabled)
                               }
                               onClick={() => {
                                 setMessage("");

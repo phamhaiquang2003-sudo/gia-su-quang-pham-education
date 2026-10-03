@@ -1,7 +1,7 @@
 import type { FirebaseOptions } from "firebase/app";
 
 // Public Web SDK configuration. Account and database access is controlled by
-// Firebase Authentication, Firestore Rules and the callable Functions.
+// Firebase Authentication, Firestore Rules and the authenticated admin service.
 export const firebaseWebConfig: FirebaseOptions = {
   apiKey: "AIzaSyDv4QWi8OpxAWCRQo0Lmf1rx2ELjiqU9pA",
   authDomain: "phq-education.firebaseapp.com",

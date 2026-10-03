@@ -13,3 +13,5 @@ ui-debug.log*
 *-service-account*.json
 *-firebase-adminsdk-*.json
 *.credentials.json
+.wrangler/
+.dev.vars*
