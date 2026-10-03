@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nền đêm sao · Lumen Pelagi</title>
+<style>
+html,body{margin:0;height:100%;background:#06173A;overflow:hidden}
+canvas{position:absolute;left:0;top:0;display:block}
+</style>
+</head>
+<body>
+<canvas id="bg" role="img" aria-label="Bầu trời đêm xanh thẫm đầy sao lấp lánh với dải ngân hà mờ"></canvas>
+<canvas id="tw" aria-hidden="true"></canvas>
+<script>
+(function(){
+var bg=document.getElementById('bg'),tw=document.getElementById('tw'),bx=bg.getContext('2d'),tx=tw.getContext('2d'),W,H,stars=[],flies=[];
+function rnd(s){return function(){s=(s*16807)%2147483647;return(s-1)/2147483646}}
+function rg(c,x,y,r,st){var g=c.createRadialGradient(x,y,0,x,y,r);st.forEach(function(s){g.addColorStop(s[0],s[1])});return g}
+function lg(c,x0,y0,x1,y1,st){var g=c.createLinearGradient(x0,y0,x1,y1);st.forEach(function(s){g.addColorStop(s[0],s[1])});return g}
+function ridge(c,base,amp,p,fill){
+ c.beginPath();c.moveTo(0,H);
+ for(var x=0;x<=W+8;x+=8){var y=base+amp*(Math.sin(x*.004+p)*.5+Math.sin(x*.011+p*2)*.3+Math.sin(x*.027+p*3)*.2);c.lineTo(x,y)}
+ c.lineTo(W,H);c.closePath();c.fillStyle=fill;c.fill();
+}
+var PAL=[[107,68,48],[47,79,127],[168,116,63],[122,46,46],[60,106,134],[201,160,102],[85,64,45],[140,90,60],[77,110,143]];
+function stack(x0,w,top,lit){
+ var r=rnd(lit>0?11:23),y=H;
+ while(y>top){
+  var bh=H*(.026+r()*.012),bw=w*(.8+r()*.25),bx0=x0+(w-bw)*r(),c=PAL[Math.floor(r()*PAL.length)];
+  y-=bh;
+  var g=lit>0?lg(bx,bx0,0,bx0+bw,0,[[0,'rgb('+(c[0]*.35|0)+','+(c[1]*.38|0)+','+(c[2]*.45|0)+')'],[.7,'rgb('+(c[0]*.7|0)+','+(c[1]*.68|0)+','+(c[2]*.7|0)+')'],[1,'rgb(255,190,110)']]):
+   lg(bx,bx0,0,bx0+bw,0,[[0,'rgb(255,190,110)'],[.3,'rgb('+(c[0]*.7|0)+','+(c[1]*.68|0)+','+(c[2]*.7|0)+')'],[1,'rgb('+(c[0]*.3|0)+','+(c[1]*.34|0)+','+(c[2]*.42|0)+')']]);
+  bx.fillStyle=g;bx.fillRect(bx0,y,bw,bh-1);
+  bx.fillStyle='rgba(255,215,150,.35)';bx.fillRect(bx0,y,bw,1.5);
+  bx.fillStyle='rgba(0,0,0,.28)';bx.fillRect(bx0,y+bh-3,bw,2);
+ }
+}
+function draw(){
+ var d=Math.min(window.devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
+ [bg,tw].forEach(function(c){c.width=W*d;c.height=H*d;c.style.width=W+'px';c.style.height=H+'px'});
+ bx.setTransform(d,0,0,d,0,0);tx.setTransform(d,0,0,d,0,0);
+ var r=rnd(7),i;
+ bx.fillStyle=lg(bx,0,0,0,H,[[0,'#050f2b'],[.35,'#0a2858'],[.7,'#175090'],[1,'#1d5c9a']]);bx.fillRect(0,0,W,H);
+ bx.save();bx.translate(W*.5,H*.3);bx.rotate(-.38);bx.scale(1,.2);
+ bx.fillStyle=rg(bx,0,0,W*.85,[[0,'rgba(150,190,255,.22)'],[.5,'rgba(110,160,255,.08)'],[1,'rgba(110,160,255,0)']]);bx.beginPath();bx.arc(0,0,W*.85,0,7);bx.fill();bx.restore();
+ stars=[];
+ for(i=0;i<Math.min(1300,W*H/1100);i++){
+  var sx=r()*W,sy=Math.pow(r(),1.15)*H*.98,sz=r()<.04?1.8+r()*1.4:.4+r()*.9,a=.3+r()*.7,bl=r()<.35;
+  bx.fillStyle=bl?'rgba(170,205,255,'+a+')':'rgba(255,255,255,'+a+')';bx.beginPath();bx.arc(sx,sy,sz,0,7);bx.fill();
+  if(sz>1.7){bx.fillStyle=rg(bx,sx,sy,sz*5,[[0,'rgba(170,210,255,.35)'],[1,'rgba(170,210,255,0)']]);bx.fillRect(sx-sz*5,sy-sz*5,sz*10,sz*10);stars.push([sx,sy,sz,r()*6,.5+r()*1.5])}
+ }
+ bx.fillStyle=rg(bx,W/2,H*1.02,W*.8,[[0,'rgba(255,170,60,.2)'],[.5,'rgba(255,140,50,.06)'],[1,'rgba(255,140,50,0)']]);bx.fillRect(0,0,W,H);
+ bx.fillStyle=rg(bx,W/2,H*.5,Math.max(W,H)*.78,[[.45,'rgba(2,8,24,0)'],[1,'rgba(2,8,24,.6)']]);bx.fillRect(0,0,W,H);
+ flies=[];
+}
+var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+function frame(t){
+ if(W!==innerWidth||H!==innerHeight)draw();
+ t/=1000;tx.clearRect(0,0,W,H);tx.globalCompositeOperation='lighter';
+ stars.forEach(function(s){var a=.45+.55*Math.sin(t*s[4]+s[3]);tx.fillStyle=rg(tx,s[0],s[1],s[2]*4,[[0,'rgba(200,225,255,'+a*.6+')'],[1,'rgba(200,225,255,0)']]);tx.fillRect(s[0]-s[2]*4,s[1]-s[2]*4,s[2]*8,s[2]*8)});
+ flies.forEach(function(f){var x=f[0]+Math.sin(t*.4+f[2])*f[3],y=((f[1]-t*(6+f[4]*3))%(H*.8)+H*.8)%(H*.8)+H*.12,a=.5+.5*Math.sin(t*1.3+f[2]);
+  tx.fillStyle=rg(tx,x,y,f[4]*5,[[0,'rgba(255,230,140,'+a*.9+')'],[1,'rgba(255,200,80,0)']]);tx.fillRect(x-f[4]*5,y-f[4]*5,f[4]*10,f[4]*10)});
+ if(!reduce)requestAnimationFrame(frame);
+}
+var rt;draw();requestAnimationFrame(frame);
+addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){draw();if(reduce)requestAnimationFrame(frame)},150)});
+})();
+</script>
+</body>
+</html>

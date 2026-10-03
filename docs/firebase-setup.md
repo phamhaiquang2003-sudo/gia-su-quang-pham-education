@@ -4,7 +4,7 @@ Website dùng gói **Spark**, không cần liên kết thanh toán. Authenticati
 
 ## Kiến trúc
 
-- GitHub Pages phục vụ bốn trang: trang chủ, `dang-nhap.html`, `quan-tri.html`, `hoc-sinh.html`.
+- GitHub Pages phục vụ trang chủ, `dang-nhap.html`, `quan-tri.html`, `hoc-sinh.html` và `bai-tap.html`.
 - Firebase Authentication xác thực và quản lý mật khẩu.
 - Firestore `users/{uid}` lưu hồ sơ; `usernames/{username}` giữ tên đăng nhập duy nhất.
 - Khi cấp tài khoản online, một phiên Authentication riêng chỉ lưu trong bộ nhớ tạo tài khoản học sinh; phiên đăng nhập giáo viên được giữ nguyên. Giáo viên dùng phiên quản trị để ghi hồ sơ và giữ chỗ tên trong cùng giao dịch Firestore. Rules chỉ cho quản trị viên có claim và hồ sơ đang hoạt động tạo hồ sơ học sinh, không cho tạo quản trị viên.
@@ -14,6 +14,7 @@ Website dùng gói **Spark**, không cần liên kết thanh toán. Authenticati
 - Không lưu mật khẩu hay hash mật khẩu trong Firestore hoặc browser storage. Khi cấp tài khoản online, mật khẩu được gửi trực tiếp đến Firebase Authentication. Khi dùng công cụ trên máy, trình duyệt gửi yêu cầu có ID token đến dịch vụ local.
 - Khi bạn tắt công cụ local, học sinh vẫn đăng nhập và giáo viên vẫn cấp/xóa tài khoản trên website công khai. Máy chỉ cần chạy công cụ khi khóa/mở khóa hoặc cấp lại mật khẩu.
 - Học sinh đăng nhập thành công được chuyển về trang chủ video. Nút góc trên bên phải là “Đăng xuất”, bấm để đăng xuất trực tiếp. Nút giữa trang là “Xin chào, [họ tên]”, bấm để xem thông tin tài khoản. Tải lại trang vẫn giữ lời chào nếu phiên còn hợp lệ. Đường dẫn `hoc-sinh.html` cũng hiển thị giao diện này sau khi kiểm tra quyền.
+- Bấm các mục môn học hoặc Giải trí khi đã đăng nhập mở `bai-tap.html?mon=...`, có nền đêm sao từ tệp người dùng cung cấp, tìm kiếm, lọc danh mục và sắp xếp. Trang kiểm tra phiên và hồ sơ hoạt động trước khi hiển thị kho bài tập. Hiện chưa có đề; danh sách rỗng và không đọc collection đề thi cho đến khi tính năng đăng đề được xây dựng.
 
 ## 1. Cấu hình ứng dụng Web
 

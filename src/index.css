@@ -24,6 +24,7 @@
 
 @theme inline {
   --font-sans: var(--font-body);
+  --font-display: "Instrument Serif", serif;
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
   --color-muted-foreground: hsl(var(--muted-foreground));
@@ -243,6 +244,67 @@
 .account-page button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.exercise-page {
+  color-scheme: dark;
+  --foreground: 0 0% 100%;
+  --background: 220 73% 13%;
+  --muted-foreground: 210 25% 82%;
+  --accent: 215 55% 22%;
+  --accent-foreground: 0 0% 100%;
+}
+
+.exercise-panel {
+  border: 1px solid rgb(210 228 255 / 22%);
+  border-radius: 22px;
+  background: rgb(6 21 49 / 65%);
+  box-shadow:
+    0 16px 50px rgb(0 8 28 / 18%),
+    inset 0 1px 0 rgb(255 255 255 / 5%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.exercise-input {
+  display: block;
+  width: 100%;
+  border: 1px solid rgb(210 228 255 / 25%);
+  border-radius: 12px;
+  background: rgb(9 29 65 / 80%);
+  padding: 11px 13px;
+  color: white;
+  font: inherit;
+}
+
+.exercise-input::placeholder {
+  color: #b5c5de;
+}
+
+.exercise-nav-link {
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #d4def0;
+  font-size: 14px;
+  transition:
+    color 0.2s,
+    background 0.2s;
+}
+
+.exercise-nav-link:hover {
+  background: rgb(255 255 255 / 8%);
+  color: white;
+}
+
+.exercise-nav-active {
+  background: rgb(255 223 144 / 12%);
+  color: #ffe5a6;
+  box-shadow: inset 0 -2px 0 #ffe5a6;
+}
+
+.exercise-page :is(a, button, input, select):focus-visible {
+  outline: 2px solid #ffe5a6;
+  outline-offset: 3px;
 }
 
 @media (prefers-reduced-motion: reduce) {

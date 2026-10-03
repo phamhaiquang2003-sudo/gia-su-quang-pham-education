@@ -3,6 +3,13 @@ import { LoaderCircle, LockKeyhole, Menu, Pause, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { accountError, type AccountProfile } from "@/lib/accounts";
 import {
+  getSubject,
+  subjectHref,
+  subjects,
+  ZALO_CONTACT_URL,
+  type SubjectId,
+} from "@/lib/subjects";
+import {
   Dialog,
   DialogClose,
   DialogContent,
@@ -13,51 +20,7 @@ import {
 
 const VIDEO_URL =
   "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260314_131748_f2ca2a28-fed7-44c8-b9a9-bd9acdd5ec31.mp4";
-const ZALO_CONTACT_URL = "https://zalo.me/0365900419";
 const displayFont = { fontFamily: "'Instrument Serif', serif" };
-
-const sections = {
-  Studio: {
-    title: "Room for a different kind of work.",
-    description:
-      "A studio for deep thinkers, bold creators, and quiet rebels. We explore thoughtful digital experiences that help ideas find their shape.",
-  },
-  About: {
-    title: "Less noise. More possibility.",
-    description:
-      "Velorah is a concept for intentional digital spaces. We believe the best ideas begin when you have the space to listen, explore, and create.",
-  },
-  Journal: {
-    title: "Notes from the quiet.",
-    description:
-      "Reflections on focus, creativity, and the spaces in between. This journal is part of the design concept; new stories can live here as the project grows.",
-  },
-  Assessments: {
-    title: "Luyện thi TSA/HSA/SPT",
-    description:
-      "Mục dành cho tài liệu và bài luyện đánh giá tư duy, đánh giá năng lực TSA, HSA và SPT.",
-  },
-  Entertainment: {
-    title: "Góc giải trí",
-    description: "Mục dành cho các hoạt động thư giãn và giải trí sau giờ học.",
-  },
-};
-
-type Section = keyof typeof sections;
-const navigation: Section[] = [
-  "Studio",
-  "About",
-  "Journal",
-  "Assessments",
-  "Entertainment",
-];
-const navigationLabels: Record<Section, string> = {
-  Studio: "Toán",
-  About: "Vật lý",
-  Journal: "KHTN",
-  Assessments: "TSA/HSA/SPT",
-  Entertainment: "Giải trí",
-};
 
 interface AppProps {
   profile?: AccountProfile | null;
@@ -81,7 +44,8 @@ export default function App({
   const manualPlaybackRef = useRef(false);
   const [playing, setPlaying] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
-  const [section, setSection] = useState<Section>("Studio");
+  const [section, setSection] = useState<SubjectId>("toan");
+  const selectedSubject = getSubject(section);
   const [accountOpen, setAccountOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
@@ -180,7 +144,7 @@ export default function App({
       preference.removeEventListener("change", respectMotionPreference);
   }, []);
 
-  function selectSection(value: Section, trigger: HTMLButtonElement) {
+  function selectSection(value: SubjectId, trigger: HTMLButtonElement) {
     mobileDialogRef.current = mobileMenuRef.current?.open ?? false;
     sectionTriggerRef.current = trigger;
     setSection(value);
@@ -256,19 +220,29 @@ export default function App({
               >
                 Trang chủ
               </a>
-              {navigation.map((item) => (
-                <DialogTrigger key={item} asChild>
-                  <button
-                    type="button"
-                    onClick={(event) =>
-                      selectSection(item, event.currentTarget)
-                    }
-                    className="cursor-pointer text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              {subjects.map((item) =>
+                profile ? (
+                  <a
+                    key={item.id}
+                    href={subjectHref(item.id)}
+                    className="text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    {navigationLabels[item]}
-                  </button>
-                </DialogTrigger>
-              ))}
+                    {item.label}
+                  </a>
+                ) : (
+                  <DialogTrigger key={item.id} asChild>
+                    <button
+                      type="button"
+                      onClick={(event) =>
+                        selectSection(item.id, event.currentTarget)
+                      }
+                      className="cursor-pointer text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {item.label}
+                    </button>
+                  </DialogTrigger>
+                ),
+              )}
               <a
                 href={ZALO_CONTACT_URL}
                 className="text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
@@ -320,19 +294,29 @@ export default function App({
                     >
                       Trang chủ
                     </a>
-                    {navigation.map((item) => (
-                      <DialogTrigger key={item} asChild>
-                        <button
-                          type="button"
-                          onClick={(event) =>
-                            selectSection(item, event.currentTarget)
-                          }
-                          className="shrink-0 cursor-pointer rounded-lg px-4 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    {subjects.map((item) =>
+                      profile ? (
+                        <a
+                          key={item.id}
+                          href={subjectHref(item.id)}
+                          className="shrink-0 rounded-lg px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
                         >
-                          {navigationLabels[item]}
-                        </button>
-                      </DialogTrigger>
-                    ))}
+                          {item.label}
+                        </a>
+                      ) : (
+                        <DialogTrigger key={item.id} asChild>
+                          <button
+                            type="button"
+                            onClick={(event) =>
+                              selectSection(item.id, event.currentTarget)
+                            }
+                            className="shrink-0 cursor-pointer rounded-lg px-4 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:text-foreground"
+                          >
+                            {item.label}
+                          </button>
+                        </DialogTrigger>
+                      ),
+                    )}
                     <a
                       href={ZALO_CONTACT_URL}
                       onClick={() => {
@@ -428,7 +412,7 @@ export default function App({
           <p
             className={`mb-5 text-xs tracking-[0.18em] ${requiresLogin ? "pr-4 text-amber-200" : "text-muted-foreground"}`}
           >
-            PHQ EDUCATION · {navigationLabels[section].toUpperCase()}
+            PHQ EDUCATION · {selectedSubject.label.toUpperCase()}
           </p>
           {requiresLogin ? (
             <>
@@ -450,7 +434,7 @@ export default function App({
               <DialogDescription className="mt-4 text-base leading-relaxed text-slate-200">
                 {accountLoading
                   ? "Vui lòng chờ trong giây lát."
-                  : `Vui lòng đăng nhập bằng tài khoản được giáo viên cấp để truy cập mục ${navigationLabels[section]}.`}
+                  : `Vui lòng đăng nhập bằng tài khoản được giáo viên cấp để truy cập mục ${selectedSubject.label}.`}
               </DialogDescription>
               <div className="mt-8 flex flex-col gap-3">
                 {!accountLoading && (
@@ -479,16 +463,14 @@ export default function App({
           ) : (
             <>
               <DialogTitle style={displayFont}>
-                {sections[section].title}
+                {selectedSubject.title}
               </DialogTitle>
               <DialogDescription>
-                {sections[section].description}
+                {selectedSubject.description}
               </DialogDescription>
-              <DialogClose asChild>
-                <Button variant="glass" size="glass" className="mt-8">
-                  Back to the moment
-                </Button>
-              </DialogClose>
+              <Button asChild variant="glass" size="glass" className="mt-8">
+                <a href={subjectHref(section)}>Mở trang bài tập</a>
+              </Button>
             </>
           )}
         </DialogContent>

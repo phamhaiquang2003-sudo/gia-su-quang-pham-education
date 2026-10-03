@@ -33,14 +33,17 @@ npm run preview    # Xem bản production trên máy
 
 ## Các tệp chính
 
-- `src/App.tsx`: video, điều hướng, nội dung hero và các hộp thoại mẫu.
+- `src/App.tsx`: video, điều hướng, nội dung hero và thông báo đăng nhập.
+- `src/pages/ExercisePage.tsx`: trang kho bài tập theo từng môn, tìm kiếm, danh mục, sắp xếp và trạng thái chưa có đề.
+- `src/lib/subjects.ts`: các mục học tập và đường dẫn `bai-tap.html?mon=...`.
+- `public/nen-dem-sao.html`: bản nền đêm sao từ tệp người dùng cung cấp; hiển thị phía sau trang bài tập.
 - `src/index.css`: bảng màu HSL, hiệu ứng kính và animation fade-rise.
 - `src/components/ui/`: các component shadcn/ui.
 - `components.json`: cấu hình để thêm component shadcn/ui.
 
 Video sử dụng trực tiếp URL CloudFront được cung cấp trong yêu cầu. Không có lớp phủ trang trí trên video. Có nút tạm dừng/phát; khi thiết bị bật giảm chuyển động, video được tạm dừng và animation được rút ngắn.
 
-Các nút **Đăng nhập** dẫn đến [`dang-nhap.html`](https://phamhaiquang2003-sudo.github.io/gia-su-quang-pham-education/dang-nhap.html). Form dùng Authentication để xác thực và kiểm tra hồ sơ Firestore được giáo viên cấp. Quản trị viên vào `quan-tri.html`; học sinh quay về trang chủ video. Nút góc trên bên phải đổi thành **Đăng xuất** và đăng xuất trực tiếp; nút giữa trang hiển thị **Xin chào, [họ tên]**. Bấm lời chào để mở thông tin tài khoản. `hoc-sinh.html` cũng dùng giao diện trang chủ cho tài khoản đã đăng nhập. Ghi nhớ dùng persistence của Firebase và chỉ lưu tên đăng nhập trong localStorage, không lưu mật khẩu. Khi chưa đăng nhập, bấm Toán, Vật lý, KHTN, TSA/HSA/SPT hoặc Giải trí sẽ hiện hộp thoại nổi bật **“Bạn cần đăng nhập để tiếp tục”**, kèm nút **Đăng nhập ngay**. Với tài khoản đã đăng nhập, các mục này hiện mở hộp thoại minh họa.
+Các nút **Đăng nhập** dẫn đến [`dang-nhap.html`](https://phamhaiquang2003-sudo.github.io/gia-su-quang-pham-education/dang-nhap.html). Form dùng Authentication để xác thực và kiểm tra hồ sơ Firestore được giáo viên cấp. Quản trị viên vào `quan-tri.html`; học sinh quay về trang chủ video. Nút góc trên bên phải đổi thành **Đăng xuất** và đăng xuất trực tiếp; nút giữa trang hiển thị **Xin chào, [họ tên]**. Bấm lời chào để mở thông tin tài khoản. `hoc-sinh.html` cũng dùng giao diện trang chủ cho tài khoản đã đăng nhập. Ghi nhớ dùng persistence của Firebase và chỉ lưu tên đăng nhập trong localStorage, không lưu mật khẩu. Khi chưa đăng nhập, bấm Toán, Vật lý, KHTN, TSA/HSA/SPT hoặc Giải trí sẽ hiện hộp thoại nổi bật **“Bạn cần đăng nhập để tiếp tục”**, kèm nút **Đăng nhập ngay**. Với tài khoản đã đăng nhập, các mục này mở trang **`bai-tap.html?mon=...`**. Trang bài tập dùng nền đêm sao, các khung kính tối, tìm kiếm, lọc danh mục và sắp xếp; chưa có đề được đăng tải nên hiển thị **0 bài kiểm tra**, không có mục mức phí hay đề mẫu. Truy cập trực tiếp cũng phải có phiên đăng nhập hợp lệ.
 
 ## Firebase và quản trị học sinh
 
