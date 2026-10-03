@@ -115,6 +115,19 @@ export default function App({
       ? "max-w-[calc(100vw-3rem)] whitespace-normal break-words"
       : "min-w-0 max-w-[22rem] shrink whitespace-normal break-words leading-snug max-sm:flex-1 max-sm:px-4 max-sm:text-xs";
     if (profile) {
+      if (!hero) {
+        return (
+          <Button
+            variant="glass"
+            size="glass"
+            className={classes}
+            onClick={() => void logout()}
+            disabled={loggingOut || !onLogout}
+          >
+            {loggingOut ? "Đang đăng xuất…" : "Đăng xuất"}
+          </Button>
+        );
+      }
       return (
         <Button
           variant="glass"
@@ -361,6 +374,14 @@ export default function App({
                 {playing ? <Pause /> : <Play />}
               </Button>
             </div>
+          )}
+          {logoutError && !accountOpen && (
+            <p
+              role="alert"
+              className="mt-5 max-w-xl rounded-xl border border-white/20 bg-background/75 p-4 text-sm text-red-300 backdrop-blur-md"
+            >
+              {logoutError}
+            </p>
           )}
         </main>
 
