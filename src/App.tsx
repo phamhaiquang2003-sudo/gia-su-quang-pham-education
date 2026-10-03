@@ -35,11 +35,6 @@ const sections = {
     description:
       "A place to connect with the studio. This is a frontend design preview; contact details and message delivery can be connected when you are ready.",
   },
-  Journey: {
-    title: "Your next chapter begins here.",
-    description:
-      "Make space for deep focus and inspired work. This is an interactive design preview of Velorah — a starting point for the experience you will build next.",
-  },
 };
 
 type Section = keyof typeof sections;
@@ -52,7 +47,7 @@ export default function App() {
   const manualPlaybackRef = useRef(false);
   const [playing, setPlaying] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
-  const [section, setSection] = useState<Section>("Journey");
+  const [section, setSection] = useState<Section>("Studio");
 
   useEffect(() => {
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -154,16 +149,16 @@ export default function App() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <DialogTrigger asChild>
-              <Button
-                variant="glass"
-                size="glass"
-                onClick={() => selectSection("Journey")}
-                className="max-sm:px-4"
-              >
+            <Button
+              asChild
+              variant="glass"
+              size="glass"
+              className="max-sm:px-4"
+            >
+              <a href={`${import.meta.env.BASE_URL}dang-nhap.html`}>
                 Đăng nhập
-              </Button>
-            </DialogTrigger>
+              </a>
+            </Button>
             <details
               ref={mobileMenuRef}
               className="mobile-navigation md:hidden"
@@ -231,15 +226,11 @@ export default function App() {
             </span>
           </h1>
           <div className="animate-fade-rise-delay-2 mt-12">
-            <DialogTrigger asChild>
-              <Button
-                variant="glass"
-                size="hero"
-                onClick={() => selectSection("Journey")}
-              >
+            <Button asChild variant="glass" size="hero">
+              <a href={`${import.meta.env.BASE_URL}dang-nhap.html`}>
                 Đăng nhập
-              </Button>
-            </DialogTrigger>
+              </a>
+            </Button>
           </div>
         </section>
 
@@ -269,8 +260,7 @@ export default function App() {
         }}
       >
         <p className="mb-5 text-xs tracking-[0.18em] text-muted-foreground">
-          VELORAH ·{" "}
-          {section === "Journey" ? "BEGIN JOURNEY" : section.toUpperCase()}
+          PHQ EDUCATION · {section.toUpperCase()}
         </p>
         <DialogTitle style={displayFont}>{sections[section].title}</DialogTitle>
         <DialogDescription>{sections[section].description}</DialogDescription>

@@ -9,4 +9,12 @@ export default defineConfig({
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
+  build: {
+    rolldownOptions: {
+      input: {
+        home: fileURLToPath(new URL("./index.html", import.meta.url)),
+        login: fileURLToPath(new URL("./dang-nhap.html", import.meta.url)),
+      },
+    },
+  },
 });

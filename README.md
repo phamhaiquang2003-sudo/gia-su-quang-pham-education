@@ -40,7 +40,7 @@ npm run preview    # Xem bản production trên máy
 
 Video sử dụng trực tiếp URL CloudFront được cung cấp trong yêu cầu. Không có lớp phủ trang trí trên video. Có nút tạm dừng/phát; khi thiết bị bật giảm chuyển động, video được tạm dừng và animation được rút ngắn.
 
-Các mục điều hướng và **Begin Journey** mở hộp thoại minh họa. Đây là giao diện frontend, chưa có đăng nhập, lưu dữ liệu hoặc gửi liên hệ.
+Các nút **Đăng nhập** dẫn đến trang riêng [`dang-nhap.html`](https://phamhaiquang2003-sudo.github.io/gia-su-quang-pham-education/dang-nhap.html), với form tên đăng nhập, mật khẩu, hiện/ẩn mật khẩu và ghi nhớ tên tài khoản trên thiết bị. Form được dựng trong `src/pages/LoginPage.tsx`; đây là giao diện frontend, chưa kết nối xác thực tài khoản. Mật khẩu không được lưu trong localStorage hay gửi lên máy chủ. Các mục điều hướng còn lại mở hộp thoại minh họa.
 
 Vite dùng `base: './'` để bản build có thể phục vụ dưới tiền tố kho GitHub Pages.
 

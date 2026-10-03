@@ -132,6 +132,23 @@
   display: none;
 }
 
+.login-page {
+  --background: 0 0% 98%;
+  --foreground: 0 0% 0%;
+  --muted-foreground: 0 0% 53%;
+  --primary: 0 0% 0%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 0 0% 94%;
+  --accent-foreground: 0 0% 0%;
+  --border: 0 0% 87%;
+  --input: 0 0% 87%;
+  --ring: 0 0% 20%;
+}
+
+.login-input[aria-invalid="true"] {
+  border-color: #dc2626;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
