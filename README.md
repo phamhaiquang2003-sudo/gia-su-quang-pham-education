@@ -1,6 +1,6 @@
 # gia-su-quang-pham-education
 
-Giao diện mẫu **Velorah®**: hero toàn màn hình với video lặp, thanh điều hướng và nút liquid glass, typography điện ảnh, responsive trên điện thoại.
+Website **PHQ Education / LumenPelagi®**: hero video, giao diện kính, đăng nhập học sinh và quản trị tài khoản bằng Firebase.
 
 **Website:** https://phamhaiquang2003-sudo.github.io/gia-su-quang-pham-education/
 
@@ -40,7 +40,15 @@ npm run preview    # Xem bản production trên máy
 
 Video sử dụng trực tiếp URL CloudFront được cung cấp trong yêu cầu. Không có lớp phủ trang trí trên video. Có nút tạm dừng/phát; khi thiết bị bật giảm chuyển động, video được tạm dừng và animation được rút ngắn.
 
-Các nút **Đăng nhập** dẫn đến trang riêng [`dang-nhap.html`](https://phamhaiquang2003-sudo.github.io/gia-su-quang-pham-education/dang-nhap.html), với form tên đăng nhập, mật khẩu, hiện/ẩn mật khẩu và ghi nhớ tên tài khoản trên thiết bị. Form được dựng trong `src/pages/LoginPage.tsx`; đây là giao diện frontend, chưa kết nối xác thực tài khoản. Mật khẩu không được lưu trong localStorage hay gửi lên máy chủ. Các mục điều hướng còn lại mở hộp thoại minh họa.
+Các nút **Đăng nhập** dẫn đến [`dang-nhap.html`](https://phamhaiquang2003-sudo.github.io/gia-su-quang-pham-education/dang-nhap.html). Khi đã cấu hình Firebase, form dùng Authentication để xác thực và kiểm tra hồ sơ Firestore được giáo viên cấp. Quản trị viên vào `quan-tri.html`; học sinh vào `hoc-sinh.html`. Ghi nhớ dùng persistence của Firebase và chỉ lưu tên đăng nhập trong localStorage, không lưu mật khẩu. Các mục điều hướng môn học hiện mở hộp thoại minh họa.
+
+## Firebase và quản trị học sinh
+
+Trang quản trị dựa theo mẫu: thêm từng tài khoản, thêm hàng loạt CSV, xem danh sách, khóa/mở khóa, cấp lại mật khẩu và xóa học sinh. Mật khẩu thuộc Firebase Authentication; dữ liệu hồ sơ thuộc Firestore. Các thao tác quản trị được xử lý bằng callable Cloud Functions, có kiểm tra custom claim và hồ sơ quản trị.
+
+![Trang quản trị được kiểm tra với Firebase Emulator](docs/preview-admin.png)
+
+**Hướng dẫn kích hoạt:** [docs/firebase-setup.md](docs/firebase-setup.md). Cần điền cấu hình Web của `phq-education`, triển khai Rules/Functions và cấp quyền cho quản trị viên đầu tiên. Cloud Functions trên dự án thật cần Blaze. Khi chưa có cấu hình, giao diện hiển thị thông báo chưa kết nối thay vì giả lập đăng nhập thành công.
 
 Form đăng nhập nằm trong thẻ xanh navy bo góc, có hiệu ứng kính, chữ sáng và ô nhập trong suốt đồng bộ với trang chủ. Phía sau là giao diện trang chủ cùng video được làm mờ. Nút **Quay lại** ở góc trên trái đưa về trang chủ.
 

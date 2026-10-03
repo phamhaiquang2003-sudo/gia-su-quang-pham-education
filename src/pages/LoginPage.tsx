@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import App from "@/App";
+import { accountDestination, accountError, loginAccount } from "@/lib/accounts";
+import { configurationMessage, firebaseConfigured } from "@/lib/firebase";
 import {
   Dialog,
   DialogClose,
@@ -35,7 +37,8 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(Boolean(initialUsername));
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({ username: "", password: "" });
-  const [submitted, setSubmitted] = useState(false);
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
@@ -51,14 +54,15 @@ export default function LoginPage() {
     }
   }, [remember, username]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy) return;
     const nextErrors = {
       username: username.trim() ? "" : "Vui lòng nhập tên đăng nhập.",
       password: password ? "" : "Vui lòng nhập mật khẩu.",
     };
     setErrors(nextErrors);
-    setSubmitted(false);
+    setStatus("");
     if (nextErrors.username) {
       usernameRef.current?.focus();
       return;
@@ -67,8 +71,16 @@ export default function LoginPage() {
       passwordRef.current?.focus();
       return;
     }
-    // This frontend form does not send credentials or simulate authentication.
-    setSubmitted(true);
+    setBusy(true);
+    try {
+      const profile = await loginAccount(username, password, remember);
+      setPassword("");
+      window.location.assign(accountDestination(profile));
+    } catch (error) {
+      setStatus(accountError(error));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -117,7 +129,12 @@ export default function LoginPage() {
           </p>
         </header>
 
-        <form className="mt-9" onSubmit={handleSubmit} noValidate>
+        <form
+          className="mt-9"
+          onSubmit={handleSubmit}
+          noValidate
+          aria-busy={busy}
+        >
           <div>
             <label
               htmlFor="login-username"
@@ -142,7 +159,7 @@ export default function LoginPage() {
                 onChange={(event) => {
                   setUsername(event.target.value);
                   setErrors((current) => ({ ...current, username: "" }));
-                  setSubmitted(false);
+                  setStatus("");
                 }}
                 className="login-input h-[62px] w-full rounded-[14px] border border-input bg-white/5 py-4 pl-[52px] pr-4 text-base text-foreground outline-none transition-colors placeholder:text-white/45 focus:border-white/50 focus:ring-2 focus:ring-white/10"
                 required
@@ -182,7 +199,7 @@ export default function LoginPage() {
                 onChange={(event) => {
                   setPassword(event.target.value);
                   setErrors((current) => ({ ...current, password: "" }));
-                  setSubmitted(false);
+                  setStatus("");
                 }}
                 className="login-input h-[62px] w-full rounded-[14px] border border-input bg-white/5 py-4 pl-[52px] pr-[54px] text-base text-foreground outline-none transition-colors placeholder:text-white/45 focus:border-white/50 focus:ring-2 focus:ring-white/10"
                 required
@@ -223,22 +240,27 @@ export default function LoginPage() {
             />
             Ghi nhớ tài khoản
           </label>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            Khi chọn, phiên đăng nhập được giữ trên thiết bị đến khi bạn đăng
+            xuất.
+          </p>
 
           <Button
             type="submit"
             variant="glass"
+            disabled={busy || !firebaseConfigured}
             className="mt-8 h-[62px] w-full rounded-[14px] text-[17px] font-semibold hover:bg-white/10"
           >
-            Đăng nhập <ArrowRight className="ml-1 size-5" />
+            {busy ? "Đang đăng nhập…" : "Đăng nhập"}{" "}
+            <ArrowRight className="ml-1 size-5" />
           </Button>
 
-          {submitted && (
+          {(status || !firebaseConfigured) && (
             <p
               role="status"
               className="mt-4 rounded-xl border border-input bg-white/5 p-4 text-sm leading-relaxed text-muted-foreground"
             >
-              Đây là form giao diện mẫu. Chức năng xác thực tài khoản chưa được
-              kết nối.
+              {status || configurationMessage}
             </p>
           )}
         </form>
