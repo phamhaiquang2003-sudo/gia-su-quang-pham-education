@@ -44,6 +44,8 @@ Các nút **Đăng nhập** dẫn đến [`dang-nhap.html`](https://phamhaiquang
 
 ## Firebase và quản trị học sinh
 
+Mục **Liên hệ gia sư** trên cả menu máy tính và điện thoại mở Zalo của Phạm Hải Quang tại **https://zalo.me/0365900419**, không yêu cầu đăng nhập.
+
 Trang quản trị dựa theo mẫu: thêm từng tài khoản, thêm hàng loạt CSV, xem danh sách, khóa/mở khóa, cấp lại mật khẩu và xóa học sinh. Mật khẩu thuộc Firebase Authentication; dữ liệu hồ sơ thuộc Firestore. **Dùng Firebase Spark miễn phí:** giáo viên thêm tài khoản, thêm hàng loạt và xóa tài khoản ngay trên website công khai. Một phiên Auth riêng trong bộ nhớ giữ nguyên phiên giáo viên khi tạo; Firestore Rules kiểm tra quyền trước khi cấp hồ sơ. Chức năng xóa chạy trên **Cloudflare Workers miễn phí**, kiểm tra ID token, quyền quản trị và trạng thái tài khoản; xóa cả Auth, hồ sơ và giữ chỗ tên đăng nhập. Để khóa/mở khóa hoặc cấp lại mật khẩu, nhấp đúp `quan-tri-mien-phi.bat`. Website hoạt động khi bạn tắt máy. Xem [hướng dẫn dịch vụ Cloudflare](docs/cloudflare-admin.md).
 
 ![Trang quản trị được kiểm tra với Firebase Emulator](docs/preview-admin.png)

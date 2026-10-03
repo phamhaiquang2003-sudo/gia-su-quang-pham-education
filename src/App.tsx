@@ -13,6 +13,7 @@ import {
 
 const VIDEO_URL =
   "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260314_131748_f2ca2a28-fed7-44c8-b9a9-bd9acdd5ec31.mp4";
+const ZALO_CONTACT_URL = "https://zalo.me/0365900419";
 const displayFont = { fontFamily: "'Instrument Serif', serif" };
 
 const sections = {
@@ -40,11 +41,6 @@ const sections = {
     title: "Góc giải trí",
     description: "Mục dành cho các hoạt động thư giãn và giải trí sau giờ học.",
   },
-  "Reach Us": {
-    title: "Every idea starts with a conversation.",
-    description:
-      "A place to connect with the studio. This is a frontend design preview; contact details and message delivery can be connected when you are ready.",
-  },
 };
 
 type Section = keyof typeof sections;
@@ -54,7 +50,6 @@ const navigation: Section[] = [
   "Journal",
   "Assessments",
   "Entertainment",
-  "Reach Us",
 ];
 const navigationLabels: Record<Section, string> = {
   Studio: "Toán",
@@ -62,7 +57,6 @@ const navigationLabels: Record<Section, string> = {
   Journal: "KHTN",
   Assessments: "TSA/HSA/SPT",
   Entertainment: "Giải trí",
-  "Reach Us": "Liên hệ gia sư",
 };
 
 interface AppProps {
@@ -94,7 +88,7 @@ export default function App({
   const greeting = profile ? `Xin chào, ${profile.displayName}` : "Đăng nhập";
   const desktopBreakpoint = profile ? "min-[1440px]:flex" : "lg:flex";
   const mobileBreakpoint = profile ? "min-[1440px]:hidden" : "lg:hidden";
-  const requiresLogin = section !== "Reach Us" && !profile;
+  const requiresLogin = !profile;
 
   useEffect(() => {
     if (!profile) setAccountOpen(false);
@@ -275,6 +269,12 @@ export default function App({
                   </button>
                 </DialogTrigger>
               ))}
+              <a
+                href={ZALO_CONTACT_URL}
+                className="text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Liên hệ gia sư
+              </a>
             </nav>
 
             <div
@@ -333,6 +333,16 @@ export default function App({
                         </button>
                       </DialogTrigger>
                     ))}
+                    <a
+                      href={ZALO_CONTACT_URL}
+                      onClick={() => {
+                        if (mobileMenuRef.current)
+                          mobileMenuRef.current.open = false;
+                      }}
+                      className="shrink-0 rounded-lg px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      Liên hệ gia sư
+                    </a>
                   </nav>
                 </div>
               </details>
