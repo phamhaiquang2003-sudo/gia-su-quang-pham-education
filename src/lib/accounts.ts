@@ -9,7 +9,6 @@ import {
   type User,
 } from "firebase/auth";
 import { doc, getDoc, type Timestamp } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
 import { getFirebase } from "./firebase";
 
 export interface AccountProfile {
@@ -35,6 +34,54 @@ export interface CreationResult {
 }
 
 export const usernamePattern = /^[a-z0-9][a-z0-9_-]{2,31}$/;
+export const localAdminEnabled =
+  import.meta.env.DEV && import.meta.env.VITE_LOCAL_ADMIN === "true";
+
+async function callLocalAdmin<T>(
+  operation: "createStudents" | "manageStudent",
+  data: unknown,
+): Promise<T> {
+  if (!localAdminEnabled) {
+    throw new Error(
+      "Mở quan-tri-mien-phi.bat trên máy tính để quản lý tài khoản bằng gói Spark.",
+    );
+  }
+  const user = getFirebase().auth.currentUser;
+  if (!user)
+    throw new FirebaseError("functions/unauthenticated", "Vui lòng đăng nhập.");
+  const token = await user.getIdToken();
+  let response: Response;
+  try {
+    response = await fetch(`/api/admin/${operation}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+      signal: AbortSignal.timeout(300_000),
+    });
+  } catch {
+    throw new Error(
+      "Không kết nối được công cụ quản trị trên máy. Hãy mở lại quan-tri-mien-phi.bat.",
+    );
+  }
+  let result;
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error(
+      "Công cụ quản trị chưa sẵn sàng. Hãy mở lại quan-tri-mien-phi.bat.",
+    );
+  }
+  if (!response.ok) {
+    throw new FirebaseError(
+      `functions/${result.error?.code || "internal"}`,
+      result.error?.message || "Không thể thực hiện yêu cầu.",
+    );
+  }
+  return result as T;
+}
 
 export function accountError(error: unknown): string {
   if (error instanceof FirebaseError) {
@@ -123,11 +170,11 @@ export function accountDestination(profile: AccountProfile) {
 }
 
 export async function createStudents(students: NewStudent[]) {
-  const call = httpsCallable<
-    { students: NewStudent[] },
-    { results: CreationResult[] }
-  >(getFirebase().functions, "createStudents", { timeout: 300_000 });
-  return (await call({ students })).data.results;
+  return (
+    await callLocalAdmin<{ results: CreationResult[] }>("createStudents", {
+      students,
+    })
+  ).results;
 }
 
 export async function manageStudent(
@@ -135,6 +182,9 @@ export async function manageStudent(
   action: "disable" | "enable" | "resetPassword" | "delete",
   password?: string,
 ) {
-  const call = httpsCallable(getFirebase().functions, "manageStudent");
-  await call({ uid, action, ...(password !== undefined ? { password } : {}) });
+  await callLocalAdmin("manageStudent", {
+    uid,
+    action,
+    ...(password !== undefined ? { password } : {}),
+  });
 }

@@ -44,11 +44,11 @@ Các nút **Đăng nhập** dẫn đến [`dang-nhap.html`](https://phamhaiquang
 
 ## Firebase và quản trị học sinh
 
-Trang quản trị dựa theo mẫu: thêm từng tài khoản, thêm hàng loạt CSV, xem danh sách, khóa/mở khóa, cấp lại mật khẩu và xóa học sinh. Mật khẩu thuộc Firebase Authentication; dữ liệu hồ sơ thuộc Firestore. Các thao tác quản trị được xử lý bằng callable Cloud Functions, có kiểm tra custom claim và hồ sơ quản trị.
+Trang quản trị dựa theo mẫu: thêm từng tài khoản, thêm hàng loạt CSV, xem danh sách, khóa/mở khóa, cấp lại mật khẩu và xóa học sinh. Mật khẩu thuộc Firebase Authentication; dữ liệu hồ sơ thuộc Firestore. **Dùng Firebase Spark miễn phí:** nhấp đúp `quan-tri-mien-phi.bat` để quản lý tài khoản trên máy bằng Admin SDK, với kiểm tra custom claim và hồ sơ quản trị. Website học sinh vẫn hoạt động khi bạn tắt máy.
 
 ![Trang quản trị được kiểm tra với Firebase Emulator](docs/preview-admin.png)
 
-**Hướng dẫn kích hoạt:** [docs/firebase-setup.md](docs/firebase-setup.md). Cấu hình Web của `phq-education` đã được tích hợp. Còn cần triển khai Rules/Functions và cấp quyền cho quản trị viên đầu tiên. Cloud Functions trên dự án thật cần Blaze. Cấu hình phát triển có thể được ghi đè bằng `VITE_FIREBASE_CONFIG`; cấu hình không hợp lệ sẽ hiển thị thông báo chưa kết nối thay vì giả lập đăng nhập thành công.
+**Hướng dẫn kích hoạt:** [docs/firebase-setup.md](docs/firebase-setup.md). Cấu hình Web của `phq-education` đã được tích hợp. Còn cần áp dụng Firestore Rules và tạo quản trị viên đầu tiên. Công cụ local dùng khóa Service Account lưu ngoài dự án; không cần triển khai Cloud Functions hay bật thanh toán. Cấu hình phát triển có thể được ghi đè bằng `VITE_FIREBASE_CONFIG`.
 
 Form đăng nhập nằm trong thẻ xanh navy bo góc, có hiệu ứng kính, chữ sáng và ô nhập trong suốt đồng bộ với trang chủ. Phía sau là giao diện trang chủ cùng video được làm mờ. Nút **Quay lại** ở góc trên trái đưa về trang chủ.
 

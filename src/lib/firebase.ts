@@ -1,7 +1,6 @@
 import { initializeApp, type FirebaseOptions } from "firebase/app";
 import { connectAuthEmulator, getAuth } from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
-import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
 import { firebaseWebConfig } from "./firebase-config";
 
 function readConfiguration(): FirebaseOptions | null {
@@ -42,10 +41,6 @@ function initializeServices() {
   const app = initializeApp(config);
   const auth = getAuth(app);
   const db = getFirestore(app);
-  const functions = getFunctions(
-    app,
-    import.meta.env.VITE_FIREBASE_FUNCTIONS_REGION || "asia-southeast1",
-  );
   if (
     import.meta.env.DEV &&
     import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true"
@@ -54,9 +49,8 @@ function initializeServices() {
       disableWarnings: true,
     });
     connectFirestoreEmulator(db, "127.0.0.1", 8080);
-    connectFunctionsEmulator(functions, "127.0.0.1", 5001);
   }
-  return { auth, db, functions };
+  return { auth, db };
 }
 
 let services: ReturnType<typeof initializeServices> | undefined;

@@ -1,9 +1,11 @@
 // Run on a trusted local machine using Application Default Credentials.
 // Never bundle this file or service-account credentials into the website.
-const { initializeApp, applicationDefault } = require("firebase-admin/app");
+const { initializeLocalFirebase } = require("../local-firebase");
 const { getAuth } = require("firebase-admin/auth");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { usernamePattern } = require("../validation");
+
+let database;
 
 async function main() {
   const [uid, rawUsername, displayName] = process.argv.slice(2);
@@ -18,22 +20,10 @@ async function main() {
       'Usage: npm run bootstrap-admin -- "AUTH_UID" "admin" "Phạm Hải Quang"',
     );
   }
-  const projectId = process.env.GCLOUD_PROJECT || "phq-education";
-  const emulator =
-    process.env.FIREBASE_AUTH_EMULATOR_HOST &&
-    process.env.FIRESTORE_EMULATOR_HOST;
-  if (
-    projectId !== "phq-education" &&
-    !(projectId === "demo-phq-education" && emulator)
-  ) {
-    throw new Error("Unexpected Firebase project ID.");
-  }
-  const app = initializeApp({
-    projectId,
-    ...(emulator ? {} : { credential: applicationDefault() }),
-  });
+  const app = initializeLocalFirebase();
   const auth = getAuth(app);
   const db = getFirestore(app);
+  database = db;
   const user = await auth.getUser(uid);
   if (user.disabled)
     throw new Error(
@@ -69,7 +59,9 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  console.error(error.message);
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  })
+  .finally(() => database?.terminate());

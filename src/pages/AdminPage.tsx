@@ -22,6 +22,7 @@ import {
   accountError,
   createStudents,
   manageStudent,
+  localAdminEnabled,
   usernamePattern,
   type AccountProfile,
   type CreationResult,
@@ -35,7 +36,7 @@ type Action = "disable" | "enable" | "resetPassword" | "delete";
 
 export default function AdminPage() {
   const session = useAccount();
-  const [tab, setTab] = useState<Tab>("add");
+  const [tab, setTab] = useState<Tab>(localAdminEnabled ? "add" : "list");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -64,6 +65,11 @@ export default function AdminPage() {
       setSelected(null);
     }
   }, [session.loading, session.profile]);
+
+  useEffect(() => {
+    if (session.profile?.role === "admin" && !localAdminEnabled)
+      void loadStudents();
+  }, [session.profile?.uid]);
 
   async function loadStudents(more = false) {
     if (loadingList || session.profile?.role !== "admin") return;
@@ -201,6 +207,11 @@ export default function AdminPage() {
               <LogOut className="size-4" /> Đăng xuất
             </button>
           </header>
+          <p className="mb-6 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-relaxed text-sky-900">
+            {localAdminEnabled
+              ? "Quản trị trên máy tính · Firebase Spark. Tài khoản và hồ sơ được lưu trực tiếp trên Firebase."
+              : "Firebase Spark: mở tệp quan-tri-mien-phi.bat trong thư mục dự án trên máy tính để thêm, khóa hoặc cấp lại mật khẩu học sinh. Bạn có thể xem danh sách tài khoản tại đây."}
+          </p>
           <div
             className="mb-6 flex flex-wrap gap-2"
             role="tablist"
@@ -221,7 +232,9 @@ export default function AdminPage() {
                 aria-controls={`panel-${value}`}
                 tabIndex={tab === value ? 0 : -1}
                 onKeyDown={(event) => {
-                  const values: Tab[] = ["add", "bulk", "list"];
+                  const values: Tab[] = localAdminEnabled
+                    ? ["add", "bulk", "list"]
+                    : ["list"];
                   const position = values.indexOf(value);
                   const next =
                     event.key === "ArrowRight"
@@ -239,7 +252,7 @@ export default function AdminPage() {
                     document.getElementById(`tab-${next}`)?.focus();
                   }
                 }}
-                disabled={busy}
+                disabled={busy || (!localAdminEnabled && value !== "list")}
                 className={
                   tab === value ? "account-button" : "account-button-secondary"
                 }
@@ -433,7 +446,9 @@ export default function AdminPage() {
                             <button
                               key={action}
                               className={`account-button-secondary text-xs ${action === "delete" ? "text-red-700" : ""}`}
-                              disabled={busy || loadingList}
+                              disabled={
+                                busy || loadingList || !localAdminEnabled
+                              }
                               onClick={() => {
                                 setMessage("");
                                 setNewPassword("");
