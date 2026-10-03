@@ -92,9 +92,13 @@ export default function LoginPage() {
       </a>
       <div className="login-page relative z-10 w-full max-w-[526px] rounded-[26px] border border-white/80 bg-white p-7 text-foreground shadow-[0_20px_65px_rgba(0,0,0,0.14)] sm:px-11 sm:py-14">
         <header className="text-center">
-          <div className="mb-6 text-[48px] leading-none" aria-hidden="true">
-            🎓
-          </div>
+          <img
+            src={`${import.meta.env.BASE_URL}logo-lumenpelagi.png`}
+            alt="Logo PHQ Education"
+            width={256}
+            height={256}
+            className="mx-auto mb-6 size-16 object-contain"
+          />
           <a
             href={import.meta.env.BASE_URL}
             className="inline-block rounded-sm text-[28px] font-bold leading-tight tracking-[-0.055em] outline-none focus-visible:ring-2 focus-visible:ring-ring"
