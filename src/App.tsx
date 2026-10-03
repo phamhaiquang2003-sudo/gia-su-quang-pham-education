@@ -161,7 +161,7 @@ export default function App() {
                 onClick={() => selectSection("Journey")}
                 className="max-sm:px-4"
               >
-                Begin Journey
+                Đăng nhập
               </Button>
             </DialogTrigger>
             <details
@@ -237,7 +237,7 @@ export default function App() {
                 size="hero"
                 onClick={() => selectSection("Journey")}
               >
-                Begin Journey
+                Đăng nhập
               </Button>
             </DialogTrigger>
           </div>
