@@ -46,6 +46,7 @@ export function useAccount() {
                 "Tài khoản không còn quyền truy cập. Vui lòng liên hệ giáo viên.",
               );
             } else {
+              setError("");
               setProfile({ ...updated, uid: user.uid } as AccountProfile);
             }
           },
@@ -69,9 +70,11 @@ export function useAccount() {
     };
   }, []);
 
-  async function logout() {
+  async function logout(
+    destination = `${import.meta.env.BASE_URL}dang-nhap.html`,
+  ) {
     await signOut(getFirebase().auth);
-    window.location.assign(`${import.meta.env.BASE_URL}dang-nhap.html`);
+    window.location.assign(destination);
   }
 
   return { profile, loading, error, logout };

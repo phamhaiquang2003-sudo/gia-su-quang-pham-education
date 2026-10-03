@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Menu, Pause, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { accountError, type AccountProfile } from "@/lib/accounts";
 import {
   Dialog,
   DialogClose,
@@ -64,14 +65,96 @@ const navigationLabels: Record<Section, string> = {
   "Reach Us": "Liên hệ gia sư",
 };
 
-export default function App() {
+interface AppProps {
+  profile?: AccountProfile | null;
+  accountLoading?: boolean;
+  accountMessage?: string;
+  onLogout?: () => Promise<void>;
+}
+
+export default function App({
+  profile = null,
+  accountLoading = false,
+  accountMessage = "",
+  onLogout,
+}: AppProps = {}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mobileMenuRef = useRef<HTMLDetailsElement>(null);
   const mobileDialogRef = useRef(false);
+  const accountTriggerRef = useRef<HTMLButtonElement | null>(null);
   const manualPlaybackRef = useRef(false);
   const [playing, setPlaying] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
   const [section, setSection] = useState<Section>("Studio");
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+  const greeting = profile ? `Xin chào, ${profile.displayName}` : "Đăng nhập";
+  const desktopBreakpoint = profile ? "min-[1440px]:flex" : "lg:flex";
+  const mobileBreakpoint = profile ? "min-[1440px]:hidden" : "lg:hidden";
+
+  useEffect(() => {
+    if (!profile) setAccountOpen(false);
+  }, [profile]);
+
+  async function logout() {
+    if (!onLogout || loggingOut) return;
+    setLoggingOut(true);
+    setLogoutError("");
+    try {
+      await onLogout();
+    } catch (error) {
+      setLogoutError(accountError(error));
+    } finally {
+      setLoggingOut(false);
+    }
+  }
+
+  function accountAction(hero = false) {
+    const classes = hero
+      ? "max-w-[calc(100vw-3rem)] whitespace-normal break-words"
+      : "min-w-0 max-w-[22rem] shrink whitespace-normal break-words leading-snug max-sm:flex-1 max-sm:px-4 max-sm:text-xs";
+    if (profile) {
+      return (
+        <Button
+          variant="glass"
+          size={hero ? "hero" : "glass"}
+          className={classes}
+          onClick={(event) => {
+            accountTriggerRef.current = event.currentTarget;
+            setLogoutError("");
+            setAccountOpen(true);
+          }}
+          aria-haspopup="dialog"
+        >
+          {greeting}
+        </Button>
+      );
+    }
+    if (accountLoading) {
+      return (
+        <Button
+          variant="glass"
+          size={hero ? "hero" : "glass"}
+          className={hero ? "" : "max-sm:px-4"}
+          disabled
+          aria-busy="true"
+        >
+          Đang kiểm tra…
+        </Button>
+      );
+    }
+    return (
+      <Button
+        asChild
+        variant="glass"
+        size={hero ? "hero" : "glass"}
+        className={hero ? "" : "max-sm:px-4"}
+      >
+        <a href={`${import.meta.env.BASE_URL}dang-nhap.html`}>Đăng nhập</a>
+      </Button>
+    );
+  }
 
   useEffect(() => {
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -109,191 +192,238 @@ export default function App() {
   }
 
   return (
-    <Dialog>
-      <main
-        id="home"
-        className="relative isolate flex min-h-svh flex-col overflow-hidden bg-background"
-      >
-        <video
-          ref={videoRef}
-          className="absolute inset-0 z-0 h-full w-full object-cover"
-          src={VIDEO_URL}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-          aria-hidden="true"
-          onPlay={(event) => {
-            if (
-              window.matchMedia("(prefers-reduced-motion: reduce)").matches &&
-              !manualPlaybackRef.current
-            ) {
-              event.currentTarget.pause();
-            } else {
-              setPlaying(true);
-            }
-          }}
-          onPause={() => setPlaying(false)}
-          onError={() => setVideoFailed(true)}
-        />
+    <>
+      <Dialog>
+        <main
+          id="home"
+          className="relative isolate flex min-h-svh flex-col overflow-hidden bg-background"
+        >
+          <video
+            ref={videoRef}
+            className="absolute inset-0 z-0 h-full w-full object-cover"
+            src={VIDEO_URL}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            aria-hidden="true"
+            onPlay={(event) => {
+              if (
+                window.matchMedia("(prefers-reduced-motion: reduce)").matches &&
+                !manualPlaybackRef.current
+              ) {
+                event.currentTarget.pause();
+              } else {
+                setPlaying(true);
+              }
+            }}
+            onPause={() => setPlaying(false)}
+            onError={() => setVideoFailed(true)}
+          />
 
-        <header className="relative z-20 mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-8 py-6">
-          <a
-            href="#home"
-            className="text-3xl tracking-tight text-foreground outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
-            style={displayFont}
-            aria-label="LumenPelagi home"
-          >
-            LumenPelagi<sup className="ml-0.5 text-xs">®</sup>
-          </a>
-
-          <nav
-            aria-label="Main navigation"
-            className="liquid-glass hidden items-center gap-4 whitespace-nowrap rounded-full px-5 py-3 lg:flex xl:gap-7 xl:px-7"
+          <header
+            className={`relative z-20 mx-auto flex w-full items-center justify-between gap-4 py-6 ${profile ? "max-w-[1600px] flex-wrap px-4 sm:flex-nowrap sm:px-8" : "max-w-7xl px-8"}`}
           >
             <a
               href="#home"
-              aria-current="page"
-              className="text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
+              className="shrink-0 text-3xl tracking-tight text-foreground outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
+              style={displayFont}
+              aria-label="LumenPelagi home"
             >
-              Trang chủ
+              LumenPelagi<sup className="ml-0.5 text-xs">®</sup>
             </a>
-            {navigation.map((item) => (
-              <DialogTrigger key={item} asChild>
-                <button
-                  type="button"
-                  onClick={() => selectSection(item)}
-                  className="cursor-pointer text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {navigationLabels[item]}
-                </button>
-              </DialogTrigger>
-            ))}
-          </nav>
 
-          <div className="flex items-center gap-3">
-            <Button
-              asChild
-              variant="glass"
-              size="glass"
-              className="max-sm:px-4"
+            <nav
+              aria-label="Main navigation"
+              className={`liquid-glass hidden shrink-0 items-center gap-4 whitespace-nowrap rounded-full px-5 py-3 ${desktopBreakpoint} xl:gap-7 xl:px-7`}
             >
-              <a href={`${import.meta.env.BASE_URL}dang-nhap.html`}>
-                Đăng nhập
-              </a>
-            </Button>
-            <details
-              ref={mobileMenuRef}
-              className="mobile-navigation lg:hidden"
-              onKeyDown={(event) => {
-                if (event.key === "Escape" && mobileMenuRef.current) {
-                  mobileMenuRef.current.open = false;
-                  mobileMenuRef.current.querySelector("summary")?.focus();
-                }
-              }}
-            >
-              <summary
-                className="liquid-glass flex size-10 cursor-pointer items-center justify-center rounded-full text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="Toggle navigation"
+              <a
+                href="#home"
+                aria-current="page"
+                className="text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <Menu className="menu-open-icon size-4" />
-                <X className="menu-close-icon size-4" />
-              </summary>
-              <div className="absolute right-8 top-22">
-                <nav
-                  aria-label="Mobile navigation"
-                  className="liquid-glass flex w-56 flex-col gap-1 rounded-2xl p-3"
-                >
-                  <a
-                    href="#home"
-                    aria-current="page"
-                    onClick={() => {
-                      if (mobileMenuRef.current)
-                        mobileMenuRef.current.open = false;
-                    }}
-                    className="shrink-0 rounded-lg px-4 py-2.5 text-sm text-foreground"
+                Trang chủ
+              </a>
+              {navigation.map((item) => (
+                <DialogTrigger key={item} asChild>
+                  <button
+                    type="button"
+                    onClick={() => selectSection(item)}
+                    className="cursor-pointer text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    Trang chủ
-                  </a>
-                  {navigation.map((item) => (
-                    <DialogTrigger key={item} asChild>
-                      <button
-                        type="button"
-                        onClick={() => selectSection(item)}
-                        className="shrink-0 cursor-pointer rounded-lg px-4 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:text-foreground"
-                      >
-                        {navigationLabels[item]}
-                      </button>
-                    </DialogTrigger>
-                  ))}
-                </nav>
-              </div>
-            </details>
-          </div>
-        </header>
+                    {navigationLabels[item]}
+                  </button>
+                </DialogTrigger>
+              ))}
+            </nav>
 
-        <section
-          aria-labelledby="hero-title"
-          className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-40 pt-32 text-center md:py-[90px]"
-        >
-          <h1
-            id="hero-title"
-            className="animate-fade-rise w-full max-w-7xl text-[clamp(1rem,5vw,4.5rem)] font-normal leading-[1.15] tracking-[-0.02em] text-foreground"
-            style={displayFont}
+            <div
+              className={`flex min-w-0 items-center gap-3 ${profile ? "w-full justify-between sm:w-auto" : ""}`}
+            >
+              {accountAction()}
+              <details
+                ref={mobileMenuRef}
+                className={`mobile-navigation shrink-0 ${mobileBreakpoint}`}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape" && mobileMenuRef.current) {
+                    mobileMenuRef.current.open = false;
+                    mobileMenuRef.current.querySelector("summary")?.focus();
+                  }
+                }}
+              >
+                <summary
+                  className="liquid-glass flex size-10 cursor-pointer items-center justify-center rounded-full text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="Toggle navigation"
+                >
+                  <Menu className="menu-open-icon size-4" />
+                  <X className="menu-close-icon size-4" />
+                </summary>
+                <div
+                  className={
+                    profile
+                      ? "absolute right-4 top-full sm:right-8"
+                      : "absolute right-8 top-22"
+                  }
+                >
+                  <nav
+                    aria-label="Mobile navigation"
+                    className="liquid-glass flex w-56 flex-col gap-1 rounded-2xl p-3"
+                  >
+                    <a
+                      href="#home"
+                      aria-current="page"
+                      onClick={() => {
+                        if (mobileMenuRef.current)
+                          mobileMenuRef.current.open = false;
+                      }}
+                      className="shrink-0 rounded-lg px-4 py-2.5 text-sm text-foreground"
+                    >
+                      Trang chủ
+                    </a>
+                    {navigation.map((item) => (
+                      <DialogTrigger key={item} asChild>
+                        <button
+                          type="button"
+                          onClick={() => selectSection(item)}
+                          className="shrink-0 cursor-pointer rounded-lg px-4 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          {navigationLabels[item]}
+                        </button>
+                      </DialogTrigger>
+                    ))}
+                  </nav>
+                </div>
+              </details>
+            </div>
+          </header>
+
+          <section
+            aria-labelledby="hero-title"
+            className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-40 pt-32 text-center md:py-[90px]"
           >
-            <span className="block whitespace-nowrap">
-              Học hỏi không phải là công việc của tuổi trẻ;
-            </span>{" "}
-            <span className="block whitespace-nowrap">
-              đó là công việc của cả đời
-            </span>
-          </h1>
-          <div className="animate-fade-rise-delay-2 mt-12">
-            <Button asChild variant="glass" size="hero">
-              <a href={`${import.meta.env.BASE_URL}dang-nhap.html`}>
-                Đăng nhập
+            <h1
+              id="hero-title"
+              className="animate-fade-rise w-full max-w-7xl text-[clamp(1rem,5vw,4.5rem)] font-normal leading-[1.15] tracking-[-0.02em] text-foreground"
+              style={displayFont}
+            >
+              <span className="block whitespace-nowrap">
+                Học hỏi không phải là công việc của tuổi trẻ;
+              </span>{" "}
+              <span className="block whitespace-nowrap">
+                đó là công việc của cả đời
+              </span>
+            </h1>
+            <div className="animate-fade-rise-delay-2 mt-12">
+              {accountAction(true)}
+            </div>
+            {accountMessage && (
+              <p
+                role="status"
+                className="mt-5 max-w-xl rounded-xl border border-white/20 bg-background/75 p-4 text-sm leading-relaxed text-foreground backdrop-blur-md"
+              >
+                {accountMessage}
+              </p>
+            )}
+          </section>
+
+          {!videoFailed && (
+            <div className="absolute bottom-6 right-8 z-10">
+              <Button
+                variant="glass"
+                size="icon"
+                className="text-white/70 hover:text-white"
+                onClick={toggleVideo}
+                aria-label={
+                  playing ? "Pause background video" : "Play background video"
+                }
+              >
+                {playing ? <Pause /> : <Play />}
+              </Button>
+            </div>
+          )}
+        </main>
+
+        <DialogContent
+          onCloseAutoFocus={(event) => {
+            if (mobileDialogRef.current) {
+              event.preventDefault();
+              mobileMenuRef.current?.querySelector("summary")?.focus();
+            }
+          }}
+        >
+          <p className="mb-5 text-xs tracking-[0.18em] text-muted-foreground">
+            PHQ EDUCATION · {navigationLabels[section].toUpperCase()}
+          </p>
+          <DialogTitle style={displayFont}>
+            {sections[section].title}
+          </DialogTitle>
+          <DialogDescription>{sections[section].description}</DialogDescription>
+          <DialogClose asChild>
+            <Button variant="glass" size="glass" className="mt-8">
+              Back to the moment
+            </Button>
+          </DialogClose>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={accountOpen && Boolean(profile)}
+        onOpenChange={setAccountOpen}
+      >
+        <DialogContent
+          className="login-page"
+          onCloseAutoFocus={(event) => {
+            if (accountTriggerRef.current?.isConnected) {
+              event.preventDefault();
+              accountTriggerRef.current.focus();
+            }
+          }}
+        >
+          <DialogTitle className="break-words text-2xl">{greeting}</DialogTitle>
+          <DialogDescription className="break-words">
+            Bạn đang đăng nhập bằng tài khoản @{profile?.username}.
+          </DialogDescription>
+          {profile?.role === "admin" && (
+            <Button asChild variant="glass">
+              <a href={`${import.meta.env.BASE_URL}quan-tri.html`}>
+                Trang quản trị
               </a>
             </Button>
-          </div>
-        </section>
-
-        {!videoFailed && (
-          <div className="absolute bottom-6 right-8 z-10">
-            <Button
-              variant="glass"
-              size="icon"
-              className="text-white/70 hover:text-white"
-              onClick={toggleVideo}
-              aria-label={
-                playing ? "Pause background video" : "Play background video"
-              }
-            >
-              {playing ? <Pause /> : <Play />}
-            </Button>
-          </div>
-        )}
-      </main>
-
-      <DialogContent
-        onCloseAutoFocus={(event) => {
-          if (mobileDialogRef.current) {
-            event.preventDefault();
-            mobileMenuRef.current?.querySelector("summary")?.focus();
-          }
-        }}
-      >
-        <p className="mb-5 text-xs tracking-[0.18em] text-muted-foreground">
-          PHQ EDUCATION · {navigationLabels[section].toUpperCase()}
-        </p>
-        <DialogTitle style={displayFont}>{sections[section].title}</DialogTitle>
-        <DialogDescription>{sections[section].description}</DialogDescription>
-        <DialogClose asChild>
-          <Button variant="glass" size="glass" className="mt-8">
-            Back to the moment
+          )}
+          {logoutError && (
+            <p role="alert" className="text-sm text-red-300">
+              {logoutError}
+            </p>
+          )}
+          <Button
+            variant="glass"
+            onClick={() => void logout()}
+            disabled={loggingOut || !onLogout}
+          >
+            {loggingOut ? "Đang đăng xuất…" : "Đăng xuất"}
           </Button>
-        </DialogClose>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

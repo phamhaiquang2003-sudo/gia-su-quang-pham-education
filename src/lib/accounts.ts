@@ -166,7 +166,9 @@ export async function loginAccount(
 }
 
 export function accountDestination(profile: AccountProfile) {
-  return `${import.meta.env.BASE_URL}${profile.role === "admin" ? "quan-tri" : "hoc-sinh"}.html`;
+  return profile.role === "admin"
+    ? `${import.meta.env.BASE_URL}quan-tri.html`
+    : import.meta.env.BASE_URL;
 }
 
 export async function createStudents(students: NewStudent[]) {

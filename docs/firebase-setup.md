@@ -11,6 +11,7 @@ Website dùng gói **Spark**, không cần liên kết thanh toán. Authenticati
 - Giáo viên cấp tài khoản học sinh. Form không có đăng ký; tài khoản Auth không có hồ sơ được cấp cũng không được vào hệ thống. Tất cả quyền đọc/ghi được kiểm tra bằng Rules hoặc phía máy chủ.
 - Không lưu mật khẩu hay hash mật khẩu trong Firestore. Khi quản trị, trình duyệt gửi yêu cầu có ID token đến dịch vụ trên máy; dịch vụ dùng Admin SDK gửi dữ liệu tới Firebase.
 - Khi bạn tắt máy, học sinh vẫn đăng nhập và đọc hồ sơ trên Firebase. Máy chỉ cần mở khi bạn quản lý tài khoản.
+- Học sinh đăng nhập thành công được chuyển về trang chủ video. Hai nút “Đăng nhập” đổi thành “Xin chào, [họ tên]”; bấm lời chào để đăng xuất. Tải lại trang vẫn giữ lời chào nếu phiên còn hợp lệ. Đường dẫn `hoc-sinh.html` cũng hiển thị giao diện này sau khi kiểm tra quyền.
 
 ## 1. Cấu hình ứng dụng Web
 
