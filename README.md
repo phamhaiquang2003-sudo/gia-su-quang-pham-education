@@ -42,6 +42,8 @@ Video sử dụng trực tiếp URL CloudFront được cung cấp trong yêu c�
 
 Các nút **Đăng nhập** dẫn đến trang riêng [`dang-nhap.html`](https://phamhaiquang2003-sudo.github.io/gia-su-quang-pham-education/dang-nhap.html), với form tên đăng nhập, mật khẩu, hiện/ẩn mật khẩu và ghi nhớ tên tài khoản trên thiết bị. Form được dựng trong `src/pages/LoginPage.tsx`; đây là giao diện frontend, chưa kết nối xác thực tài khoản. Mật khẩu không được lưu trong localStorage hay gửi lên máy chủ. Các mục điều hướng còn lại mở hộp thoại minh họa.
 
+Form đăng nhập nằm trong thẻ trắng bo góc, phía sau là giao diện trang chủ cùng video được làm mờ. Nút **Quay lại** ở góc trên trái đưa về trang chủ.
+
 Vite dùng `base: './'` để bản build có thể phục vụ dưới tiền tố kho GitHub Pages.
 
 ## Cập nhật website

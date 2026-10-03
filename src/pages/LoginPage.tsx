@@ -8,6 +8,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import App from "@/App";
 import {
   Dialog,
   DialogClose,
@@ -71,8 +72,25 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="login-page flex min-h-svh flex-col items-center justify-center bg-background px-6 py-10 text-foreground sm:py-12">
-      <div className="w-full max-w-[432px]">
+    <main className="relative isolate flex min-h-svh flex-col items-center justify-center px-4 pb-6 pt-24 sm:px-8 sm:py-8">
+      <div
+        className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
+        aria-hidden="true"
+        inert
+      >
+        <App />
+      </div>
+      <div
+        className="pointer-events-none fixed inset-0 z-0 bg-white/65 backdrop-blur-[4px]"
+        aria-hidden="true"
+      />
+      <a
+        href={import.meta.env.BASE_URL}
+        className="fixed left-5 top-6 z-20 inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/95 px-6 py-3.5 text-sm text-black shadow-sm outline-none transition-colors hover:bg-white focus-visible:ring-2 focus-visible:ring-neutral-600"
+      >
+        <ArrowLeft className="size-4" aria-hidden="true" /> Quay lại
+      </a>
+      <div className="login-page relative z-10 w-full max-w-[526px] rounded-[26px] border border-white/80 bg-white p-7 text-foreground shadow-[0_20px_65px_rgba(0,0,0,0.14)] sm:px-11 sm:py-14">
         <header className="text-center">
           <div className="mb-6 text-[48px] leading-none" aria-hidden="true">
             🎓
@@ -245,13 +263,6 @@ export default function LoginPage() {
             </DialogContent>
           </Dialog>
         </footer>
-
-        <a
-          href={import.meta.env.BASE_URL}
-          className="mx-auto mt-7 flex w-fit items-center gap-2 rounded-sm text-xs text-neutral-400 outline-none transition-colors hover:text-neutral-700 focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <ArrowLeft className="size-3.5" aria-hidden="true" /> Về trang chủ
-        </a>
       </div>
     </main>
   );
