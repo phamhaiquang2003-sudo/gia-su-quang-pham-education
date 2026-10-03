@@ -81,16 +81,16 @@ export default function LoginPage() {
         <App />
       </div>
       <div
-        className="pointer-events-none fixed inset-0 z-0 bg-white/65 backdrop-blur-[4px]"
+        className="pointer-events-none fixed inset-0 z-0 bg-background/25 backdrop-blur-[4px]"
         aria-hidden="true"
       />
       <a
         href={import.meta.env.BASE_URL}
-        className="fixed left-5 top-6 z-20 inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/95 px-6 py-3.5 text-sm text-black shadow-sm outline-none transition-colors hover:bg-white focus-visible:ring-2 focus-visible:ring-neutral-600"
+        className="fixed left-5 top-6 z-20 inline-flex items-center gap-2 rounded-full border border-white/20 bg-background/70 px-6 py-3.5 text-sm text-white shadow-sm backdrop-blur-md outline-none transition-colors hover:bg-background/90 focus-visible:ring-2 focus-visible:ring-white/70"
       >
         <ArrowLeft className="size-4" aria-hidden="true" /> Quay lại
       </a>
-      <div className="login-page relative z-10 w-full max-w-[526px] rounded-[26px] border border-white/80 bg-white p-7 text-foreground shadow-[0_20px_65px_rgba(0,0,0,0.14)] sm:px-11 sm:py-14">
+      <div className="login-page relative z-10 w-full max-w-[526px] rounded-[26px] border border-white/20 bg-background/85 p-7 text-foreground shadow-[0_20px_65px_rgba(0,0,0,0.4)] backdrop-blur-xl sm:px-11 sm:py-14">
         <header className="text-center">
           <img
             src={`${import.meta.env.BASE_URL}logo-lumenpelagi.png`}
@@ -106,7 +106,7 @@ export default function LoginPage() {
             PHQ Education
           </a>
           <div
-            className="mx-auto mb-9 mt-6 h-[3px] w-[50px] rounded-full bg-neutral-800"
+            className="mx-auto mb-9 mt-6 h-[3px] w-[50px] rounded-full bg-white/70"
             aria-hidden="true"
           />
           <h1 className="text-[30px] font-bold leading-tight tracking-[-0.045em]">
@@ -127,7 +127,7 @@ export default function LoginPage() {
             </label>
             <div className="relative">
               <UserRound
-                className="pointer-events-none absolute left-[18px] top-1/2 size-5 -translate-y-1/2 text-neutral-400"
+                className="pointer-events-none absolute left-[18px] top-1/2 size-5 -translate-y-1/2 text-white/50"
                 aria-hidden="true"
               />
               <input
@@ -144,7 +144,7 @@ export default function LoginPage() {
                   setErrors((current) => ({ ...current, username: "" }));
                   setSubmitted(false);
                 }}
-                className="login-input h-[62px] w-full rounded-[14px] border border-input bg-neutral-100 py-4 pl-[52px] pr-4 text-base outline-none transition-colors placeholder:text-neutral-400 focus:border-neutral-500 focus:ring-2 focus:ring-black/5"
+                className="login-input h-[62px] w-full rounded-[14px] border border-input bg-white/5 py-4 pl-[52px] pr-4 text-base text-foreground outline-none transition-colors placeholder:text-white/45 focus:border-white/50 focus:ring-2 focus:ring-white/10"
                 required
                 aria-invalid={Boolean(errors.username)}
                 aria-describedby={
@@ -153,7 +153,7 @@ export default function LoginPage() {
               />
             </div>
             {errors.username && (
-              <p id="username-error" className="mt-2 text-sm text-red-600">
+              <p id="username-error" className="mt-2 text-sm text-red-300">
                 {errors.username}
               </p>
             )}
@@ -168,7 +168,7 @@ export default function LoginPage() {
             </label>
             <div className="relative">
               <LockKeyhole
-                className="pointer-events-none absolute left-[18px] top-1/2 size-5 -translate-y-1/2 text-neutral-400"
+                className="pointer-events-none absolute left-[18px] top-1/2 size-5 -translate-y-1/2 text-white/50"
                 aria-hidden="true"
               />
               <input
@@ -184,7 +184,7 @@ export default function LoginPage() {
                   setErrors((current) => ({ ...current, password: "" }));
                   setSubmitted(false);
                 }}
-                className="login-input h-[62px] w-full rounded-[14px] border border-input bg-neutral-100 py-4 pl-[52px] pr-[54px] text-base outline-none transition-colors placeholder:text-neutral-400 focus:border-neutral-500 focus:ring-2 focus:ring-black/5"
+                className="login-input h-[62px] w-full rounded-[14px] border border-input bg-white/5 py-4 pl-[52px] pr-[54px] text-base text-foreground outline-none transition-colors placeholder:text-white/45 focus:border-white/50 focus:ring-2 focus:ring-white/10"
                 required
                 aria-invalid={Boolean(errors.password)}
                 aria-describedby={
@@ -193,7 +193,7 @@ export default function LoginPage() {
               />
               <button
                 type="button"
-                className="absolute right-2 top-1/2 flex size-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-neutral-400 outline-none transition-colors hover:text-neutral-700 focus-visible:ring-2 focus-visible:ring-ring"
+                className="absolute right-2 top-1/2 flex size-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-white/50 outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => setShowPassword((visible) => !visible)}
                 aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                 aria-pressed={showPassword}
@@ -207,7 +207,7 @@ export default function LoginPage() {
               </button>
             </div>
             {errors.password && (
-              <p id="password-error" className="mt-2 text-sm text-red-600">
+              <p id="password-error" className="mt-2 text-sm text-red-300">
                 {errors.password}
               </p>
             )}
@@ -219,14 +219,15 @@ export default function LoginPage() {
               name="remember"
               checked={remember}
               onChange={(event) => setRemember(event.target.checked)}
-              className="size-4 cursor-pointer rounded border-input accent-black"
+              className="size-4 cursor-pointer rounded border-input accent-white"
             />
             Ghi nhớ tài khoản
           </label>
 
           <Button
             type="submit"
-            className="mt-8 h-[62px] w-full rounded-[14px] bg-black text-[17px] font-semibold text-white hover:bg-neutral-800"
+            variant="glass"
+            className="mt-8 h-[62px] w-full rounded-[14px] text-[17px] font-semibold hover:bg-white/10"
           >
             Đăng nhập <ArrowRight className="ml-1 size-5" />
           </Button>
@@ -234,7 +235,7 @@ export default function LoginPage() {
           {submitted && (
             <p
               role="status"
-              className="mt-4 rounded-xl border border-input bg-neutral-100 p-4 text-sm leading-relaxed text-neutral-600"
+              className="mt-4 rounded-xl border border-input bg-white/5 p-4 text-sm leading-relaxed text-muted-foreground"
             >
               Đây là form giao diện mẫu. Chức năng xác thực tài khoản chưa được
               kết nối.
