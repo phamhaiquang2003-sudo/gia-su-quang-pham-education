@@ -39,6 +39,12 @@ const sections = {
 
 type Section = keyof typeof sections;
 const navigation: Section[] = ["Studio", "About", "Journal", "Reach Us"];
+const navigationLabels: Record<Section, string> = {
+  Studio: "Toán",
+  About: "Vật lý",
+  Journal: "Journal",
+  "Reach Us": "Reach Us",
+};
 
 export default function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -126,14 +132,14 @@ export default function App() {
 
           <nav
             aria-label="Main navigation"
-            className="liquid-glass hidden items-center gap-7 rounded-full px-7 py-3 md:flex"
+            className="liquid-glass hidden items-center gap-5 whitespace-nowrap rounded-full px-5 py-3 md:flex lg:gap-7 lg:px-7"
           >
             <a
               href="#home"
               aria-current="page"
               className="text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
             >
-              Home
+              Trang chủ
             </a>
             {navigation.map((item) => (
               <DialogTrigger key={item} asChild>
@@ -142,7 +148,7 @@ export default function App() {
                   onClick={() => selectSection(item)}
                   className="cursor-pointer text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  {item}
+                  {navigationLabels[item]}
                 </button>
               </DialogTrigger>
             ))}
@@ -190,7 +196,7 @@ export default function App() {
                     }}
                     className="rounded-lg px-4 py-2.5 text-sm text-foreground"
                   >
-                    Home
+                    Trang chủ
                   </a>
                   {navigation.map((item) => (
                     <DialogTrigger key={item} asChild>
@@ -199,7 +205,7 @@ export default function App() {
                         onClick={() => selectSection(item)}
                         className="cursor-pointer rounded-lg px-4 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:text-foreground"
                       >
-                        {item}
+                        {navigationLabels[item]}
                       </button>
                     </DialogTrigger>
                   ))}
@@ -260,7 +266,7 @@ export default function App() {
         }}
       >
         <p className="mb-5 text-xs tracking-[0.18em] text-muted-foreground">
-          PHQ EDUCATION · {section.toUpperCase()}
+          PHQ EDUCATION · {navigationLabels[section].toUpperCase()}
         </p>
         <DialogTitle style={displayFont}>{sections[section].title}</DialogTitle>
         <DialogDescription>{sections[section].description}</DialogDescription>
