@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Menu, Pause, Play, X } from "lucide-react";
+import { LoaderCircle, LockKeyhole, Menu, Pause, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { accountError, type AccountProfile } from "@/lib/accounts";
 import {
@@ -81,6 +81,8 @@ export default function App({
   const videoRef = useRef<HTMLVideoElement>(null);
   const mobileMenuRef = useRef<HTMLDetailsElement>(null);
   const mobileDialogRef = useRef(false);
+  const sectionTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const loginLinkRef = useRef<HTMLAnchorElement | null>(null);
   const accountTriggerRef = useRef<HTMLButtonElement | null>(null);
   const manualPlaybackRef = useRef(false);
   const [playing, setPlaying] = useState(false);
@@ -92,6 +94,7 @@ export default function App({
   const greeting = profile ? `Xin chào, ${profile.displayName}` : "Đăng nhập";
   const desktopBreakpoint = profile ? "min-[1440px]:flex" : "lg:flex";
   const mobileBreakpoint = profile ? "min-[1440px]:hidden" : "lg:hidden";
+  const requiresLogin = section !== "Reach Us" && !profile;
 
   useEffect(() => {
     if (!profile) setAccountOpen(false);
@@ -183,8 +186,9 @@ export default function App({
       preference.removeEventListener("change", respectMotionPreference);
   }, []);
 
-  function selectSection(value: Section) {
+  function selectSection(value: Section, trigger: HTMLButtonElement) {
     mobileDialogRef.current = mobileMenuRef.current?.open ?? false;
+    sectionTriggerRef.current = trigger;
     setSection(value);
     if (mobileMenuRef.current) mobileMenuRef.current.open = false;
   }
@@ -262,7 +266,9 @@ export default function App({
                 <DialogTrigger key={item} asChild>
                   <button
                     type="button"
-                    onClick={() => selectSection(item)}
+                    onClick={(event) =>
+                      selectSection(item, event.currentTarget)
+                    }
                     className="cursor-pointer text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {navigationLabels[item]}
@@ -318,7 +324,9 @@ export default function App({
                       <DialogTrigger key={item} asChild>
                         <button
                           type="button"
-                          onClick={() => selectSection(item)}
+                          onClick={(event) =>
+                            selectSection(item, event.currentTarget)
+                          }
                           className="shrink-0 cursor-pointer rounded-lg px-4 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:text-foreground"
                         >
                           {navigationLabels[item]}
@@ -386,25 +394,93 @@ export default function App({
         </main>
 
         <DialogContent
+          className={
+            requiresLogin
+              ? "max-h-[calc(100svh-2rem)] overflow-y-auto border-amber-300/60 bg-[#002b42] p-6 text-center shadow-[0_0_80px_rgba(251,191,36,0.2)] sm:p-10"
+              : undefined
+          }
+          onOpenAutoFocus={(event) => {
+            if (requiresLogin && loginLinkRef.current) {
+              event.preventDefault();
+              loginLinkRef.current.focus();
+            }
+          }}
           onCloseAutoFocus={(event) => {
             if (mobileDialogRef.current) {
               event.preventDefault();
               mobileMenuRef.current?.querySelector("summary")?.focus();
+            } else if (sectionTriggerRef.current?.isConnected) {
+              event.preventDefault();
+              sectionTriggerRef.current.focus();
             }
           }}
         >
-          <p className="mb-5 text-xs tracking-[0.18em] text-muted-foreground">
+          <p
+            className={`mb-5 text-xs tracking-[0.18em] ${requiresLogin ? "pr-4 text-amber-200" : "text-muted-foreground"}`}
+          >
             PHQ EDUCATION · {navigationLabels[section].toUpperCase()}
           </p>
-          <DialogTitle style={displayFont}>
-            {sections[section].title}
-          </DialogTitle>
-          <DialogDescription>{sections[section].description}</DialogDescription>
-          <DialogClose asChild>
-            <Button variant="glass" size="glass" className="mt-8">
-              Back to the moment
-            </Button>
-          </DialogClose>
+          {requiresLogin ? (
+            <>
+              <div
+                className="mx-auto mb-6 flex size-16 items-center justify-center rounded-2xl border border-amber-300/40 bg-amber-300/15 text-amber-300"
+                aria-hidden="true"
+              >
+                {accountLoading ? (
+                  <LoaderCircle className="size-8 motion-safe:animate-spin" />
+                ) : (
+                  <LockKeyhole className="size-8" />
+                )}
+              </div>
+              <DialogTitle className="text-2xl font-bold leading-tight tracking-tight text-white sm:text-3xl">
+                {accountLoading
+                  ? "Đang kiểm tra đăng nhập…"
+                  : "Bạn cần đăng nhập để tiếp tục"}
+              </DialogTitle>
+              <DialogDescription className="mt-4 text-base leading-relaxed text-slate-200">
+                {accountLoading
+                  ? "Vui lòng chờ trong giây lát."
+                  : `Vui lòng đăng nhập bằng tài khoản được giáo viên cấp để truy cập mục ${navigationLabels[section]}.`}
+              </DialogDescription>
+              <div className="mt-8 flex flex-col gap-3">
+                {!accountLoading && (
+                  <Button
+                    asChild
+                    className="h-auto rounded-xl bg-amber-300 px-6 py-3.5 text-base font-semibold text-slate-950 shadow-lg hover:bg-amber-200 focus-visible:ring-amber-300"
+                  >
+                    <a
+                      ref={loginLinkRef}
+                      href={`${import.meta.env.BASE_URL}dang-nhap.html`}
+                    >
+                      Đăng nhập ngay
+                    </a>
+                  </Button>
+                )}
+                <DialogClose asChild>
+                  <Button
+                    variant="ghost"
+                    className="h-auto rounded-xl py-3 text-slate-200 hover:bg-white/10 hover:text-white"
+                  >
+                    Để sau
+                  </Button>
+                </DialogClose>
+              </div>
+            </>
+          ) : (
+            <>
+              <DialogTitle style={displayFont}>
+                {sections[section].title}
+              </DialogTitle>
+              <DialogDescription>
+                {sections[section].description}
+              </DialogDescription>
+              <DialogClose asChild>
+                <Button variant="glass" size="glass" className="mt-8">
+                  Back to the moment
+                </Button>
+              </DialogClose>
+            </>
+          )}
         </DialogContent>
       </Dialog>
       <Dialog
