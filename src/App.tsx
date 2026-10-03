@@ -30,6 +30,15 @@ const sections = {
     description:
       "Reflections on focus, creativity, and the spaces in between. This journal is part of the design concept; new stories can live here as the project grows.",
   },
+  Assessments: {
+    title: "Luyện thi TSA/HSA/SPT",
+    description:
+      "Mục dành cho tài liệu và bài luyện đánh giá tư duy, đánh giá năng lực TSA, HSA và SPT.",
+  },
+  Entertainment: {
+    title: "Góc giải trí",
+    description: "Mục dành cho các hoạt động thư giãn và giải trí sau giờ học.",
+  },
   "Reach Us": {
     title: "Every idea starts with a conversation.",
     description:
@@ -38,12 +47,21 @@ const sections = {
 };
 
 type Section = keyof typeof sections;
-const navigation: Section[] = ["Studio", "About", "Journal", "Reach Us"];
+const navigation: Section[] = [
+  "Studio",
+  "About",
+  "Journal",
+  "Assessments",
+  "Entertainment",
+  "Reach Us",
+];
 const navigationLabels: Record<Section, string> = {
   Studio: "Toán",
   About: "Vật lý",
-  Journal: "Journal",
-  "Reach Us": "Reach Us",
+  Journal: "KHTN",
+  Assessments: "TSA/HSA/SPT",
+  Entertainment: "Giải trí",
+  "Reach Us": "Liên hệ gia sư",
 };
 
 export default function App() {
@@ -132,7 +150,7 @@ export default function App() {
 
           <nav
             aria-label="Main navigation"
-            className="liquid-glass hidden items-center gap-5 whitespace-nowrap rounded-full px-5 py-3 md:flex lg:gap-7 lg:px-7"
+            className="liquid-glass hidden items-center gap-4 whitespace-nowrap rounded-full px-5 py-3 lg:flex xl:gap-7 xl:px-7"
           >
             <a
               href="#home"
@@ -167,7 +185,7 @@ export default function App() {
             </Button>
             <details
               ref={mobileMenuRef}
-              className="mobile-navigation md:hidden"
+              className="mobile-navigation lg:hidden"
               onKeyDown={(event) => {
                 if (event.key === "Escape" && mobileMenuRef.current) {
                   mobileMenuRef.current.open = false;
@@ -185,7 +203,7 @@ export default function App() {
               <div className="absolute right-8 top-22">
                 <nav
                   aria-label="Mobile navigation"
-                  className="liquid-glass flex w-48 flex-col gap-1 rounded-2xl p-3"
+                  className="liquid-glass flex w-56 flex-col gap-1 rounded-2xl p-3"
                 >
                   <a
                     href="#home"
@@ -194,7 +212,7 @@ export default function App() {
                       if (mobileMenuRef.current)
                         mobileMenuRef.current.open = false;
                     }}
-                    className="rounded-lg px-4 py-2.5 text-sm text-foreground"
+                    className="shrink-0 rounded-lg px-4 py-2.5 text-sm text-foreground"
                   >
                     Trang chủ
                   </a>
@@ -203,7 +221,7 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => selectSection(item)}
-                        className="cursor-pointer rounded-lg px-4 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:text-foreground"
+                        className="shrink-0 cursor-pointer rounded-lg px-4 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:text-foreground"
                       >
                         {navigationLabels[item]}
                       </button>

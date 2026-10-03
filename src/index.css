@@ -127,6 +127,11 @@
   display: none;
 }
 
+.mobile-navigation nav {
+  max-height: calc(100svh - 7rem);
+  overflow-y: auto;
+}
+
 .mobile-navigation[open] .menu-open-icon,
 .mobile-navigation:not([open]) .menu-close-icon {
   display: none;
