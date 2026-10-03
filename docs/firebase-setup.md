@@ -11,16 +11,18 @@
 
 ## 1. Cấu hình ứng dụng Web
 
+Cấu hình Web do chủ dự án cung cấp đã được tích hợp trong `src/lib/firebase-config.ts`. Bản local và GitHub Pages dùng cấu hình này mặc định, không cần thêm variable để kết nối. `VITE_FIREBASE_CONFIG` vẫn có thể ghi đè cấu hình khi phát triển hoặc chạy emulator. Google Analytics chưa được bật trong code đăng nhập.
+
 Firebase Console → Project settings → General → Your apps → ứng dụng Web → SDK setup and configuration. Lấy `firebaseConfig` từ dự án **phq-education**.
 
-Trên máy, sao chép `.env.example` thành `.env.local`, điền cấu hình trên một dòng JSON:
+Nếu cần ghi đè trên máy, sao chép `.env.example` thành `.env.local`, điền cấu hình trên một dòng JSON:
 
 ```dotenv
 VITE_FIREBASE_CONFIG='{"apiKey":"GIÁ_TRỊ_THẬT","authDomain":"phq-education.firebaseapp.com","projectId":"phq-education","storageBucket":"GIÁ_TRỊ_THẬT","messagingSenderId":"GIÁ_TRỊ_THẬT","appId":"GIÁ_TRỊ_THẬT"}'
 VITE_FIREBASE_FUNCTIONS_REGION=asia-southeast1
 ```
 
-Trong GitHub: repository → Settings → Secrets and variables → Actions → **Variables** → New repository variable:
+Nếu cần ghi đè cấu hình khi build trên GitHub: repository → Settings → Secrets and variables → Actions → **Variables** → New repository variable:
 
 - Name: `VITE_FIREBASE_CONFIG`
 - Value: cùng chuỗi JSON, **không có dấu nháy đơn bọc ngoài**, không gồm `const firebaseConfig =`.

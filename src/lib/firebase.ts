@@ -2,10 +2,13 @@ import { initializeApp, type FirebaseOptions } from "firebase/app";
 import { connectAuthEmulator, getAuth } from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
 import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
+import { firebaseWebConfig } from "./firebase-config";
 
 function readConfiguration(): FirebaseOptions | null {
   try {
-    const config = JSON.parse(import.meta.env.VITE_FIREBASE_CONFIG || "null");
+    const config = import.meta.env.VITE_FIREBASE_CONFIG
+      ? JSON.parse(import.meta.env.VITE_FIREBASE_CONFIG)
+      : firebaseWebConfig;
     if (
       !config ||
       typeof config.apiKey !== "string" ||
