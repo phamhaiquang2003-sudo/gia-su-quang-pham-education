@@ -1,16 +1,17 @@
 # Kích hoạt Firebase Spark miễn phí cho PHQ Education
 
-Website dùng gói **Spark**, không cần liên kết thanh toán. Authentication và Firestore hoạt động trong hạn mức miễn phí của Firebase. Học sinh dùng website công khai; bạn cấp và quản lý tài khoản bằng trang quản trị chạy trên máy tính của mình.
+Website dùng gói **Spark**, không cần liên kết thanh toán. Authentication và Firestore hoạt động trong hạn mức miễn phí của Firebase. Giáo viên có thể cấp từng tài khoản, cấp hàng loạt và xem danh sách ngay trên website công khai. Các thao tác khóa/mở khóa, cấp lại mật khẩu và xóa tài khoản dùng công cụ quản trị trên máy.
 
 ## Kiến trúc
 
 - GitHub Pages phục vụ bốn trang: trang chủ, `dang-nhap.html`, `quan-tri.html`, `hoc-sinh.html`.
 - Firebase Authentication xác thực và quản lý mật khẩu.
 - Firestore `users/{uid}` lưu hồ sơ; `usernames/{username}` giữ tên đăng nhập duy nhất.
+- Khi cấp tài khoản online, một phiên Authentication riêng chỉ lưu trong bộ nhớ tạo tài khoản học sinh; phiên đăng nhập giáo viên được giữ nguyên. Giáo viên dùng phiên quản trị để ghi hồ sơ và giữ chỗ tên trong cùng giao dịch Firestore. Rules chỉ cho quản trị viên có claim và hồ sơ đang hoạt động tạo hồ sơ học sinh, không cho tạo quản trị viên.
 - Công cụ Node.js trên máy dùng Firebase Admin SDK để tạo/khóa/cấp lại mật khẩu học sinh. Chỉ tài khoản có custom claim `admin: true` và hồ sơ quản trị đang hoạt động được gọi. Dịch vụ chỉ lắng nghe ở `127.0.0.1`.
 - Giáo viên cấp tài khoản học sinh. Form không có đăng ký; tài khoản Auth không có hồ sơ được cấp cũng không được vào hệ thống. Tất cả quyền đọc/ghi được kiểm tra bằng Rules hoặc phía máy chủ.
-- Không lưu mật khẩu hay hash mật khẩu trong Firestore. Khi quản trị, trình duyệt gửi yêu cầu có ID token đến dịch vụ trên máy; dịch vụ dùng Admin SDK gửi dữ liệu tới Firebase.
-- Khi bạn tắt máy, học sinh vẫn đăng nhập và đọc hồ sơ trên Firebase. Máy chỉ cần mở khi bạn quản lý tài khoản.
+- Không lưu mật khẩu hay hash mật khẩu trong Firestore hoặc browser storage. Khi cấp tài khoản online, mật khẩu được gửi trực tiếp đến Firebase Authentication. Khi dùng công cụ trên máy, trình duyệt gửi yêu cầu có ID token đến dịch vụ local.
+- Khi bạn tắt công cụ local, học sinh vẫn đăng nhập và giáo viên vẫn cấp tài khoản trên website công khai. Máy chỉ cần chạy công cụ khi khóa/mở khóa, cấp lại mật khẩu hoặc xóa tài khoản.
 - Học sinh đăng nhập thành công được chuyển về trang chủ video. Nút góc trên bên phải là “Đăng xuất”, bấm để đăng xuất trực tiếp. Nút giữa trang là “Xin chào, [họ tên]”, bấm để xem thông tin tài khoản. Tải lại trang vẫn giữ lời chào nếu phiên còn hợp lệ. Đường dẫn `hoc-sinh.html` cũng hiển thị giao diện này sau khi kiểm tra quyền.
 
 ## 1. Cấu hình ứng dụng Web
@@ -50,7 +51,7 @@ Bạn đã tạo Firestore `(default)`. Trong Firebase Console:
 2. Sao chép toàn bộ nội dung tệp `firestore.rules` trong dự án vào trình soạn thảo.
 3. Bấm **Publish / Publier / Xuất bản**.
 
-Rules trong `firestore.rules` cho phép học sinh đọc hồ sơ của mình; quản trị có quyền đọc danh sách. Client không được sửa role, status, hồ sơ hay dữ liệu tên đăng nhập. Các collection khác mặc định bị chặn đến khi có tính năng và Rules tương ứng.
+Rules trong `firestore.rules` cho phép học sinh đọc hồ sơ của mình; quản trị có quyền đọc danh sách và tạo mới hồ sơ học sinh kèm giữ chỗ tên duy nhất trong một giao dịch. Hồ sơ mới luôn có role `student`, status `active`, danh sách lớp rỗng và không được chứa mật khẩu. Client không được sửa/xóa hồ sơ hay giữ chỗ đã tồn tại. Các collection khác mặc định bị chặn đến khi có tính năng và Rules tương ứng.
 
 ## 4. Tạo quản trị viên và mở công cụ trên máy
 
@@ -72,17 +73,21 @@ node functions/scripts/start-local-admin.js
 
 Chỉ thêm `role: admin` bằng Firestore Console chưa đủ quyền quản trị. Khóa Service Account được đọc ở tiến trình Node.js trên máy, không được đưa vào frontend.
 
-Trang quản trị công khai cho phép giáo viên xem danh sách. Các nút thay đổi tài khoản hoạt động trong công cụ local; giao diện sẽ hiển thị hướng dẫn mở tệp `.bat` khi đang ở bản công khai.
+Trang quản trị công khai cho phép giáo viên thêm từng tài khoản, thêm hàng loạt và xem danh sách. Các nút khóa/mở khóa, cấp lại mật khẩu và xóa hoạt động trong công cụ local.
 
 ## 5. Cấp tài khoản học sinh
+
+Mở `quan-tri.html` trên website và đăng nhập bằng tài khoản quản trị đã được cấp quyền. Không cần mở tệp `.bat` để thêm tài khoản.
 
 - **Thêm tài khoản:** nhập username, mật khẩu ban đầu, họ tên. Role luôn là học sinh. Ghi lại thông tin để gửi riêng cho học sinh.
 - **Thêm hàng loạt:** mỗi dòng CSV gồm `username,password,displayName`, không có dòng tiêu đề; tối đa 50 dòng. Mật khẩu được giữ nguyên, không tự cắt khoảng trắng. Cột có dấu phẩy phải đặt trong ngoặc kép.
 - **Danh sách:** tải 50 hồ sơ mỗi trang; có nút tải thêm. Quản trị viên được hiển thị nhưng không thể bị sửa/xóa từ trang học sinh.
-- **Khóa:** đổi trạng thái Firestore ngay để thu hồi quyền, khóa Auth và thu hồi refresh token.
-- **Mở khóa:** mở Auth rồi kích hoạt hồ sơ.
-- **Cấp lại mật khẩu:** cập nhật Auth và thu hồi refresh token. ID token hiện có có thể còn hợp lệ đến khi hết hạn; nếu cần chặn truy cập ngay, khóa tài khoản trước.
-- **Xóa:** khóa hồ sơ, xóa tài khoản Auth, hồ sơ và giữ chỗ tên đăng nhập. Giai đoạn này chưa có bài làm; khi thêm bài làm cần quyết định chính sách giữ lịch sử trước khi mở rộng thao tác xóa.
+- **Khóa (công cụ local):** đổi trạng thái Firestore ngay để thu hồi quyền, khóa Auth và thu hồi refresh token.
+- **Mở khóa (công cụ local):** mở Auth rồi kích hoạt hồ sơ.
+- **Cấp lại mật khẩu (công cụ local):** cập nhật Auth và thu hồi refresh token. ID token hiện có có thể còn hợp lệ đến khi hết hạn; nếu cần chặn truy cập ngay, khóa tài khoản trước.
+- **Xóa (công cụ local):** khóa hồ sơ, xóa tài khoản Auth, hồ sơ và giữ chỗ tên đăng nhập. Giai đoạn này chưa có bài làm; khi thêm bài làm cần quyết định chính sách giữ lịch sử trước khi mở rộng thao tác xóa.
+
+Kết quả tạo hàng loạt được báo riêng từng dòng. Firebase có thể giới hạn tốc độ tạo tài khoản; chia danh sách thành nhóm nhỏ và thử lại sau nếu gặp giới hạn. Nếu cấp hồ sơ bị từ chối, hệ thống cố gắng xóa tài khoản Auth vừa tạo. Khi kết nối mất khiến kết quả chưa xác định, tải lại danh sách trước; chỉ dọn tài khoản Auth chưa có hồ sơ qua Console/công cụ local khi đã kiểm tra rõ.
 
 Tài khoản thử đã tạo trực tiếp trong Authentication, ví dụ `hs001`, chưa có hồ sơ liên kết sẽ chưa đăng nhập được vào website. Với tài khoản thử không có dữ liệu, có thể xóa trong Console rồi tạo lại qua trang quản trị để hệ thống tạo đủ hồ sơ. Không tự ý xóa tài khoản đang sử dụng.
 
@@ -95,7 +100,7 @@ npm ci
 npm run test:emulators
 ```
 
-Kiểm tra bằng Auth/Firestore Emulator với dự án `demo-phq-education`: quyền quản trị, chặn truy cập hồ sơ người khác, chặn sửa quyền, tạo hàng loạt, trùng tên đồng thời, rollback khi tạo lỗi, khóa/mở khóa, đổi mật khẩu và xóa.
+Kiểm tra bằng Auth/Firestore Emulator với dự án `demo-phq-education`: quyền quản trị, cấp hồ sơ online theo cặp nguyên tử, chặn tự cấp hồ sơ/quyền, chặn truy cập hồ sơ người khác, tạo hàng loạt, trùng tên đồng thời, rollback khi tạo lỗi, khóa/mở khóa, đổi mật khẩu và xóa.
 
 Để chạy Auth/Firestore Emulator, từ thư mục `functions`:
 

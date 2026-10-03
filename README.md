@@ -44,7 +44,7 @@ Các nút **Đăng nhập** dẫn đến [`dang-nhap.html`](https://phamhaiquang
 
 ## Firebase và quản trị học sinh
 
-Trang quản trị dựa theo mẫu: thêm từng tài khoản, thêm hàng loạt CSV, xem danh sách, khóa/mở khóa, cấp lại mật khẩu và xóa học sinh. Mật khẩu thuộc Firebase Authentication; dữ liệu hồ sơ thuộc Firestore. **Dùng Firebase Spark miễn phí:** nhấp đúp `quan-tri-mien-phi.bat` để quản lý tài khoản trên máy bằng Admin SDK, với kiểm tra custom claim và hồ sơ quản trị. Website học sinh vẫn hoạt động khi bạn tắt máy.
+Trang quản trị dựa theo mẫu: thêm từng tài khoản, thêm hàng loạt CSV, xem danh sách, khóa/mở khóa, cấp lại mật khẩu và xóa học sinh. Mật khẩu thuộc Firebase Authentication; dữ liệu hồ sơ thuộc Firestore. **Dùng Firebase Spark miễn phí:** giáo viên thêm tài khoản và thêm hàng loạt ngay trên website công khai; một phiên Auth riêng trong bộ nhớ giữ nguyên phiên giáo viên. Firestore Rules kiểm tra claim quản trị và hồ sơ đang hoạt động trước khi cấp hồ sơ học sinh. Để khóa/mở khóa, cấp lại mật khẩu hoặc xóa, nhấp đúp `quan-tri-mien-phi.bat` để dùng Admin SDK trên máy. Website học sinh vẫn hoạt động khi bạn tắt máy.
 
 ![Trang quản trị được kiểm tra với Firebase Emulator](docs/preview-admin.png)
 

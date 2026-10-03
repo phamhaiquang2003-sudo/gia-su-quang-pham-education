@@ -36,7 +36,7 @@ type Action = "disable" | "enable" | "resetPassword" | "delete";
 
 export default function AdminPage() {
   const session = useAccount();
-  const [tab, setTab] = useState<Tab>(localAdminEnabled ? "add" : "list");
+  const [tab, setTab] = useState<Tab>("add");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -65,11 +65,6 @@ export default function AdminPage() {
       setSelected(null);
     }
   }, [session.loading, session.profile]);
-
-  useEffect(() => {
-    if (session.profile?.role === "admin" && !localAdminEnabled)
-      void loadStudents();
-  }, [session.profile?.uid]);
 
   async function loadStudents(more = false) {
     if (loadingList || session.profile?.role !== "admin") return;
@@ -198,6 +193,7 @@ export default function AdminPage() {
             </div>
             <button
               className="account-button-secondary"
+              disabled={busy}
               onClick={() =>
                 void session
                   .logout()
@@ -210,7 +206,7 @@ export default function AdminPage() {
           <p className="mb-6 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-relaxed text-sky-900">
             {localAdminEnabled
               ? "Quản trị trên máy tính · Firebase Spark. Tài khoản và hồ sơ được lưu trực tiếp trên Firebase."
-              : "Firebase Spark: mở tệp quan-tri-mien-phi.bat trong thư mục dự án trên máy tính để thêm, khóa hoặc cấp lại mật khẩu học sinh. Bạn có thể xem danh sách tài khoản tại đây."}
+              : "Firebase Spark: bạn có thể thêm tài khoản và thêm hàng loạt ngay trên website. Để khóa, mở khóa, cấp lại mật khẩu hoặc xóa tài khoản, mở quan-tri-mien-phi.bat trên máy tính."}
           </p>
           <div
             className="mb-6 flex flex-wrap gap-2"
@@ -232,9 +228,7 @@ export default function AdminPage() {
                 aria-controls={`panel-${value}`}
                 tabIndex={tab === value ? 0 : -1}
                 onKeyDown={(event) => {
-                  const values: Tab[] = localAdminEnabled
-                    ? ["add", "bulk", "list"]
-                    : ["list"];
+                  const values: Tab[] = ["add", "bulk", "list"];
                   const position = values.indexOf(value);
                   const next =
                     event.key === "ArrowRight"
@@ -252,7 +246,7 @@ export default function AdminPage() {
                     document.getElementById(`tab-${next}`)?.focus();
                   }
                 }}
-                disabled={busy || (!localAdminEnabled && value !== "list")}
+                disabled={busy}
                 className={
                   tab === value ? "account-button" : "account-button-secondary"
                 }

@@ -12,12 +12,54 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active';
     }
 
+    function validStudent(data) {
+      return data.keys().hasAll(['username', 'displayName', 'role', 'status', 'classIds', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['username', 'displayName', 'role', 'status', 'classIds', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.username is string
+        && data.username.matches('^[a-z0-9][a-z0-9_-]{2,31}$')
+        && data.displayName is string
+        && data.displayName.size() > 0 && data.displayName.size() <= 100
+        && data.role == 'student'
+        && data.status == 'active'
+        && data.classIds is list && data.classIds.size() == 0
+        && data.createdBy == request.auth.uid
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
     match /users/{uid} {
       // A user may read their own status to display account lockout messages.
       allow get: if signedIn() && (request.auth.uid == uid || activeAdmin());
       allow list: if activeAdmin();
-      // Provisioning and role/status changes are exclusively server-side.
-      allow create, update, delete: if false;
+      // An active administrator can create a student and reserve the username
+      // atomically. No browser client can edit roles or existing profiles.
+      allow create: if activeAdmin()
+        && uid.matches('^[A-Za-z0-9_-]{1,128}$')
+        && validStudent(request.resource.data)
+        && !exists(/databases/$(database)/documents/usernames/$(request.resource.data.username))
+        && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == uid
+        && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.state == 'active';
+      allow update, delete: if false;
+    }
+
+    match /usernames/{username} {
+      allow get: if activeAdmin();
+      allow list: if false;
+      allow create: if activeAdmin()
+        && username.matches('^[a-z0-9][a-z0-9_-]{2,31}$')
+        && request.resource.data.keys().hasAll(['uid', 'state', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['uid', 'state', 'createdAt'])
+        && request.resource.data.uid is string
+        && request.resource.data.uid.matches('^[A-Za-z0-9_-]{1,128}$')
+        && request.resource.data.state == 'active'
+        && request.resource.data.createdAt == request.time
+        && !exists(/databases/$(database)/documents/users/$(request.resource.data.uid))
+        && getAfter(/databases/$(database)/documents/users/$(request.resource.data.uid)).data.username == username
+        && getAfter(/databases/$(database)/documents/users/$(request.resource.data.uid)).data.role == 'student'
+        && getAfter(/databases/$(database)/documents/users/$(request.resource.data.uid)).data.status == 'active'
+        && getAfter(/databases/$(database)/documents/users/$(request.resource.data.uid)).data.createdBy == request.auth.uid
+        && getAfter(/databases/$(database)/documents/users/$(request.resource.data.uid)).data.createdAt == request.time;
+      allow update, delete: if false;
     }
 
     match /{document=**} {

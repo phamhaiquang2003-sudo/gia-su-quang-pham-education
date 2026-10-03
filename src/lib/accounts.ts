@@ -10,6 +10,8 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, type Timestamp } from "firebase/firestore";
 import { getFirebase } from "./firebase";
+import { usernamePattern } from "./student-validation";
+export { usernamePattern } from "./student-validation";
 
 export interface AccountProfile {
   uid: string;
@@ -33,7 +35,6 @@ export interface CreationResult {
   message: string;
 }
 
-export const usernamePattern = /^[a-z0-9][a-z0-9_-]{2,31}$/;
 export const localAdminEnabled =
   import.meta.env.DEV && import.meta.env.VITE_LOCAL_ADMIN === "true";
 
@@ -172,6 +173,10 @@ export function accountDestination(profile: AccountProfile) {
 }
 
 export async function createStudents(students: NewStudent[]) {
+  if (!localAdminEnabled) {
+    const { createStudentsOnline } = await import("./create-students-online");
+    return createStudentsOnline(students);
+  }
   return (
     await callLocalAdmin<{ results: CreationResult[] }>("createStudents", {
       students,

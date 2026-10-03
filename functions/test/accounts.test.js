@@ -18,6 +18,8 @@ const {
   setDoc,
   updateDoc,
   deleteDoc,
+  writeBatch,
+  serverTimestamp,
 } = require("firebase/firestore");
 const { makeAccountService } = require("../account-service");
 
@@ -66,15 +68,13 @@ beforeEach(async () => {
     password: "Admin-password-123",
   });
   await auth.setCustomUserClaims(adminUid, { admin: true });
-  await db
-    .doc(`users/${adminUid}`)
-    .set({
-      username: "admin",
-      displayName: "Giáo viên",
-      role: "admin",
-      status: "active",
-      classIds: [],
-    });
+  await db.doc(`users/${adminUid}`).set({
+    username: "admin",
+    displayName: "Giáo viên",
+    role: "admin",
+    status: "active",
+    classIds: [],
+  });
 });
 
 after(async () => {
@@ -249,7 +249,7 @@ test("students can only read their own profile; no client can grant itself roles
   );
 });
 
-test("admin reads require both claim and active profile, and client writes remain denied", async () => {
+test("admin reads require both claim and active profile, and edits remain denied", async () => {
   const client = environment
     .authenticatedContext(adminUid, { admin: true })
     .firestore();
@@ -265,6 +265,145 @@ test("admin reads require both claim and active profile, and client writes remai
   await assertFails(getDocs(collection(forged, "users")));
   await db.doc(`users/${adminUid}`).update({ status: "disabled" });
   await assertFails(getDocs(collection(client, "users")));
+});
+
+const onlineProfile = (username, extra = {}) => ({
+  username,
+  displayName: "Học sinh trực tuyến",
+  role: "student",
+  status: "active",
+  classIds: [],
+  createdBy: adminUid,
+  createdAt: serverTimestamp(),
+  updatedAt: serverTimestamp(),
+  ...extra,
+});
+function provisionOnline(
+  client,
+  uid,
+  username,
+  profile = {},
+  reservation = {},
+) {
+  const batch = writeBatch(client);
+  batch.set(doc(client, "users", uid), onlineProfile(username, profile));
+  batch.set(doc(client, "usernames", username), {
+    uid,
+    state: "active",
+    createdAt: serverTimestamp(),
+    ...reservation,
+  });
+  return batch.commit();
+}
+
+test("online provisioning requires an active claimed admin and creates an atomic profile/reservation pair", async () => {
+  const adminClient = environment
+    .authenticatedContext(adminUid, { admin: true })
+    .firestore();
+  await assertSucceeds(provisionOnline(adminClient, "online-one", "online01"));
+  assert.equal((await db.doc("users/online-one").get()).data().role, "student");
+  assert.equal(
+    (await db.doc("usernames/online01").get()).data().uid,
+    "online-one",
+  );
+  await assertFails(
+    setDoc(
+      doc(adminClient, "users", "profile-only"),
+      onlineProfile("profileonly"),
+    ),
+  );
+  await assertFails(
+    setDoc(doc(adminClient, "usernames", "nameonly"), {
+      uid: "name-only",
+      state: "active",
+      createdAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(
+    provisionOnline(
+      adminClient,
+      "mismatched",
+      "mismatch01",
+      {},
+      { uid: "wrong-uid" },
+    ),
+  );
+  await assertFails(provisionOnline(adminClient, "duplicate", "online01"));
+  await assertFails(provisionOnline(adminClient, "online-one", "replaced01"));
+  assert.equal((await db.doc("users/duplicate").get()).exists, false);
+  assert.equal((await db.doc("usernames/replaced01").get()).exists, false);
+
+  for (const client of [
+    environment.unauthenticatedContext().firestore(),
+    environment.authenticatedContext("self-registered").firestore(),
+    environment.authenticatedContext("online-one").firestore(),
+    environment.authenticatedContext(adminUid).firestore(),
+    environment.authenticatedContext("no-profile", { admin: true }).firestore(),
+  ]) {
+    await assertFails(
+      provisionOnline(client, "not-authorized", "unauthorized01"),
+    );
+    await assertFails(getDoc(doc(client, "usernames", "online01")));
+  }
+  await db.doc(`users/${adminUid}`).update({ status: "disabled" });
+  await assertFails(
+    provisionOnline(adminClient, "disabled-admin-student", "blocked01"),
+  );
+});
+
+test("online provisioning restricts role, status, initial classes, creator, timestamps and stored fields", async () => {
+  const client = environment
+    .authenticatedContext(adminUid, { admin: true })
+    .firestore();
+  const invalidProfiles = [
+    { role: "admin" },
+    { status: "disabled" },
+    { classIds: ["class-one"] },
+    { createdBy: "someone-else" },
+    { createdAt: new Date(0) },
+    { updatedAt: new Date(0) },
+    { displayName: "" },
+    { displayName: "x".repeat(101) },
+    { password: "Must-never-be-stored" },
+    { username: "Uppercase" },
+  ];
+  for (let index = 0; index < invalidProfiles.length; index++) {
+    await assertFails(
+      provisionOnline(
+        client,
+        `invalid-${index}`,
+        `invalid${index}`,
+        invalidProfiles[index],
+      ),
+    );
+  }
+  await assertFails(
+    provisionOnline(
+      client,
+      "invalid-reservation",
+      "invalidname",
+      {},
+      { extra: true },
+    ),
+  );
+  await assertFails(
+    provisionOnline(
+      client,
+      "inactive-reservation",
+      "inactivename",
+      {},
+      { state: "pending" },
+    ),
+  );
+  await assertSucceeds(provisionOnline(client, "valid-online", "validonline"));
+  await assertFails(
+    updateDoc(doc(client, "users", "valid-online"), { displayName: "Changed" }),
+  );
+  await assertFails(deleteDoc(doc(client, "users", "valid-online")));
+  await assertFails(
+    updateDoc(doc(client, "usernames", "validonline"), { uid: "changed" }),
+  );
+  await assertFails(deleteDoc(doc(client, "usernames", "validonline")));
 });
 
 test("lock, unlock, password reset and deletion update Auth and Firestore; admins cannot be deleted", async () => {
