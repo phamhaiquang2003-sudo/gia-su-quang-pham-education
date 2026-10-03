@@ -1,6 +1,12 @@
 import { makeDeletionService } from "./deletion-service.js";
 import { ServiceError } from "./errors.js";
 import { makeFirebase, verifyToken } from "./firebase.js";
+import { requireQuizUser } from "./quiz-auth.js";
+import {
+  makeQuizService,
+  readLimitedBody,
+  finalizeExpired,
+} from "./quiz-service.js";
 
 export function makeHandler({
   makeFirebaseClient = makeFirebase,
@@ -32,7 +38,10 @@ export function makeHandler({
         service: "phq-education-admin",
         configured: Boolean(env.FIREBASE_SERVICE_ACCOUNT),
       });
-    if (url.pathname !== "/api/admin/manageStudent")
+    const quizOperation = url.pathname.startsWith("/api/quiz/")
+      ? url.pathname.slice("/api/quiz/".length)
+      : "";
+    if (url.pathname !== "/api/admin/manageStudent" && !quizOperation)
       return respond(
         { error: { code: "not-found", message: "Không tìm thấy dịch vụ." } },
         404,
@@ -73,6 +82,86 @@ export function makeHandler({
         401,
       );
     try {
+      if (quizOperation) {
+        if (!env.QUIZ_DB)
+          throw new ServiceError(
+            "failed-precondition",
+            "Kho bài tập đang được thiết lập.",
+            503,
+          );
+        const firebase = makeFirebaseClient(env.FIREBASE_SERVICE_ACCOUNT);
+        const user = await requireQuizUser(
+          authorization.slice(7),
+          firebase,
+          verifyIdToken,
+          [
+            "save",
+            "listAdmin",
+            "adminDetail",
+            "hide",
+            "results",
+            "upload",
+          ].includes(quizOperation),
+        );
+        const service = makeQuizService(env.QUIZ_DB, user);
+        const operations = [
+          "list",
+          "listAdmin",
+          "adminDetail",
+          "save",
+          "hide",
+          "detail",
+          "start",
+          "progress",
+          "submit",
+          "results",
+          "upload",
+          "file",
+        ];
+        if (!operations.includes(quizOperation))
+          throw new ServiceError("not-found", "Không tìm thấy chức năng.", 404);
+        let data = {};
+        if (quizOperation !== "upload") {
+          if (
+            request.headers
+              .get("Content-Type")
+              ?.split(";")[0]
+              .trim()
+              .toLowerCase() !== "application/json"
+          )
+            throw new ServiceError(
+              "invalid-argument",
+              "Yêu cầu cần dùng JSON.",
+              415,
+            );
+          try {
+            data = JSON.parse(
+              new TextDecoder().decode(await readLimitedBody(request, 400_000)),
+            );
+          } catch (error) {
+            if (error instanceof ServiceError) throw error;
+            throw new ServiceError("invalid-argument", "JSON không hợp lệ.");
+          }
+          if (!data || typeof data !== "object" || Array.isArray(data))
+            throw new ServiceError(
+              "invalid-argument",
+              "Dữ liệu cần là một đối tượng JSON.",
+            );
+        }
+        const result = await service[quizOperation](
+          quizOperation === "upload" ? request : data,
+        );
+        if (result instanceof Response) {
+          const h = new Headers(result.headers);
+          for (const [key, value] of Object.entries(headers))
+            if (key !== "Content-Type") h.set(key, value);
+          return new Response(result.body, {
+            status: result.status,
+            headers: h,
+          });
+        }
+        return respond(result);
+      }
       if (
         request.headers
           .get("Content-Type")
@@ -136,4 +225,9 @@ export function makeHandler({
   };
 }
 
-export default { fetch: makeHandler() };
+export default {
+  fetch: makeHandler(),
+  async scheduled(_event, env, ctx) {
+    if (env.QUIZ_DB) ctx.waitUntil(finalizeExpired(env.QUIZ_DB));
+  },
+};

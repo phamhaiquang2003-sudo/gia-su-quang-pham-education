@@ -8,7 +8,16 @@ import {
   startAfter,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
-import { Eye, EyeOff, LogOut, Plus, RefreshCw, Users } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  FileText,
+  LogOut,
+  Plus,
+  RefreshCw,
+  Users,
+} from "lucide-react";
+import QuizAdmin from "@/components/QuizAdmin";
 import AccountGate from "@/components/AccountGate";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,12 +41,12 @@ import { getFirebase } from "@/lib/firebase";
 import { parseStudentCsv } from "@/lib/student-csv";
 import { useAccount } from "@/lib/use-account";
 
-type Tab = "add" | "bulk" | "list";
+type Tab = "quizzes" | "add" | "bulk" | "list";
 type Action = "disable" | "enable" | "resetPassword" | "delete";
 
 export default function AdminPage() {
   const session = useAccount();
-  const [tab, setTab] = useState<Tab>("add");
+  const [tab, setTab] = useState<Tab>("quizzes");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -173,7 +182,7 @@ export default function AdminPage() {
   return (
     <AccountGate {...session} admin>
       <main className="account-page min-h-svh px-4 py-8 sm:py-12">
-        <div className="mx-auto max-w-4xl">
+        <div className="mx-auto max-w-5xl">
           <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <a href={import.meta.env.BASE_URL} aria-label="Về trang chủ">
@@ -188,7 +197,7 @@ export default function AdminPage() {
                   PHQ Education — Quản trị
                 </h1>
                 <p className="mt-1 text-sm text-slate-600">
-                  Quản lý tài khoản học sinh · {session.profile?.displayName}
+                  Bài tập và tài khoản học sinh · {session.profile?.displayName}
                 </p>
               </div>
             </div>
@@ -214,10 +223,11 @@ export default function AdminPage() {
           <div
             className="mb-6 flex flex-wrap gap-2"
             role="tablist"
-            aria-label="Quản lý tài khoản"
+            aria-label="Quản trị website"
           >
             {(
               [
+                ["quizzes", "Bài tập", FileText],
                 ["add", "Thêm tài khoản", Plus],
                 ["bulk", "Thêm hàng loạt", Users],
                 ["list", "Danh sách tài khoản", Users],
@@ -231,7 +241,7 @@ export default function AdminPage() {
                 aria-controls={`panel-${value}`}
                 tabIndex={tab === value ? 0 : -1}
                 onKeyDown={(event) => {
-                  const values: Tab[] = ["add", "bulk", "list"];
+                  const values: Tab[] = ["quizzes", "add", "bulk", "list"];
                   const position = values.indexOf(value);
                   const next =
                     event.key === "ArrowRight"
@@ -239,7 +249,7 @@ export default function AdminPage() {
                       : event.key === "ArrowLeft"
                         ? values[(position + values.length - 1) % values.length]
                         : event.key === "Home"
-                          ? "add"
+                          ? "quizzes"
                           : event.key === "End"
                             ? "list"
                             : null;
@@ -272,6 +282,9 @@ export default function AdminPage() {
             aria-labelledby={`tab-${tab}`}
             aria-busy={busy || loadingList}
           >
+            {tab === "quizzes" && session.profile && (
+              <QuizAdmin uid={session.profile.uid} />
+            )}
             {tab === "add" && (
               <>
                 <h2 className="mb-5 text-lg font-semibold">

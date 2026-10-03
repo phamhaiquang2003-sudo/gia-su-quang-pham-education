@@ -10,4 +10,13 @@
     "ALLOWED_ORIGIN": "https://phamhaiquang2003-sudo.github.io",
   },
   "observability": { "enabled": false },
+  "d1_databases": [
+    {
+      "binding": "QUIZ_DB",
+      "database_name": "phq-education-exercises",
+      "database_id": "354b348a-236c-4510-8c57-d13f3301d68e",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "triggers": { "crons": ["*/5 * * * *"] },
 }

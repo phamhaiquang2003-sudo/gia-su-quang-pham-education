@@ -1,6 +1,6 @@
 # gia-su-quang-pham-education
 
-Website **PHQ Education / LumenPelagi®**: hero video, giao diện kính, đăng nhập học sinh và quản trị tài khoản bằng Firebase.
+Website **PHQ Education / LumenPelagi®**: hero video, giao diện kính, đăng nhập học sinh, quản trị tài khoản bằng Firebase và bài tập trực tuyến chấm tự động.
 
 **Website:** https://phamhaiquang2003-sudo.github.io/gia-su-quang-pham-education/
 
@@ -34,7 +34,10 @@ npm run preview    # Xem bản production trên máy
 ## Các tệp chính
 
 - `src/App.tsx`: video, điều hướng, nội dung hero và thông báo đăng nhập.
-- `src/pages/ExercisePage.tsx`: trang kho bài tập theo từng môn, tìm kiếm, danh mục, sắp xếp và trạng thái chưa có đề.
+- `src/pages/ExercisePage.tsx`: kho bài tập theo từng môn, tìm kiếm, danh mục, sắp xếp và mở trang làm bài.
+- `src/components/QuizAdmin.tsx`: soạn đề, PDF/ảnh, đáp án, thời gian, xuất bản và kết quả học sinh.
+- `src/components/QuizPlayer.tsx`: làm bài, tự lưu, đếm ngược, đánh dấu, điều hướng và nộp bài.
+- `worker/src/quiz-*.js`: xác thực, lưu đề/tệp trong D1 và chấm điểm phía máy chủ.
 - `src/lib/subjects.ts`: các mục học tập và đường dẫn `bai-tap.html?mon=...`.
 - `public/nen-dem-sao.html`: bản nền đêm sao từ tệp người dùng cung cấp; hiển thị phía sau trang bài tập.
 - `src/index.css`: bảng màu HSL, hiệu ứng kính và animation fade-rise.
@@ -44,6 +47,10 @@ npm run preview    # Xem bản production trên máy
 Video sử dụng trực tiếp URL CloudFront được cung cấp trong yêu cầu. Không có lớp phủ trang trí trên video. Có nút tạm dừng/phát; khi thiết bị bật giảm chuyển động, video được tạm dừng và animation được rút ngắn.
 
 Các nút **Đăng nhập** dẫn đến [`dang-nhap.html`](https://phamhaiquang2003-sudo.github.io/gia-su-quang-pham-education/dang-nhap.html). Form dùng Authentication để xác thực và kiểm tra hồ sơ Firestore được giáo viên cấp. Quản trị viên vào `quan-tri.html`; học sinh quay về trang chủ video. Nút góc trên bên phải đổi thành **Đăng xuất** và đăng xuất trực tiếp; nút giữa trang hiển thị **Xin chào, [họ tên]**. Bấm lời chào để mở thông tin tài khoản. `hoc-sinh.html` cũng dùng giao diện trang chủ cho tài khoản đã đăng nhập. Ghi nhớ dùng persistence của Firebase và chỉ lưu tên đăng nhập trong localStorage, không lưu mật khẩu. Khi chưa đăng nhập, bấm Toán, Vật lý, KHTN, TSA/HSA/SPT hoặc Giải trí sẽ hiện hộp thoại nổi bật **“Bạn cần đăng nhập để tiếp tục”**, kèm nút **Đăng nhập ngay**. Với tài khoản đã đăng nhập, các mục này mở trang **`bai-tap.html?mon=...`**. Trang bài tập dùng nền đêm sao, các khung kính tối, tìm kiếm, lọc danh mục và sắp xếp; chưa có đề được đăng tải nên hiển thị **0 bài kiểm tra**, không có mục mức phí hay đề mẫu. Truy cập trực tiếp cũng phải có phiên đăng nhập hợp lệ.
+
+## Bài tập trực tuyến
+
+Trong `quan-tri.html` → **Bài tập**, giáo viên tạo đề bằng PDF/ảnh + phiếu trả lời hoặc soạn từng câu; hỗ trợ A/B/C/D, Đúng/Sai và trả lời ngắn. Có đặt thời gian, xem trước, lưu nháp, xuất bản, ẩn đề và xem kết quả. Đề xuất bản xuất hiện trong kho môn học; học sinh trả lời trực tiếp với đồng hồ, dấu cờ, bảng số câu và chấm tự động. Dữ liệu nằm trong Cloudflare D1 Free; Firebase tiếp tục dùng Spark. Xem [hướng dẫn tạo đề và quy tắc làm bài](docs/bai-tap-truc-tuyen.md).
 
 ## Firebase và quản trị học sinh
 

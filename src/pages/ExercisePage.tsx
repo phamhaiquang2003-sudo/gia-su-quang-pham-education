@@ -21,6 +21,8 @@ import {
   ZALO_CONTACT_URL,
 } from "@/lib/subjects";
 import { useAccount } from "@/lib/use-account";
+import { quizApi, quizHref, type QuizSummary } from "@/lib/quizzes";
+import QuizPlayer from "@/components/QuizPlayer";
 
 export default function ExercisePage() {
   const session = useAccount();
@@ -32,7 +34,48 @@ export default function ExercisePage() {
   const [sort, setSort] = useState("newest");
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
+  const [quizzes, setQuizzes] = useState<QuizSummary[]>([]);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+  const [quizError, setQuizError] = useState("");
+  const [reload, setReload] = useState(0);
+  const quizId = new URLSearchParams(window.location.search).get("de");
   const filtered = Boolean(search.trim() || categories.length);
+  const visible = quizzes
+    .filter(
+      (q) =>
+        (!search.trim() ||
+          q.title
+            .toLocaleLowerCase("vi")
+            .includes(search.trim().toLocaleLowerCase("vi"))) &&
+        (!categories.length || categories.includes(q.category)),
+    )
+    .sort((a, b) =>
+      sort === "oldest"
+        ? a.createdAt - b.createdAt
+        : sort === "title"
+          ? a.title.localeCompare(b.title, "vi")
+          : b.createdAt - a.createdAt,
+    );
+
+  useEffect(() => {
+    if (!session.profile || quizId) return;
+    let cancelled = false;
+    setLoadingQuizzes(true);
+    setQuizError("");
+    quizApi<{ quizzes: QuizSummary[] }>("list", { subject: subject.id })
+      .then((data) => {
+        if (!cancelled) setQuizzes(data.quizzes);
+      })
+      .catch((e) => {
+        if (!cancelled) setQuizError(e.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingQuizzes(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session.profile?.uid, subject.id, quizId, reload]);
 
   useEffect(() => {
     document.title = `${subject.label} · Bài tập · PHQ Education`;
@@ -113,6 +156,8 @@ export default function ExercisePage() {
       </main>
     );
   }
+
+  if (quizId) return <QuizPlayer id={quizId} uid={session.profile.uid} />;
 
   return (
     <main className="exercise-page relative isolate min-h-svh pb-12">
@@ -288,8 +333,11 @@ export default function ExercisePage() {
                 aria-live="polite"
                 className="text-sm text-slate-200"
               >
-                Hiển thị <span className="font-semibold text-white">0</span> bài
-                kiểm tra
+                Hiển thị{" "}
+                <span className="font-semibold text-white">
+                  {visible.length}
+                </span>{" "}
+                bài kiểm tra
               </p>
               <div className="flex w-full items-center gap-3 sm:w-auto">
                 <label
@@ -306,8 +354,8 @@ export default function ExercisePage() {
                     className="exercise-input cursor-pointer appearance-none py-2.5 pr-10 text-sm"
                   >
                     <option value="newest">Mới nhất</option>
-                    <option value="popular">Phổ biến nhất</option>
-                    <option value="most-attempted">Được làm nhiều nhất</option>
+                    <option value="oldest">Cũ nhất</option>
+                    <option value="title">Tên A–Z</option>
                   </select>
                   <ChevronDown
                     className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-300"
@@ -333,36 +381,81 @@ export default function ExercisePage() {
                 ))}
               </div>
             )}
-            <div className="exercise-panel flex min-h-80 flex-col items-center justify-center px-6 py-12 text-center sm:min-h-96 sm:py-16">
-              <div className="mb-6 flex size-20 items-center justify-center rounded-3xl border border-sky-200/25 bg-sky-200/10 text-sky-100">
-                <FileText
-                  className="size-9"
-                  strokeWidth={1.4}
-                  aria-hidden="true"
-                />
-              </div>
-              <p className="mb-2 text-[10px] uppercase tracking-[0.25em] text-amber-200">
-                Kho bài tập · {subject.label}
+            {loadingQuizzes ? (
+              <p role="status" className="exercise-panel p-8">
+                Đang tải bài tập…
               </p>
-              <h2 className="font-display text-3xl sm:text-4xl">
-                Chưa có đề bài
-              </h2>
-              <p className="mt-4 max-w-md text-sm leading-relaxed text-slate-200">
-                Giáo viên đang chuẩn bị nội dung cho mục {subject.label}. Các
-                bài tập sẽ xuất hiện tại đây khi được đăng tải.
-              </p>
-              {filtered && (
-                <Button
-                  variant="glass"
-                  size="glass"
-                  onClick={resetFilters}
-                  className="mt-6 gap-2 text-sm"
+            ) : quizError ? (
+              <div role="alert" className="exercise-panel p-6">
+                <p className="text-red-200">{quizError}</p>
+                <button
+                  className="mt-4 text-sm underline"
+                  onClick={() => setReload((n) => n + 1)}
                 >
-                  <RotateCcw className="size-4" />
-                  Xóa bộ lọc
-                </Button>
-              )}
-            </div>
+                  Tải lại danh sách
+                </button>
+              </div>
+            ) : visible.length ? (
+              <div className="grid gap-5 sm:grid-cols-2">
+                {visible.map((q) => (
+                  <article
+                    key={q.id}
+                    className="exercise-panel flex flex-col p-6"
+                  >
+                    <p className="mb-3 text-xs text-amber-200">
+                      {q.category || subject.label}
+                    </p>
+                    <h2 className="break-words text-xl font-semibold">
+                      {q.title}
+                    </h2>
+                    <p className="mb-6 mt-4 text-sm text-slate-300">
+                      {q.questionCount} câu hỏi · {q.durationMinutes} phút ·
+                      Chấm tự động
+                    </p>
+                    <a
+                      className="mt-auto rounded-xl border border-sky-300/30 bg-sky-300/10 px-4 py-3 text-center text-sm font-semibold hover:bg-sky-300/20"
+                      href={quizHref(q)}
+                    >
+                      Mở bài tập
+                    </a>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="exercise-panel flex min-h-80 flex-col items-center justify-center px-6 py-12 text-center sm:min-h-96 sm:py-16">
+                <div className="mb-6 flex size-20 items-center justify-center rounded-3xl border border-sky-200/25 bg-sky-200/10 text-sky-100">
+                  <FileText
+                    className="size-9"
+                    strokeWidth={1.4}
+                    aria-hidden="true"
+                  />
+                </div>
+                <p className="mb-2 text-[10px] uppercase tracking-[0.25em] text-amber-200">
+                  Kho bài tập · {subject.label}
+                </p>
+                <h2 className="font-display text-3xl sm:text-4xl">
+                  {quizzes.length
+                    ? "Không tìm thấy bài phù hợp"
+                    : "Chưa có đề bài"}
+                </h2>
+                <p className="mt-4 max-w-md text-sm leading-relaxed text-slate-200">
+                  {quizzes.length
+                    ? "Thử thay đổi từ khóa hoặc xóa bộ lọc để xem các bài khác."
+                    : `Giáo viên đang chuẩn bị nội dung cho mục ${subject.label}. Các bài tập sẽ xuất hiện tại đây khi được đăng tải.`}
+                </p>
+                {filtered && (
+                  <Button
+                    variant="glass"
+                    size="glass"
+                    onClick={resetFilters}
+                    className="mt-6 gap-2 text-sm"
+                  >
+                    <RotateCcw className="size-4" />
+                    Xóa bộ lọc
+                  </Button>
+                )}
+              </div>
+            )}
           </section>
         </div>
         <footer className="mt-10 border-t border-white/10 pt-5 text-xs text-slate-300">
