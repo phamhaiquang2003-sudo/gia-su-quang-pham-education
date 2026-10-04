@@ -556,16 +556,8 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
                     disabled={starting}
                     value={accessCode}
                     onChange={(event) => setAccessCode(event.target.value)}
-                    placeholder="6 chữ số"
                     aria-label="Mật khẩu đề"
-                    aria-describedby="student-access-code-help"
                   />
-                  <span
-                    id="student-access-code-help"
-                    className="mt-2 block text-xs font-normal leading-relaxed text-slate-300"
-                  >
-                    Nhập mã 6 chữ số giáo viên cung cấp để bắt đầu làm bài.
-                  </span>
                 </label>
               )}
               <button
