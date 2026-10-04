@@ -5,13 +5,21 @@
 1. Đăng nhập tài khoản quản trị, mở `quan-tri.html` → **Bài tập**.
 2. Điền tên đề, môn học, danh mục, hướng dẫn và thời gian từ **1–360 phút**.
 3. Chọn cách đưa đề lên:
-   - **Soạn từng câu trực tiếp:** nhập nội dung và các lựa chọn; có thể gắn ảnh công thức/minh họa.
+   - **Soạn từng câu trực tiếp:** nhập nội dung hoặc dán ảnh chụp cả câu hỏi và các lựa chọn. Có ảnh thì không cần gõ lại nội dung câu; các lựa chọn còn trống tự ghi “Xem … trong ảnh”.
    - **PDF / ảnh + phiếu trả lời:** tải tệp đề, thêm câu theo thứ tự trong tệp. Nội dung câu có thể để trống; các lựa chọn/ý có thể ghi A/B/C/D hoặc Ý a/b/c/d.
 4. Mỗi câu có dạng **A/B/C/D**, **Đúng/Sai (4 ý)** hoặc **trả lời ngắn**. Nhập đáp án đúng, điểm trọng số và lời giải nếu có.
 5. Bấm **Xem trước**, **Lưu nháp** hoặc **Xuất bản đề**. Đề xuất bản xuất hiện trong kho của môn đã chọn.
 6. Bấm **Mở bài để làm thử** để thử bằng tài khoản quản trị. Trong **Danh sách đề → Kết quả học sinh**, lượt này được ghi là **Làm thử**.
 
-PDF/PNG/JPG/WebP được tải trực tiếp, tối đa **1,8 MB mỗi tệp**, 8 tệp đề và 20 tệp tổng cộng/đề. Mỗi đề tối đa 100 câu. Nén tệp lớn trước khi tải. Bản đang soạn được giữ trong tab trình duyệt; bấm **Lưu nháp** để lưu lên máy chủ.
+PDF/PNG/JPG/WebP được tải trực tiếp, tối đa **1,8 MB mỗi tệp**, 8 tệp đề và 208 tệp tổng cộng/đề (100 câu × 2 ảnh + 8 tệp đề). Mỗi đề tối đa 100 câu. Ảnh câu hỏi/đáp án lớn được trình duyệt tự nén trước khi gửi; PDF lớn cần nén trước khi tải. Bản đang soạn được giữ trong tab trình duyệt; bấm **Lưu nháp** để lưu lên máy chủ.
+
+### Dán ảnh chụp màn hình, không cần lưu về máy
+
+1. Trên Windows, nhấn **Win + Shift + S**, khoanh vùng cả câu hỏi và các lựa chọn A/B/C/D hoặc các ý a/b/c/d.
+2. Bấm vào vùng **Ảnh câu hỏi** rồi nhấn **Ctrl + V**. Có thể dán ngay trong ô **Nội dung câu hỏi**, hoặc bấm **Dán ảnh từ clipboard**. Trên Mac dùng **⌘ + V**.
+3. Chọn đáp án đúng để chấm tự động. Với trả lời ngắn, nhập kết quả được chấp nhận.
+4. Nếu có ảnh đáp án/lời giải, chụp vùng đó rồi dán vào **Ảnh đáp án / lời giải** hoặc ô **Lời giải**. Ảnh này chỉ cho học sinh xem sau khi nộp, nếu bật **Hiện đáp án và lời giải ngay sau khi nộp**. Ảnh không tự được đọc để suy ra khóa chấm.
+5. Xem ảnh ngay trong trình soạn; dán lại để thay ảnh, bấm **Bỏ ảnh** để gỡ. Bấm **Lưu nháp** hoặc **Xuất bản đề** để lưu.
 
 ### Quy tắc chấm
 
@@ -36,7 +44,7 @@ Hết giờ, khóa trả lời và chấm **các câu đã được máy chủ l
 - Firebase Auth + hồ sơ Firestore tiếp tục xác thực tài khoản/claim quản trị, trạng thái hoạt động, khóa Auth và thu hồi phiên.
 - Worker `phq-education-admin` nhận các thao tác `/api/quiz/*`; chỉ quản trị được lưu/xem đáp án và xem toàn bộ kết quả. Học sinh chỉ xem lượt làm của chính mình.
 - Cloudflare **D1 Free** `phq-education-exercises`, binding `QUIZ_DB`, lưu đề, tệp nhị phân, lượt làm, đáp án và kết quả. Không dùng Firebase Storage, Cloud Functions hoặc Blaze.
-- Tệp chưa xuất bản chỉ quản trị truy cập. Tệp đề xuất bản được tài khoản hoạt động đọc; tệp của phiên bản cũ vẫn truy cập được qua lượt làm của chính học sinh.
+- Tệp chưa xuất bản chỉ quản trị truy cập. Tệp câu hỏi xuất bản được tài khoản hoạt động đọc; ảnh đáp án/lời giải chỉ được đọc sau khi nộp và phiên bản của lượt làm cho phép công bố đáp án. Tệp của phiên bản cũ vẫn truy cập được qua lượt làm của chính học sinh.
 - Dữ liệu gửi học sinh trước nộp không chứa đáp án/lời giải; điểm tính trên Worker. Đáp án giáo viên soạn chỉ lưu trong vùng quản trị và trên máy chủ.
 - Các thay đổi tiến độ dùng số phiên bản; hai cửa sổ sửa cùng lượt sẽ yêu cầu tải lại để tránh ghi đè âm thầm. Nộp lặp lại trả về cùng kết quả.
 - Firestore Rules không cần mở thêm quyền cho kho đề này.

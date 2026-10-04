@@ -1,4 +1,10 @@
-import { useEffect, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ClipboardEvent,
+} from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -32,6 +38,24 @@ import {
 import QuizFile from "./QuizFile";
 import QuizQuestions from "./QuizQuestions";
 import QuizResultView from "./QuizResultView";
+import QuizImageInput from "./QuizImageInput";
+import { clipboardImage, prepareQuizImage } from "@/lib/quiz-images";
+
+function imageChoices(question: Question): Partial<Question> {
+  if (question.type === "single")
+    return {
+      choices: question.choices?.map((choice, i) =>
+        choice.trim() ? choice : `Xem lựa chọn ${"ABCD"[i]} trong ảnh`,
+      ),
+    };
+  if (question.type === "truefalse")
+    return {
+      statements: question.statements?.map((statement, i) =>
+        statement.trim() ? statement : `Xem ý ${"abcd"[i]} trong ảnh`,
+      ),
+    };
+  return {};
+}
 
 const types: [QuestionType, string][] = [
   ["single", "Chọn A/B/C/D"],
@@ -57,6 +81,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
   const [view, setView] = useState<"edit" | "list" | "results">("edit");
   const [list, setList] = useState<QuizSummary[]>([]);
   const [busy, setBusy] = useState(false);
+  const actionInProgress = useRef(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [preview, setPreview] = useState(false);
@@ -85,7 +110,8 @@ export default function QuizAdmin({ uid }: { uid: string }) {
     setMessage("");
   }
   async function run(action: () => Promise<void>) {
-    if (busy) return;
+    if (actionInProgress.current) return;
+    actionInProgress.current = true;
     setBusy(true);
     setError("");
     setMessage("");
@@ -94,6 +120,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Thao tác chưa hoàn tất.");
     } finally {
+      actionInProgress.current = false;
       setBusy(false);
     }
   }
@@ -129,16 +156,48 @@ export default function QuizAdmin({ uid }: { uid: string }) {
       );
     });
   }
-  async function upload(file: File | undefined, questionId?: string) {
+  async function upload(
+    file: File | undefined,
+    questionId?: string,
+    purpose: "question" | "explanation" = "question",
+  ) {
     if (!file) return;
+    const selectedFile = file;
     await run(async () => {
-      if (questionId && !file.type.startsWith("image/"))
-        throw new Error("Hình minh họa câu hỏi cần là PNG, JPG hoặc WebP.");
-      const saved = await uploadQuizFile(file);
-      if (questionId) updateQuestion(questionId, { imageId: saved.id });
-      else update({ documentIds: [...quiz.documentIds, saved.id] });
-      setMessage(`Đã tải ${saved.name}. Hãy lưu đề để gắn tệp vào bài tập.`);
+      const ready = questionId
+        ? await prepareQuizImage(selectedFile)
+        : selectedFile;
+      const saved = await uploadQuizFile(ready);
+      setQuiz((current) =>
+        questionId
+          ? {
+              ...current,
+              questions: current.questions.map((item) =>
+                item.id !== questionId
+                  ? item
+                  : purpose === "explanation"
+                    ? { ...item, explanationImageId: saved.id }
+                    : { ...item, imageId: saved.id, ...imageChoices(item) },
+              ),
+            }
+          : { ...current, documentIds: [...current.documentIds, saved.id] },
+      );
+      setMessage(
+        questionId
+          ? `Đã gắn ảnh ${purpose === "explanation" ? "đáp án / lời giải" : "câu hỏi"}. Hãy lưu nháp hoặc xuất bản để lưu vào đề.`
+          : `Đã tải ${saved.name}. Hãy lưu đề để gắn tệp vào bài tập.`,
+      );
     });
+  }
+  function pasteImage(
+    event: ClipboardEvent<HTMLTextAreaElement>,
+    questionId: string,
+    purpose: "question" | "explanation",
+  ) {
+    const file = clipboardImage(event.clipboardData);
+    if (!file) return;
+    event.preventDefault();
+    void upload(file, questionId, purpose);
   }
   async function openResults(item: QuizSummary) {
     await run(async () => {
@@ -398,8 +457,10 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                 </span>
               </div>
               <p className="mb-4 text-sm text-slate-600">
-                Chọn đáp án đúng cho từng câu. Điểm là trọng số: ví dụ các câu
-                đều 1 điểm sẽ có giá trị bằng nhau.
+                Chụp cả câu hỏi và các lựa chọn rồi dán bằng Ctrl + V vào vùng
+                “Ảnh câu hỏi”. Không cần gõ lại phần đã có trong ảnh. Chọn đáp
+                án đúng bên dưới để chấm tự động; ảnh đáp án / lời giải dùng để
+                học sinh xem sau khi nộp. Điểm là trọng số của mỗi câu.
               </p>
               <div className="space-y-5">
                 {quiz.questions.map((q, index) => (
@@ -478,18 +539,22 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                         <select
                           className="account-input"
                           value={q.type}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const next = newQuestion(
+                              e.target.value as QuestionType,
+                              quiz.mode === "document",
+                            );
                             updateQuestion(q.id, {
-                              ...newQuestion(
-                                e.target.value as QuestionType,
-                                quiz.mode === "document",
-                              ),
+                              ...next,
+                              ...(q.imageId ? imageChoices(next) : {}),
                               id: q.id,
                               prompt: q.prompt,
                               imageId: q.imageId,
+                              explanation: q.explanation,
+                              explanationImageId: q.explanationImageId,
                               points: q.points,
-                            })
-                          }
+                            });
+                          }}
                         >
                           {types.map(([t, label]) => (
                             <option value={t} key={t}>
@@ -522,45 +587,27 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                         : "Nội dung câu hỏi"}
                       <textarea
                         className="account-input min-h-24 resize-y"
-                        required={quiz.mode === "inline"}
+                        required={quiz.mode === "inline" && !q.imageId}
                         maxLength={5000}
                         value={q.prompt}
                         onChange={(e) =>
                           updateQuestion(q.id, { prompt: e.target.value })
                         }
+                        onPaste={(event) => pasteImage(event, q.id, "question")}
                         placeholder={
                           quiz.mode === "document"
                             ? "Có thể để trống khi đề đã có trong PDF/ảnh"
-                            : "Nhập nội dung; có thể dùng ảnh cho công thức toán…"
+                            : "Gõ nội dung hoặc Ctrl + V để dán ảnh câu hỏi; có ảnh thì không cần gõ lại…"
                         }
                       />
                     </label>
-                    <label className="account-label mt-4">
-                      Ảnh minh họa (tùy chọn, dưới 1,8 MB)
-                      <input
-                        type="file"
-                        className="account-input text-xs"
-                        accept="image/png,image/jpeg,image/webp"
-                        onChange={(e) => {
-                          void upload(e.target.files?.[0], q.id);
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
-                    {q.imageId && (
-                      <div className="mt-3">
-                        <p className="text-xs text-emerald-700">
-                          Đã gắn ảnh minh họa.
-                        </p>
-                        <button
-                          type="button"
-                          className="mt-2 text-xs text-red-700 underline"
-                          onClick={() => updateQuestion(q.id, { imageId: "" })}
-                        >
-                          Bỏ ảnh
-                        </button>
-                      </div>
-                    )}
+                    <QuizImageInput
+                      label="Ảnh câu hỏi"
+                      imageId={q.imageId}
+                      disabled={busy}
+                      onUpload={(file) => upload(file, q.id)}
+                      onRemove={() => updateQuestion(q.id, { imageId: "" })}
+                    />
                     {q.type === "single" && (
                       <div className="mt-5 space-y-3">
                         <p className="text-sm font-semibold">
@@ -714,8 +761,21 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                         onChange={(e) =>
                           updateQuestion(q.id, { explanation: e.target.value })
                         }
+                        onPaste={(event) =>
+                          pasteImage(event, q.id, "explanation")
+                        }
+                        placeholder="Gõ lời giải hoặc Ctrl + V để dán ảnh đáp án / lời giải…"
                       />
                     </label>
+                    <QuizImageInput
+                      label="Ảnh đáp án / lời giải"
+                      imageId={q.explanationImageId}
+                      disabled={busy}
+                      onUpload={(file) => upload(file, q.id, "explanation")}
+                      onRemove={() =>
+                        updateQuestion(q.id, { explanationImageId: "" })
+                      }
+                    />
                   </article>
                 ))}
               </div>

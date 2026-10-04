@@ -454,12 +454,18 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       if (!meta)
         throw new ServiceError("not-found", "Không tìm thấy tệp đề.", 404);
       if (!user.admin) {
-        const access = await db
+        const candidates = await db
           .prepare(
-            "SELECT 1 FROM quiz_file_links l JOIN quizzes q ON q.id=l.quiz_id WHERE l.file_id=? AND q.status='published' UNION SELECT 1 FROM attempt_file_links l JOIN quiz_attempts a ON a.id=l.attempt_id WHERE l.file_id=? AND a.user_uid=? LIMIT 1",
+            "SELECT q.body AS body,0 AS reveal FROM quiz_file_links l JOIN quizzes q ON q.id=l.quiz_id WHERE l.file_id=? AND q.status='published' UNION ALL SELECT a.snapshot AS body,CASE WHEN a.submitted_at IS NOT NULL THEN 1 ELSE 0 END AS reveal FROM attempt_file_links l JOIN quiz_attempts a ON a.id=l.attempt_id WHERE l.file_id=? AND a.user_uid=?",
           )
           .bind(data.id, data.id, user.uid)
-          .first();
+          .all();
+        const access = candidates.results.some((row) => {
+          const quiz = JSON.parse(row.body);
+          const visible =
+            row.reveal && quiz.revealAnswers ? quiz : publicQuiz(quiz);
+          return fileIds(visible).includes(data.id);
+        });
         if (!access)
           throw new ServiceError(
             "permission-denied",

@@ -1,4 +1,5 @@
 import { displayAnswer, type QuizResult } from "@/lib/quizzes";
+import QuizFile from "./QuizFile";
 
 export default function QuizResultView({ result }: { result: QuizResult }) {
   return (
@@ -40,6 +41,16 @@ export default function QuizResultView({ result }: { result: QuizResult }) {
             <p className="mt-3 whitespace-pre-wrap break-words opacity-80">
               Lời giải: {detail.explanation}
             </p>
+          )}
+          {detail.explanationImageId && (
+            <div className="mt-3">
+              <p className="mb-2 font-semibold">Ảnh đáp án / lời giải</p>
+              <QuizFile
+                id={detail.explanationImageId}
+                imageOnly
+                alt="Ảnh đáp án / lời giải"
+              />
+            </div>
           )}
         </article>
       ))}

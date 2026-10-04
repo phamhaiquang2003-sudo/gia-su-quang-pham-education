@@ -9,6 +9,7 @@ export interface Question {
   prompt: string;
   points: number;
   imageId: string;
+  explanationImageId?: string;
   choices?: string[];
   statements?: string[];
   answer?: string | boolean[];
@@ -54,6 +55,7 @@ export interface GradeDetail {
   response: string | (boolean | null)[] | null;
   expected?: string | boolean[] | string[];
   explanation?: string;
+  explanationImageId?: string;
 }
 export interface QuizResult {
   score: number;

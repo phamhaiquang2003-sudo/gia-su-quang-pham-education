@@ -48,13 +48,16 @@ export function validateQuiz(input) {
       q.prompt,
       5000,
       `Nội dung câu ${index + 1}`,
-      input.mode === "inline",
+      input.mode === "inline" && !q.imageId,
     );
     const points = Number(q.points);
     if (!Number.isFinite(points) || points <= 0 || points > 100)
       fail(`Điểm câu ${index + 1} phải lớn hơn 0 và không quá 100.`);
     const imageId = q.imageId || "";
     if (imageId && !validId(imageId)) fail("Ảnh câu hỏi không hợp lệ.");
+    const explanationImageId = q.explanationImageId || "";
+    if (explanationImageId && !validId(explanationImageId))
+      fail("Ảnh đáp án / lời giải không hợp lệ.");
     const common = {
       id: q.id,
       type: q.type,
@@ -62,6 +65,7 @@ export function validateQuiz(input) {
       points,
       imageId,
       explanation: text(q.explanation || "", 5000, "Lời giải"),
+      explanationImageId,
     };
     if (q.type === "single") {
       if (
@@ -125,9 +129,10 @@ export function validateQuiz(input) {
     ...new Set([
       ...documentIds,
       ...questions.map((q) => q.imageId).filter(Boolean),
+      ...questions.map((q) => q.explanationImageId).filter(Boolean),
     ]),
   ];
-  if (files.length > 20) fail("Mỗi đề dùng tối đa 20 tệp.");
+  if (files.length > 208) fail("Mỗi đề dùng tối đa 208 tệp.");
   return {
     title,
     subject: input.subject,
@@ -147,6 +152,7 @@ export function fileIds(quiz) {
     ...new Set([
       ...quiz.documentIds,
       ...quiz.questions.map((q) => q.imageId).filter(Boolean),
+      ...quiz.questions.map((q) => q.explanationImageId).filter(Boolean),
     ]),
   ];
 }
@@ -262,6 +268,7 @@ export function grade(quiz, answers) {
       response: value ?? null,
       expected: q.answer ?? q.acceptedAnswers,
       explanation: q.explanation,
+      explanationImageId: q.explanationImageId,
     };
   });
   return {
@@ -277,8 +284,11 @@ export function grade(quiz, answers) {
 export function publicResult(result, reveal) {
   return {
     ...result,
-    details: result.details.map(({ expected, explanation, ...detail }) =>
-      reveal ? { ...detail, expected, explanation } : detail,
+    details: result.details.map(
+      ({ expected, explanation, explanationImageId, ...detail }) =>
+        reveal
+          ? { ...detail, expected, explanation, explanationImageId }
+          : detail,
     ),
   };
 }

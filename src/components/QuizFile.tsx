@@ -4,9 +4,11 @@ import { loadQuizFile } from "@/lib/quizzes";
 export default function QuizFile({
   id,
   imageOnly = false,
+  alt = "Ảnh câu hỏi",
 }: {
   id: string;
   imageOnly?: boolean;
+  alt?: string;
 }) {
   const [file, setFile] = useState<{ url: string; type: string } | null>(null);
   const [error, setError] = useState("");
@@ -37,7 +39,11 @@ export default function QuizFile({
         className="rounded-xl border border-red-400/30 p-4 text-sm"
       >
         {error}{" "}
-        <button className="underline" onClick={() => setRetry((n) => n + 1)}>
+        <button
+          type="button"
+          className="underline"
+          onClick={() => setRetry((n) => n + 1)}
+        >
           Tải lại tệp
         </button>
       </div>
@@ -52,7 +58,7 @@ export default function QuizFile({
     return (
       <img
         src={file.url}
-        alt="Hình minh họa đề bài"
+        alt={alt}
         className="mx-auto max-h-[80vh] max-w-full rounded-xl object-contain"
       />
     );

@@ -9,6 +9,7 @@ import {
   publicResult,
   validateQuiz,
   shortMatches,
+  fileIds,
 } from "../src/quiz-model.js";
 import { requireQuizUser } from "../src/quiz-auth.js";
 
@@ -360,4 +361,141 @@ test("quiz authentication checks disabled/revoked users, active profile and actu
     (await requireQuizUser("token", firebase, async () => claims, true)).admin,
     true,
   );
+});
+
+test("image-only questions save without retyping; solution images count as attachments and stay out of public questions/results", () => {
+  const input = fixture();
+  input.questions[0] = {
+    ...input.questions[0],
+    prompt: "",
+    imageId: "question-image",
+    explanationImageId: "solution-image",
+  };
+  const quiz = validateQuiz(input);
+  assert.deepEqual(fileIds(quiz), ["question-image", "solution-image"]);
+  assert.deepEqual(fileIds(publicQuiz(quiz)), ["question-image"]);
+  assert.equal(publicQuiz(quiz).questions[0].explanationImageId, undefined);
+  const result = grade(quiz, { single: "B" });
+  assert.equal(
+    publicResult(result, false).details[0].explanationImageId,
+    undefined,
+  );
+  assert.equal(
+    publicResult(result, true).details[0].explanationImageId,
+    "solution-image",
+  );
+  assert.throws(() =>
+    validateQuiz({
+      ...input,
+      questions: [{ ...input.questions[0], imageId: "" }],
+    }),
+  );
+  assert.throws(() =>
+    validateQuiz({
+      ...input,
+      questions: [{ ...input.questions[0], explanationImageId: "invalid/id" }],
+    }),
+  );
+  const large = {
+    ...input,
+    questions: Array.from({ length: 100 }, (_, i) => ({
+      ...input.questions[0],
+      id: `q-${i}`,
+      imageId: `question-${i}`,
+      explanationImageId: `solution-${i}`,
+    })),
+  };
+  assert.equal(fileIds(validateQuiz(large)).length, 200);
+});
+
+test("solution image bytes require a submitted own attempt with reveal enabled; old snapshots keep their solution after edits", async () => {
+  const { db, sqlite } = database();
+  let now = 1_000_000;
+  try {
+    const teacher = makeQuizService(db, adminUser, () => now);
+    const student = makeQuizService(db, studentUser, () => now);
+    const other = makeQuizService(
+      db,
+      { ...studentUser, uid: "other" },
+      () => now,
+    );
+    const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+    async function upload(name) {
+      return (
+        await teacher.upload(
+          new Request(`https://example.com/api/quiz/upload?name=${name}.png`, {
+            method: "POST",
+            headers: { "Content-Type": "image/png" },
+            body: png,
+          }),
+        )
+      ).file.id;
+    }
+    const questionImage = await upload("question");
+    const solutionImage = await upload("solution");
+    const input = fixture();
+    input.questions[0] = {
+      ...input.questions[0],
+      prompt: "",
+      imageId: questionImage,
+      explanationImageId: solutionImage,
+    };
+    const { quiz } = await teacher.save({ quiz: input });
+    assert.equal((await student.file({ id: questionImage })).status, 200);
+    await assert.rejects(
+      student.file({ id: solutionImage }),
+      (e) => e.status === 403,
+    );
+    assert.equal((await teacher.file({ id: solutionImage })).status, 200);
+    assert.equal(
+      (await student.detail({ id: quiz.id })).quiz.questions[0]
+        .explanationImageId,
+      undefined,
+    );
+    const started = await student.start({ id: quiz.id });
+    await assert.rejects(
+      student.file({ id: solutionImage }),
+      (e) => e.status === 403,
+    );
+    const hiddenInput = { ...input, revealAnswers: false };
+    const { quiz: hidden } = await teacher.save({ quiz: hiddenInput });
+    const hiddenStart = await other.start({ id: hidden.id });
+    await other.submit({
+      id: hiddenStart.attempt.id,
+      revision: 0,
+      answers: { single: "B" },
+      flagged: [],
+    });
+    await assert.rejects(
+      other.file({ id: solutionImage }),
+      (e) => e.status === 403,
+    );
+    const changed = fixture(false);
+    changed.status = "hidden";
+    await teacher.save({ id: quiz.id, revision: 1, quiz: changed });
+    now += 1000;
+    const submitted = await student.submit({
+      id: started.attempt.id,
+      revision: 0,
+      answers: { single: "B" },
+      flagged: [],
+    });
+    assert.equal(
+      submitted.attempt.result.details[0].explanationImageId,
+      solutionImage,
+    );
+    assert.equal((await student.file({ id: solutionImage })).status, 200);
+    assert.equal((await student.file({ id: questionImage })).status, 200);
+    await assert.rejects(
+      other.file({ id: solutionImage }),
+      (e) => e.status === 403,
+    );
+    assert.equal(
+      (await teacher.results({ id: hidden.id })).attempts[0].result.details[0]
+        .explanationImageId,
+      solutionImage,
+    );
+  } finally {
+    sqlite.close();
+  }
 });
