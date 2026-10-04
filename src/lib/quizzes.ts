@@ -158,8 +158,17 @@ export async function quizApi<T>(
 export async function uploadQuizFile(file: File) {
   if (file.size > 1_800_000)
     throw new Error(
-      "Tệp cần nhỏ hơn 1,8 MB. Hãy nén PDF/ảnh trước khi tải lên.",
+      "Tệp cần nhỏ hơn 1,8 MB. Hãy giảm dung lượng tệp trước khi tải lên.",
     );
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  const wordMime =
+    extension === "doc"
+      ? "application/msword"
+      : extension === "docx"
+        ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        : "";
+  if (wordMime && file.type !== wordMime)
+    file = new File([file], file.name, { type: wordMime });
   return (await (await request("upload", {}, file)).json()).file as {
     id: string;
     name: string;
@@ -169,6 +178,19 @@ export async function uploadQuizFile(file: File) {
 }
 export async function loadQuizFile(id: string) {
   return (await request("file", { id })).blob();
+}
+export async function loadQuizAttachment(id: string) {
+  const response = await request("file", { id });
+  const encodedName = response.headers
+    .get("Content-Disposition")
+    ?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  let name = "";
+  try {
+    name = encodedName ? decodeURIComponent(encodedName) : "";
+  } catch {
+    /* use fallback name */
+  }
+  return { blob: await response.blob(), name };
 }
 export async function uploadSubmissionFile(
   file: File,

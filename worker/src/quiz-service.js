@@ -1,5 +1,11 @@
 import { ServiceError } from "./errors.js";
 import {
+  DOC_MIME,
+  DOCX_MIME,
+  isWordMime,
+  validWordFile,
+} from "./word-files.js";
+import {
   validateQuiz,
   validId,
   fileIds,
@@ -840,7 +846,8 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       return new Response(new Uint8Array(file.data), {
         headers: {
           "Content-Type": file.mime,
-          "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+          "Content-Disposition": `${isWordMime(file.mime) ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+          "Access-Control-Expose-Headers": "Content-Disposition",
           "Cache-Control": "no-store",
           "X-Content-Type-Options": "nosniff",
         },
@@ -853,13 +860,20 @@ async function readUpload(request, imageOnly = false) {
   const mime = request.headers.get("Content-Type")?.split(";")[0];
   const allowed = imageOnly
     ? ["image/png", "image/jpeg", "image/webp"]
-    : ["application/pdf", "image/png", "image/jpeg", "image/webp"];
+    : [
+        "application/pdf",
+        DOC_MIME,
+        DOCX_MIME,
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+      ];
   if (!allowed.includes(mime))
     throw new ServiceError(
       "invalid-argument",
       imageOnly
         ? "Bài nộp chỉ nhận ảnh PNG, JPG hoặc WebP."
-        : "Chỉ nhận PDF, PNG, JPG hoặc WebP.",
+        : "Chỉ nhận PDF, Word (.doc, .docx), PNG, JPG hoặc WebP.",
     );
   if (Number(request.headers.get("Content-Length") || 0) > 1_800_000)
     throw new ServiceError("invalid-argument", "Tệp cần nhỏ hơn 1,8 MB.", 413);
@@ -878,7 +892,8 @@ async function readUpload(request, imageOnly = false) {
       bytes[2] === 255) ||
     (mime === "image/webp" &&
       ascii(0, 4) === "RIFF" &&
-      ascii(8, 12) === "WEBP");
+      ascii(8, 12) === "WEBP") ||
+    (!imageOnly && validWordFile(bytes, mime));
   if (!valid)
     throw new ServiceError(
       "invalid-argument",

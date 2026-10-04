@@ -524,7 +524,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
       </h2>
       {wholeSubmission ? (
         <p className="text-sm text-slate-200">
-          Nộp ảnh bài làm chung cho cả đề PDF. Gia sư sẽ chấm điểm và nhận xét.
+          Nộp ảnh bài làm chung cho cả đề. Gia sư sẽ chấm điểm và nhận xét.
         </p>
       ) : (
         <>
@@ -639,7 +639,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
             <div className="my-6 flex flex-wrap gap-3 text-sm">
               <span className="rounded-lg bg-white/10 px-3 py-2">
                 {quiz.gradingMode === "manual" && quiz.mode === "document"
-                  ? "Tự luận · Đề PDF"
+                  ? "Tự luận · Tệp đề"
                   : `${quiz.questionCount ?? quiz.questions.length} câu hỏi`}
               </span>
               <span className="rounded-lg bg-white/10 px-3 py-2">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { loadQuizFile } from "@/lib/quizzes";
+import { loadQuizAttachment } from "@/lib/quizzes";
 
 export default function QuizFile({
   id,
@@ -12,7 +12,11 @@ export default function QuizFile({
   alt?: string;
   openImage?: boolean;
 }) {
-  const [file, setFile] = useState<{ url: string; type: string } | null>(null);
+  const [file, setFile] = useState<{
+    url: string;
+    type: string;
+    name: string;
+  } | null>(null);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
   useEffect(() => {
@@ -20,11 +24,11 @@ export default function QuizFile({
       url = "";
     setFile(null);
     setError("");
-    loadQuizFile(id)
-      .then((blob) => {
+    loadQuizAttachment(id)
+      .then(({ blob, name }) => {
         if (cancelled) return;
         url = URL.createObjectURL(blob);
-        setFile({ url, type: blob.type });
+        setFile({ url, type: blob.type, name });
       })
       .catch((e) => {
         if (!cancelled) setError(e.message);
@@ -77,6 +81,31 @@ export default function QuizFile({
       </div>
     );
   if (imageOnly) return <p>Hãy dùng tệp ảnh cho câu hỏi.</p>;
+  if (
+    [
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ].includes(file.type)
+  ) {
+    const name =
+      file.name ||
+      (file.type === "application/msword" ? "de-bai.doc" : "de-bai.docx");
+    return (
+      <div className="space-y-3 rounded-xl border border-current/20 p-4">
+        <p className="break-words text-sm font-semibold">{name}</p>
+        <a
+          href={file.url}
+          download={name}
+          className="inline-block rounded-lg border border-current/25 px-4 py-3 text-sm font-semibold underline"
+        >
+          Tải file Word
+        </a>
+        <p className="text-xs opacity-70">
+          Tải về để mở bằng Microsoft Word hoặc ứng dụng đọc tài liệu.
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="space-y-3">
       <a

@@ -290,7 +290,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
       mode === "document" &&
       quiz.questions.length &&
       !window.confirm(
-        "Đề tự luận PDF chỉ có phần nộp bài chung. Bỏ danh sách câu đang soạn để chuyển sang dạng này?",
+        "Đề tự luận dạng tệp chỉ có phần nộp bài chung. Bỏ danh sách câu đang soạn để chuyển sang dạng này?",
       )
     )
       return;
@@ -502,8 +502,8 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                     </option>
                     <option value="document">
                       {manual
-                        ? "Tệp đề PDF / ảnh · Nộp bài chung"
-                        : "PDF / ảnh + phiếu trả lời"}
+                        ? "Tệp đề PDF / Word / ảnh · Nộp bài chung"
+                        : "PDF / Word / ảnh + phiếu trả lời"}
                     </option>
                   </select>
                 </label>
@@ -576,9 +576,12 @@ export default function QuizAdmin({ uid }: { uid: string }) {
             </section>
             {quiz.mode === "document" && (
               <section className="rounded-2xl border border-slate-200 p-4 sm:p-6">
-                <h3 className="mb-2 font-semibold">2. Tệp đề PDF / ảnh</h3>
+                <h3 className="mb-2 font-semibold">
+                  2. Tệp đề PDF / Word / ảnh
+                </h3>
                 <p className="mb-4 text-sm text-slate-600">
-                  Tải tối đa 8 tệp, mỗi tệp dưới 1,8 MB (PDF, PNG, JPG, WebP).
+                  Tải tối đa 8 tệp, mỗi tệp dưới 1,8 MB (PDF, Word .doc/.docx,
+                  PNG, JPG, WebP).
                   {manual
                     ? "Học sinh nộp bài chung cho cả đề; không cần khai báo từng câu trả lời."
                     : "Bên dưới, khai báo các câu theo đúng thứ tự trong tệp."}
@@ -588,7 +591,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                   <input
                     type="file"
                     className="account-input"
-                    accept="application/pdf,image/png,image/jpeg,image/webp"
+                    accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf,image/png,image/jpeg,image/webp"
                     disabled={busy || quiz.documentIds.length >= 8}
                     onChange={(e) => {
                       void upload(e.target.files?.[0]);
@@ -1144,7 +1147,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                   <p className="mt-2 text-sm text-slate-500">
                     {getSubject(item.subject).label} · {item.category} ·{" "}
                     {item.gradingMode === "manual" && item.questionCount === 0
-                      ? "Tự luận PDF"
+                      ? "Tự luận · Tệp đề"
                       : `${item.questionCount} câu`}{" "}
                     · {item.durationMinutes} phút
                   </p>

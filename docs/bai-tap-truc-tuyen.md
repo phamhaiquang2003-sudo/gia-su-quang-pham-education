@@ -6,12 +6,12 @@
 2. Điền tên đề, môn học, danh mục, hướng dẫn và thời gian từ **1–360 phút**.
 3. Chọn cách đưa đề lên:
    - **Soạn từng câu trực tiếp:** nhập nội dung hoặc dán ảnh chụp cả câu hỏi và các lựa chọn. Có ảnh thì không cần gõ lại nội dung câu; các lựa chọn còn trống tự ghi “Xem … trong ảnh”.
-   - **PDF / ảnh + phiếu trả lời:** tải tệp đề, thêm câu theo thứ tự trong tệp. Nội dung câu có thể để trống; các lựa chọn/ý có thể ghi A/B/C/D hoặc Ý a/b/c/d.
+   - **PDF / Word / ảnh + phiếu trả lời:** tải tệp đề, thêm câu theo thứ tự trong tệp. Nội dung câu có thể để trống; các lựa chọn/ý có thể ghi A/B/C/D hoặc Ý a/b/c/d.
 4. Mỗi câu có dạng **A/B/C/D**, **Đúng/Sai (4 ý)** hoặc **trả lời ngắn**. Nhập đáp án đúng, điểm trọng số và lời giải nếu có.
 5. Bấm **Xem trước**, **Lưu nháp** hoặc **Xuất bản đề**. Đề xuất bản xuất hiện trong kho của môn đã chọn.
 6. Bấm **Mở bài để làm thử** để thử bằng tài khoản quản trị. Trong **Danh sách đề → Kết quả học sinh**, lượt này được ghi là **Làm thử**.
 
-PDF/PNG/JPG/WebP được tải trực tiếp, tối đa **1,8 MB mỗi tệp**, 8 tệp đề và 608 tệp tổng cộng/đề (100 câu × 6 ảnh + 8 tệp đề). Mỗi câu có thể có ảnh câu hỏi, 4 ảnh lựa chọn/ý và ảnh lời giải. Mỗi đề tối đa 100 câu. Ảnh lớn được trình duyệt tự nén trước khi gửi; PDF lớn cần nén trước khi tải. Bản đang soạn được giữ trong tab trình duyệt; bấm **Lưu nháp** để lưu lên máy chủ.
+PDF/Word (.doc, .docx)/PNG/JPG/WebP được tải trực tiếp, tối đa **1,8 MB mỗi tệp**, 8 tệp đề và 608 tệp tổng cộng/đề (100 câu × 6 ảnh + 8 tệp đề). Mỗi câu có thể có ảnh câu hỏi, 4 ảnh lựa chọn/ý và ảnh lời giải. Mỗi đề tối đa 100 câu. Ảnh lớn được trình duyệt tự nén trước khi gửi; tệp tài liệu lớn cần giảm dung lượng trước khi tải. Với Word, học sinh bấm **Tải file Word** để mở trên máy; PDF và ảnh vẫn xem trực tiếp trong trang. Bản đang soạn được giữ trong tab trình duyệt; bấm **Lưu nháp** để lưu lên máy chủ.
 
 ### Dán ảnh chụp màn hình, không cần lưu về máy
 
@@ -39,7 +39,7 @@ PDF/PNG/JPG/WebP được tải trực tiếp, tối đa **1,8 MB mỗi tệp**,
 
 1. Trong **Thông tin đề → Loại bài tập**, chọn **Tự luận · Gia sư chấm thủ công**.
 2. Chọn cách đưa đề lên:
-   - **Tệp đề PDF / ảnh · Nộp bài chung:** tải PDF của đề, không cần khai báo từng câu hoặc đáp án. Học sinh có một vùng nộp bài chung cho cả đề.
+   - **Tệp đề PDF / Word / ảnh · Nộp bài chung:** tải PDF hoặc Word của đề, không cần khai báo từng câu hoặc đáp án. Học sinh có một vùng nộp bài chung cho cả đề.
    - **Dán ảnh / soạn từng câu tự luận:** chụp và dán ảnh vào vùng **Ảnh câu hỏi** (Ctrl + V) hoặc nhập nội dung, thêm các câu nếu cần. Mỗi câu có vùng trả lời và ảnh bài làm riêng.
 3. Lưu nháp hoặc xuất bản. Có thể đặt mật khẩu 6 số như đề trắc nghiệm.
 4. Học sinh bắt đầu lượt làm, nhập bài giải hoặc tải nhiều ảnh bài viết tay từ máy tính/điện thoại. Có thể dán ảnh vào vùng trả lời. Mỗi lượt tối đa **20 ảnh PNG/JPG/WebP**, mỗi ảnh dưới **1,8 MB**; ảnh lớn tự nén. Ảnh được lưu trên máy chủ ngay khi tải thành công, có thể gỡ trước khi nộp. Văn bản tự lưu/khôi phục như bài trắc nghiệm.

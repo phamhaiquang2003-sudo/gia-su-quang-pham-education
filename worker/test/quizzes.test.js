@@ -13,6 +13,136 @@ import {
   fileIds,
 } from "../src/quiz-model.js";
 import { requireQuizUser } from "../src/quiz-auth.js";
+import { DOC_MIME, DOCX_MIME } from "../src/word-files.js";
+
+const wordWorksheet = Buffer.from(
+  readFileSync(
+    new URL("./fixtures/worksheet.docx.base64", import.meta.url),
+    "utf8",
+  ).trim(),
+  "base64",
+);
+function teacherUpload(bytes, mime, name = "Đề bài.docx") {
+  return new Request(
+    `https://example.test/api/quiz/upload?name=${encodeURIComponent(name)}`,
+    { method: "POST", headers: { "Content-Type": mime }, body: bytes },
+  );
+}
+
+test("teacher Word uploads retain original bytes/name, are downloadable only through quiz permissions, survive snapshots and delete with their quiz", async () => {
+  const { db, sqlite } = database();
+  try {
+    const teacher = makeQuizService(db, adminUser),
+      student = makeQuizService(db, studentUser);
+    await assert.rejects(
+      student.upload(teacherUpload(wordWorksheet, DOCX_MIME)),
+      (e) => e.status === 403,
+    );
+    const uploaded = await teacher.upload(
+      teacherUpload(wordWorksheet, DOCX_MIME),
+    );
+    const source = {
+      ...essayFixture("document"),
+      documentIds: [uploaded.file.id],
+      status: "draft",
+      accessCode: "012345",
+    };
+    let saved = (await teacher.save({ quiz: source })).quiz;
+    await assert.rejects(
+      student.file({ id: uploaded.file.id }),
+      (e) => e.status === 403,
+    );
+    saved = (
+      await teacher.save({
+        id: saved.id,
+        revision: saved.revision,
+        quiz: { ...source, status: "published" },
+      })
+    ).quiz;
+    await assert.rejects(
+      student.file({ id: uploaded.file.id }),
+      (e) => e.status === 403,
+    );
+    const started = await student.start({ id: saved.id, accessCode: "012345" });
+    const response = await student.file({ id: uploaded.file.id });
+    assert.equal(response.headers.get("Content-Type"), DOCX_MIME);
+    assert.equal(
+      response.headers.get("Access-Control-Expose-Headers"),
+      "Content-Disposition",
+    );
+    assert.equal(
+      response.headers.get("Content-Disposition"),
+      `attachment; filename*=UTF-8''${encodeURIComponent("Đề bài.docx")}`,
+    );
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), wordWorksheet);
+    await assert.rejects(
+      student.submissionUpload(
+        workUpload(started.attempt, "__submission", wordWorksheet, DOCX_MIME),
+      ),
+    );
+    await teacher.save({
+      id: saved.id,
+      revision: saved.revision,
+      quiz: fixture(),
+    });
+    assert.equal((await student.file({ id: uploaded.file.id })).status, 200);
+    await teacher.deleteQuiz({ id: saved.id, revision: saved.revision + 1 });
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_files").get().n,
+      0,
+    );
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("Word format checks accept legacy DOC signatures, reject unrelated/truncated archives, mismatched content and oversized files", async () => {
+  const { db, sqlite } = database();
+  try {
+    const teacher = makeQuizService(db, adminUser);
+    const doc = Buffer.alloc(512);
+    Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]).copy(doc);
+    Buffer.from("WordDocument", "utf16le").copy(doc, 128);
+    const legacy = await teacher.upload(
+      teacherUpload(doc, DOC_MIME, "Đề cũ.doc"),
+    );
+    assert.equal(legacy.file.mime, DOC_MIME);
+    assert.deepEqual(
+      Buffer.from(
+        await (await teacher.file({ id: legacy.file.id })).arrayBuffer(),
+      ),
+      doc,
+    );
+    const unrelatedZip = Buffer.from(
+      wordWorksheet
+        .toString("latin1")
+        .replaceAll("word/document.xml", "xl__/document.xml"),
+      "latin1",
+    );
+    for (const [bytes, mime] of [
+      [unrelatedZip, DOCX_MIME],
+      [wordWorksheet.subarray(0, 100), DOCX_MIME],
+      [wordWorksheet, DOC_MIME],
+      [doc, DOCX_MIME],
+      [Buffer.from("PK fake Word"), DOCX_MIME],
+      [Buffer.alloc(512), DOC_MIME],
+    ])
+      await assert.rejects(
+        teacher.upload(teacherUpload(bytes, mime)),
+        (e) => e.code === "invalid-argument",
+      );
+    await assert.rejects(
+      teacher.upload(teacherUpload(Buffer.alloc(1_800_001), DOCX_MIME)),
+      (e) => e.status === 413,
+    );
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_files").get().n,
+      1,
+    );
+  } finally {
+    sqlite.close();
+  }
+});
 
 // Run the real SQL against SQLite, including atomic batches and preconditions.
 const submissionPng = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1]);

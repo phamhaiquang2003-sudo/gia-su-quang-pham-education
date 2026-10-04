@@ -159,7 +159,7 @@ export function validateQuiz(input) {
   )
     fail("Tệp đề không hợp lệ.");
   if (input.mode === "document" && !documentIds.length)
-    fail("Hãy tải ít nhất một PDF hoặc ảnh đề.");
+    fail("Hãy tải ít nhất một tệp đề PDF, Word hoặc ảnh.");
   const files = fileIds({ documentIds, questions });
   if (files.length > 608) fail("Mỗi đề dùng tối đa 608 tệp.");
   return {

@@ -410,7 +410,7 @@ export default function ExercisePage() {
                     </h2>
                     <p className="mb-6 mt-4 text-sm text-slate-300">
                       {q.gradingMode === "manual" && q.questionCount === 0
-                        ? "Đề PDF"
+                        ? "Đề dạng tệp"
                         : `${q.questionCount} câu hỏi`}{" "}
                       · {q.durationMinutes} phút ·{" "}
                       {q.gradingMode === "manual"
