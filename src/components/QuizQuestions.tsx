@@ -80,9 +80,20 @@ export default function QuizQuestions({
                       onChange={() => onAnswer(q.id, letter)}
                     />
                     <span className="font-semibold">{letter}.</span>
-                    <span className="whitespace-pre-wrap break-words">
-                      {choice}
-                    </span>
+                    <div className="min-w-0 flex-1 space-y-3">
+                      {choice && (
+                        <p className="whitespace-pre-wrap break-words">
+                          {choice}
+                        </p>
+                      )}
+                      {q.choiceImageIds?.[i] && (
+                        <QuizFile
+                          id={q.choiceImageIds[i]}
+                          imageOnly
+                          alt={`Ảnh lựa chọn ${letter} · Câu ${index + 1}`}
+                        />
+                      )}
+                    </div>
                   </label>
                 );
               })}
@@ -99,6 +110,15 @@ export default function QuizQuestions({
                     <p className="mb-3 whitespace-pre-wrap break-words text-sm">
                       {"abcd"[i]}. {statement}
                     </p>
+                    {q.statementImageIds?.[i] && (
+                      <div className="mb-3">
+                        <QuizFile
+                          id={q.statementImageIds[i]}
+                          imageOnly
+                          alt={`Ảnh ý ${"abcd"[i]} · Câu ${index + 1}`}
+                        />
+                      </div>
+                    )}
                     <div className="flex gap-5">
                       {[true, false].map((value) => (
                         <label

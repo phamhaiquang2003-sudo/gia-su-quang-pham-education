@@ -11,7 +11,7 @@
 5. Bấm **Xem trước**, **Lưu nháp** hoặc **Xuất bản đề**. Đề xuất bản xuất hiện trong kho của môn đã chọn.
 6. Bấm **Mở bài để làm thử** để thử bằng tài khoản quản trị. Trong **Danh sách đề → Kết quả học sinh**, lượt này được ghi là **Làm thử**.
 
-PDF/PNG/JPG/WebP được tải trực tiếp, tối đa **1,8 MB mỗi tệp**, 8 tệp đề và 208 tệp tổng cộng/đề (100 câu × 2 ảnh + 8 tệp đề). Mỗi đề tối đa 100 câu. Ảnh câu hỏi/đáp án lớn được trình duyệt tự nén trước khi gửi; PDF lớn cần nén trước khi tải. Bản đang soạn được giữ trong tab trình duyệt; bấm **Lưu nháp** để lưu lên máy chủ.
+PDF/PNG/JPG/WebP được tải trực tiếp, tối đa **1,8 MB mỗi tệp**, 8 tệp đề và 608 tệp tổng cộng/đề (100 câu × 6 ảnh + 8 tệp đề). Mỗi câu có thể có ảnh câu hỏi, 4 ảnh lựa chọn/ý và ảnh lời giải. Mỗi đề tối đa 100 câu. Ảnh lớn được trình duyệt tự nén trước khi gửi; PDF lớn cần nén trước khi tải. Bản đang soạn được giữ trong tab trình duyệt; bấm **Lưu nháp** để lưu lên máy chủ.
 
 ### Dán ảnh chụp màn hình, không cần lưu về máy
 
@@ -20,6 +20,13 @@ PDF/PNG/JPG/WebP được tải trực tiếp, tối đa **1,8 MB mỗi tệp**,
 3. Chọn đáp án đúng để chấm tự động. Với trả lời ngắn, nhập kết quả được chấp nhận.
 4. Nếu có ảnh đáp án/lời giải, chụp vùng đó rồi dán vào **Ảnh đáp án / lời giải** hoặc ô **Lời giải**. Ảnh này chỉ cho học sinh xem sau khi nộp, nếu bật **Hiện đáp án và lời giải ngay sau khi nộp**. Ảnh không tự được đọc để suy ra khóa chấm.
 5. Xem ảnh ngay trong trình soạn; dán lại để thay ảnh, bấm **Bỏ ảnh** để gỡ. Bấm **Lưu nháp** hoặc **Xuất bản đề** để lưu.
+
+### Dán ảnh riêng cho từng lựa chọn
+
+- Câu A/B/C/D: mỗi lựa chọn có vùng **Ảnh lựa chọn A/B/C/D** ngay bên dưới ô nội dung. Chụp hoặc sao chép ảnh, bấm đúng vùng rồi **Ctrl + V**, hoặc bấm **Dán ảnh từ clipboard**. Có thể dán ngay trong ô nội dung lựa chọn.
+- Câu Đúng/Sai: mỗi ý a/b/c/d có vùng **Ảnh ý a/b/c/d**, thao tác tương tự.
+- Có ảnh riêng thì nội dung chữ của lựa chọn/ý đó được để trống, hoặc dùng kết hợp chữ và ảnh. Vẫn chọn đáp án đúng / Đúng–Sai để chấm tự động.
+- Dán lại để thay ảnh, **Bỏ ảnh** chỉ gỡ ảnh của đúng lựa chọn đó. Ảnh hiển thị ở đúng lựa chọn trong **Xem trước** và khi học sinh làm bài; bản nháp, nhân bản câu và snapshot lượt làm đều giữ ảnh.
 
 ### Quy tắc chấm
 

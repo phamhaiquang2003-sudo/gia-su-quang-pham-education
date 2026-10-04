@@ -7,12 +7,14 @@ export default function QuizImageInput({
   label,
   imageId,
   disabled,
+  compact = false,
   onUpload,
   onRemove,
 }: {
   label: string;
   imageId?: string;
   disabled: boolean;
+  compact?: boolean;
   onUpload: (file: File) => Promise<void>;
   onRemove: () => void;
 }) {
@@ -62,12 +64,13 @@ export default function QuizImageInput({
       aria-label={label}
       tabIndex={disabled ? -1 : 0}
       onPaste={paste}
-      className="mt-4 min-w-0 rounded-xl border-2 border-dashed border-sky-200 bg-sky-50/50 p-4 outline-none focus-within:border-sky-500 focus-visible:ring-2 focus-visible:ring-sky-300"
+      className={`${compact ? "mt-2 p-3" : "mt-4 p-4"} min-w-0 rounded-xl border-2 border-dashed border-sky-200 bg-sky-50/50 outline-none focus-within:border-sky-500 focus-visible:ring-2 focus-visible:ring-sky-300`}
     >
       <p className="text-sm font-semibold">{label}</p>
       <p className="mt-1 text-xs leading-relaxed text-slate-600">
-        Chụp màn hình bằng Win + Shift + S → bấm vào đây → Ctrl + V. Không cần
-        lưu ảnh về máy. Ảnh lớn được tự nén.
+        {compact
+          ? "Ctrl + V để dán riêng ảnh của lựa chọn / ý này. Có ảnh thì có thể để trống nội dung chữ."
+          : "Chụp màn hình bằng Win + Shift + S → bấm vào đây → Ctrl + V. Không cần lưu ảnh về máy. Ảnh lớn được tự nén."}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button

@@ -41,18 +41,23 @@ import QuizQuestions from "./QuizQuestions";
 import QuizResultView from "./QuizResultView";
 import QuizImageInput from "./QuizImageInput";
 import { clipboardImage, prepareQuizImage } from "@/lib/quiz-images";
+type ImagePurpose = "question" | "explanation" | "choice" | "statement";
 
 function imageChoices(question: Question): Partial<Question> {
   if (question.type === "single")
     return {
       choices: question.choices?.map((choice, i) =>
-        choice.trim() ? choice : `Xem lựa chọn ${"ABCD"[i]} trong ảnh`,
+        choice.trim() || question.choiceImageIds?.[i]
+          ? choice
+          : `Xem lựa chọn ${"ABCD"[i]} trong ảnh`,
       ),
     };
   if (question.type === "truefalse")
     return {
       statements: question.statements?.map((statement, i) =>
-        statement.trim() ? statement : `Xem ý ${"abcd"[i]} trong ảnh`,
+        statement.trim() || question.statementImageIds?.[i]
+          ? statement
+          : `Xem ý ${"abcd"[i]} trong ảnh`,
       ),
     };
   return {};
@@ -160,7 +165,8 @@ export default function QuizAdmin({ uid }: { uid: string }) {
   async function upload(
     file: File | undefined,
     questionId?: string,
-    purpose: "question" | "explanation" = "question",
+    purpose: ImagePurpose = "question",
+    partIndex = 0,
   ) {
     if (!file) return;
     const selectedFile = file;
@@ -173,32 +179,44 @@ export default function QuizAdmin({ uid }: { uid: string }) {
         questionId
           ? {
               ...current,
-              questions: current.questions.map((item) =>
-                item.id !== questionId
-                  ? item
-                  : purpose === "explanation"
-                    ? { ...item, explanationImageId: saved.id }
-                    : { ...item, imageId: saved.id, ...imageChoices(item) },
-              ),
+              questions: current.questions.map((item) => {
+                if (item.id !== questionId) return item;
+                if (purpose === "choice" || purpose === "statement") {
+                  const field =
+                    purpose === "choice"
+                      ? "choiceImageIds"
+                      : "statementImageIds";
+                  return {
+                    ...item,
+                    [field]: Array.from({ length: 4 }, (_, i) =>
+                      i === partIndex ? saved.id : item[field]?.[i] || "",
+                    ),
+                  };
+                }
+                return purpose === "explanation"
+                  ? { ...item, explanationImageId: saved.id }
+                  : { ...item, imageId: saved.id, ...imageChoices(item) };
+              }),
             }
           : { ...current, documentIds: [...current.documentIds, saved.id] },
       );
       setMessage(
         questionId
-          ? `Đã gắn ảnh ${purpose === "explanation" ? "đáp án / lời giải" : "câu hỏi"}. Hãy lưu nháp hoặc xuất bản để lưu vào đề.`
+          ? `Đã gắn ảnh ${purpose === "explanation" ? "đáp án / lời giải" : purpose === "choice" ? `lựa chọn ${"ABCD"[partIndex]}` : purpose === "statement" ? `ý ${"abcd"[partIndex]}` : "câu hỏi"}. Hãy lưu nháp hoặc xuất bản để lưu vào đề.`
           : `Đã tải ${saved.name}. Hãy lưu đề để gắn tệp vào bài tập.`,
       );
     });
   }
   function pasteImage(
-    event: ClipboardEvent<HTMLTextAreaElement>,
+    event: ClipboardEvent<HTMLTextAreaElement | HTMLInputElement>,
     questionId: string,
-    purpose: "question" | "explanation",
+    purpose: ImagePurpose,
+    partIndex = 0,
   ) {
     const file = clipboardImage(event.clipboardData);
     if (!file) return;
     event.preventDefault();
-    void upload(file, questionId, purpose);
+    void upload(file, questionId, purpose, partIndex);
   }
   async function openResults(item: QuizSummary) {
     await run(async () => {
@@ -658,36 +676,64 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                           Các lựa chọn — tích đáp án đúng
                         </p>
                         {q.choices?.map((choice, i) => (
-                          <label key={i} className="flex items-center gap-3">
-                            <input
-                              type="radio"
-                              name={`correct-${q.id}`}
-                              aria-label={`Đáp án đúng ${"ABCD"[i]} câu ${index + 1}`}
-                              className="size-4 shrink-0 accent-blue-700"
-                              checked={q.answer === "ABCD"[i]}
-                              onChange={() =>
-                                updateQuestion(q.id, { answer: "ABCD"[i] })
+                          <div
+                            key={i}
+                            className="min-w-0 rounded-xl border border-slate-200 p-3"
+                          >
+                            <label className="flex items-center gap-3">
+                              <input
+                                type="radio"
+                                name={`correct-${q.id}`}
+                                aria-label={`Đáp án đúng ${"ABCD"[i]} câu ${index + 1}`}
+                                className="size-4 shrink-0 accent-blue-700"
+                                checked={q.answer === "ABCD"[i]}
+                                onChange={() =>
+                                  updateQuestion(q.id, { answer: "ABCD"[i] })
+                                }
+                              />
+                              <span className="text-sm font-semibold">
+                                {"ABCD"[i]}.
+                              </span>
+                              <input
+                                aria-label={`Lựa chọn ${"ABCD"[i]} câu ${index + 1}`}
+                                className="account-input"
+                                required={!q.choiceImageIds?.[i]}
+                                maxLength={2000}
+                                value={choice}
+                                placeholder={`Nội dung lựa chọn ${"ABCD"[i]}`}
+                                onPaste={(event) =>
+                                  pasteImage(event, q.id, "choice", i)
+                                }
+                                onChange={(e) =>
+                                  updateQuestion(q.id, {
+                                    choices: q.choices?.map((v, j) =>
+                                      i === j ? e.target.value : v,
+                                    ),
+                                  })
+                                }
+                              />
+                            </label>
+                            <QuizImageInput
+                              label={`Ảnh lựa chọn ${"ABCD"[i]} · Câu ${index + 1}`}
+                              imageId={q.choiceImageIds?.[i]}
+                              disabled={busy}
+                              compact
+                              onUpload={(file) =>
+                                upload(file, q.id, "choice", i)
                               }
-                            />
-                            <span className="text-sm font-semibold">
-                              {"ABCD"[i]}.
-                            </span>
-                            <input
-                              aria-label={`Lựa chọn ${"ABCD"[i]} câu ${index + 1}`}
-                              className="account-input"
-                              required
-                              maxLength={2000}
-                              value={choice}
-                              placeholder={`Nội dung lựa chọn ${"ABCD"[i]}`}
-                              onChange={(e) =>
+                              onRemove={() =>
                                 updateQuestion(q.id, {
-                                  choices: q.choices?.map((v, j) =>
-                                    i === j ? e.target.value : v,
+                                  choiceImageIds: Array.from(
+                                    { length: 4 },
+                                    (_, j) =>
+                                      i === j
+                                        ? ""
+                                        : q.choiceImageIds?.[j] || "",
                                   ),
                                 })
                               }
                             />
-                          </label>
+                          </div>
                         ))}
                       </div>
                     )}
@@ -697,42 +743,69 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                         {q.statements?.map((s, i) => (
                           <div
                             key={i}
-                            className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_110px]"
+                            className="min-w-0 rounded-xl border border-slate-200 p-3"
                           >
-                            <label className="account-label">
-                              Ý {"abcd"[i]}
-                              <input
-                                className="account-input"
-                                required
-                                maxLength={2000}
-                                value={s}
-                                onChange={(e) =>
-                                  updateQuestion(q.id, {
-                                    statements: q.statements?.map((v, j) =>
-                                      i === j ? e.target.value : v,
-                                    ),
-                                  })
-                                }
-                              />
-                            </label>
-                            <label className="account-label">
-                              Đáp án
-                              <select
-                                className="account-input"
-                                value={String((q.answer as boolean[])[i])}
-                                onChange={(e) =>
-                                  updateQuestion(q.id, {
-                                    answer: (q.answer as boolean[]).map(
-                                      (v, j) =>
-                                        i === j ? e.target.value === "true" : v,
-                                    ),
-                                  })
-                                }
-                              >
-                                <option value="true">Đúng</option>
-                                <option value="false">Sai</option>
-                              </select>
-                            </label>
+                            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_110px]">
+                              <label className="account-label">
+                                Ý {"abcd"[i]}
+                                <input
+                                  className="account-input"
+                                  required={!q.statementImageIds?.[i]}
+                                  maxLength={2000}
+                                  value={s}
+                                  onPaste={(event) =>
+                                    pasteImage(event, q.id, "statement", i)
+                                  }
+                                  onChange={(e) =>
+                                    updateQuestion(q.id, {
+                                      statements: q.statements?.map((v, j) =>
+                                        i === j ? e.target.value : v,
+                                      ),
+                                    })
+                                  }
+                                />
+                              </label>
+                              <label className="account-label">
+                                Đáp án
+                                <select
+                                  className="account-input"
+                                  value={String((q.answer as boolean[])[i])}
+                                  onChange={(e) =>
+                                    updateQuestion(q.id, {
+                                      answer: (q.answer as boolean[]).map(
+                                        (v, j) =>
+                                          i === j
+                                            ? e.target.value === "true"
+                                            : v,
+                                      ),
+                                    })
+                                  }
+                                >
+                                  <option value="true">Đúng</option>
+                                  <option value="false">Sai</option>
+                                </select>
+                              </label>
+                            </div>
+                            <QuizImageInput
+                              label={`Ảnh ý ${"abcd"[i]} · Câu ${index + 1}`}
+                              imageId={q.statementImageIds?.[i]}
+                              disabled={busy}
+                              compact
+                              onUpload={(file) =>
+                                upload(file, q.id, "statement", i)
+                              }
+                              onRemove={() =>
+                                updateQuestion(q.id, {
+                                  statementImageIds: Array.from(
+                                    { length: 4 },
+                                    (_, j) =>
+                                      i === j
+                                        ? ""
+                                        : q.statementImageIds?.[j] || "",
+                                  ),
+                                })
+                              }
+                            />
                           </div>
                         ))}
                         <label className="account-label">

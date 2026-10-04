@@ -688,6 +688,140 @@ test("image-only questions save without retyping; solution images count as attac
   assert.equal(fileIds(validateQuiz(large)).length, 200);
 });
 
+test("individual choices and true/false statements allow text, an image, or both, with four correctly indexed image IDs", () => {
+  const input = fixture();
+  input.questions[0].choices = ["", "Two", "", "Four"];
+  input.questions[0].choiceImageIds = ["option-a", "option-b", "option-c", ""];
+  input.questions[1].statements = ["", "Second", "Third", ""];
+  input.questions[1].statementImageIds = ["statement-a", "", "", "statement-d"];
+  const quiz = validateQuiz(input);
+  assert.deepEqual(
+    publicQuiz(quiz).questions[0].choiceImageIds,
+    input.questions[0].choiceImageIds,
+  );
+  assert.deepEqual(
+    publicQuiz(quiz).questions[1].statementImageIds,
+    input.questions[1].statementImageIds,
+  );
+  assert.deepEqual(fileIds(publicQuiz(quiz)), [
+    "option-a",
+    "option-b",
+    "option-c",
+    "statement-a",
+    "statement-d",
+  ]);
+  assert.equal(
+    grade(quiz, { single: "B", tf: [true, false, true, false], short: "0.5" })
+      .score,
+    10,
+  );
+  for (const invalid of [
+    ["option-a"],
+    ["option-a", "", "bad/id", ""],
+    ["option-a", null, "", ""],
+  ])
+    assert.throws(() =>
+      validateQuiz({
+        ...input,
+        questions: [{ ...input.questions[0], choiceImageIds: invalid }],
+      }),
+    );
+  assert.throws(() =>
+    validateQuiz({
+      ...input,
+      questions: [{ ...input.questions[0], choiceImageIds: ["", "", "", ""] }],
+    }),
+  );
+  assert.throws(() =>
+    validateQuiz({
+      ...input,
+      questions: [
+        { ...input.questions[1], statementImageIds: ["statement-a", "", ""] },
+      ],
+    }),
+  );
+  assert.deepEqual(validateQuiz(fixture()).questions[0].choiceImageIds, [
+    "",
+    "",
+    "",
+    "",
+  ]);
+});
+
+test("100 questions with all six images save/start within a bounded SQL query count; choice images remain tied to old snapshots and clean up on deletion", async () => {
+  const { db, sqlite } = database();
+  try {
+    const input = {
+      ...fixture(),
+      mode: "document",
+      documentIds: Array.from({ length: 8 }, (_, i) => `document-${i}`),
+      questions: Array.from({ length: 100 }, (_, i) => ({
+        ...fixture().questions[0],
+        id: `q-${i}`,
+        prompt: "",
+        imageId: `stem-${i}`,
+        explanationImageId: `solution-${i}`,
+        choices: ["", "", "", ""],
+        choiceImageIds: Array.from({ length: 4 }, (_, j) => `choice-${i}-${j}`),
+      })),
+    };
+    const ids = fileIds(validateQuiz(input));
+    assert.equal(ids.length, 608);
+    const insert = sqlite.prepare(
+      "INSERT INTO quiz_files(id,owner_uid,name,mime,data,created_at) VALUES(?,'teacher',?,'image/png',?,1)",
+    );
+    for (const id of ids)
+      insert.run(id, id + ".png", new Uint8Array([137, 80, 78, 71]));
+    let queries = 0;
+    const counted = {
+      ...db,
+      prepare(sql) {
+        queries++;
+        return db.prepare(sql);
+      },
+    };
+    const teacher = makeQuizService(counted, adminUser),
+      student = makeQuizService(counted, studentUser);
+    const { quiz } = await teacher.save({ quiz: input });
+    assert.ok(queries < 20, `save used ${queries} SQL statements`);
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_file_links").get().n,
+      608,
+    );
+    queries = 0;
+    const start = await student.start({ id: quiz.id });
+    assert.ok(queries < 10, `start used ${queries} SQL statements`);
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM attempt_file_links").get().n,
+      608,
+    );
+    assert.equal((await student.file({ id: "choice-0-2" })).status, 200);
+    await assert.rejects(
+      student.file({ id: "solution-0" }),
+      (e) => e.status === 403,
+    );
+    await teacher.save({
+      id: quiz.id,
+      revision: 1,
+      quiz: { ...fixture(), status: "hidden" },
+    });
+    assert.equal(
+      (await student.detail({ id: quiz.id })).quiz.questions[0]
+        .choiceImageIds[2],
+      "choice-0-2",
+    );
+    assert.equal((await student.file({ id: "choice-0-2" })).status, 200);
+    await teacher.deleteQuiz({ id: quiz.id, revision: 2 });
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_files").get().n,
+      0,
+    );
+    assert.deepEqual(sqlite.prepare("PRAGMA foreign_key_check").all(), []);
+  } finally {
+    sqlite.close();
+  }
+});
+
 test("solution image bytes require a submitted own attempt with reveal enabled; old snapshots keep their solution after edits", async () => {
   const { db, sqlite } = database();
   let now = 1_000_000;

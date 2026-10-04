@@ -15,6 +15,16 @@ function text(value, max, label, required = false) {
     fail(`${label} không hợp lệ.`);
   return value.trim();
 }
+function partImages(value, label) {
+  if (value === undefined) return ["", "", "", ""];
+  if (
+    !Array.isArray(value) ||
+    value.length !== 4 ||
+    value.some((id) => id !== "" && !validId(id))
+  )
+    fail(`${label} cần 4 mã ảnh hợp lệ.`);
+  return value;
+}
 
 export function validateQuiz(input) {
   if (!input || typeof input !== "object") fail("Thiếu thông tin đề.");
@@ -74,11 +84,13 @@ export function validateQuiz(input) {
         !["A", "B", "C", "D"].includes(q.answer)
       )
         fail(`Câu ${index + 1} cần 4 lựa chọn và một đáp án A/B/C/D.`);
+      const choiceImageIds = partImages(q.choiceImageIds, "Ảnh các lựa chọn");
       return {
         ...common,
         choices: q.choices.map((c, i) =>
-          text(c, 2000, `Lựa chọn ${i + 1}`, true),
+          text(c, 2000, `Lựa chọn ${i + 1}`, !choiceImageIds[i]),
         ),
+        choiceImageIds,
         answer: q.answer,
       };
     }
@@ -92,9 +104,16 @@ export function validateQuiz(input) {
       )
         fail(`Câu ${index + 1} cần 4 ý và đáp án Đúng/Sai cho từng ý.`);
       const scoring = q.scoring === "exam" ? "exam" : "equal";
+      const statementImageIds = partImages(
+        q.statementImageIds,
+        "Ảnh các ý Đúng/Sai",
+      );
       return {
         ...common,
-        statements: q.statements.map((s) => text(s, 2000, "Nội dung ý", true)),
+        statements: q.statements.map((s, i) =>
+          text(s, 2000, "Nội dung ý", !statementImageIds[i]),
+        ),
+        statementImageIds,
         answer: q.answer,
         scoring,
       };
@@ -125,14 +144,8 @@ export function validateQuiz(input) {
     fail("Tệp đề không hợp lệ.");
   if (input.mode === "document" && !documentIds.length)
     fail("Hãy tải ít nhất một PDF hoặc ảnh đề.");
-  const files = [
-    ...new Set([
-      ...documentIds,
-      ...questions.map((q) => q.imageId).filter(Boolean),
-      ...questions.map((q) => q.explanationImageId).filter(Boolean),
-    ]),
-  ];
-  if (files.length > 208) fail("Mỗi đề dùng tối đa 208 tệp.");
+  const files = fileIds({ documentIds, questions });
+  if (files.length > 608) fail("Mỗi đề dùng tối đa 608 tệp.");
   return {
     title,
     subject: input.subject,
@@ -153,6 +166,10 @@ export function fileIds(quiz) {
       ...quiz.documentIds,
       ...quiz.questions.map((q) => q.imageId).filter(Boolean),
       ...quiz.questions.map((q) => q.explanationImageId).filter(Boolean),
+      ...quiz.questions.flatMap((q) => q.choiceImageIds || []).filter(Boolean),
+      ...quiz.questions
+        .flatMap((q) => q.statementImageIds || [])
+        .filter(Boolean),
     ]),
   ];
 }
@@ -167,7 +184,11 @@ export function publicQuiz(quiz) {
       points: q.points,
       imageId: q.imageId,
       ...(q.choices ? { choices: q.choices } : {}),
+      ...(q.choiceImageIds ? { choiceImageIds: q.choiceImageIds } : {}),
       ...(q.statements ? { statements: q.statements } : {}),
+      ...(q.statementImageIds
+        ? { statementImageIds: q.statementImageIds }
+        : {}),
     })),
   };
 }

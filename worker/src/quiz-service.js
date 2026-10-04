@@ -170,12 +170,15 @@ export function makeQuizService(db, user, now = () => Date.now()) {
         );
       if (existing && existing.revision !== data.revision) conflict();
       const ids = fileIds(quiz);
-      for (const file of ids) {
+      for (let i = 0; i < ids.length; i += 80) {
+        const chunk = ids.slice(i, i + 80);
         const row = await db
-          .prepare("SELECT id FROM quiz_files WHERE id=? AND owner_uid=?")
-          .bind(file, user.uid)
+          .prepare(
+            `SELECT COUNT(*) AS count FROM quiz_files WHERE owner_uid=? AND id IN (${chunk.map(() => "?").join(",")})`,
+          )
+          .bind(user.uid, ...chunk)
           .first();
-        if (!row)
+        if (row.count !== chunk.length)
           throw new ServiceError(
             "permission-denied",
             "Có tệp không thuộc tài khoản quản trị đang đăng đề.",
@@ -229,13 +232,13 @@ export function makeQuizService(db, user, now = () => Date.now()) {
           )
           .bind(id, id, nonce),
       ];
-      for (const file of ids)
+      if (ids.length)
         statements.push(
           db
             .prepare(
-              "INSERT OR IGNORE INTO quiz_file_links(quiz_id,file_id) SELECT ?,? WHERE EXISTS(SELECT 1 FROM quizzes WHERE id=? AND save_token=?)",
+              "INSERT OR IGNORE INTO quiz_file_links(quiz_id,file_id) SELECT ?,value FROM json_each(?) WHERE EXISTS(SELECT 1 FROM quizzes WHERE id=? AND save_token=?)",
             )
-            .bind(id, file, id, nonce),
+            .bind(id, JSON.stringify(ids), id, nonce),
         );
       const results = await db.batch(statements);
       if (!results[0].meta.changes) conflict();
@@ -408,13 +411,14 @@ export function makeQuizService(db, user, now = () => Date.now()) {
             user.uid,
           ),
       ];
-      for (const file of fileIds(quiz))
+      const attached = fileIds(quiz);
+      if (attached.length)
         statements.push(
           db
             .prepare(
-              "INSERT OR IGNORE INTO attempt_file_links(attempt_id,file_id) SELECT ?,? WHERE EXISTS(SELECT 1 FROM quiz_attempts WHERE id=?)",
+              "INSERT OR IGNORE INTO attempt_file_links(attempt_id,file_id) SELECT ?,value FROM json_each(?) WHERE EXISTS(SELECT 1 FROM quiz_attempts WHERE id=?)",
             )
-            .bind(id, file, id),
+            .bind(id, JSON.stringify(attached), id),
         );
       await db.batch(statements);
       const attempt = await db

@@ -11,7 +11,9 @@ export interface Question {
   imageId: string;
   explanationImageId?: string;
   choices?: string[];
+  choiceImageIds?: string[];
   statements?: string[];
+  statementImageIds?: string[];
   answer?: string | boolean[];
   acceptedAnswers?: string[];
   tolerance?: number;
@@ -171,6 +173,8 @@ export function newQuestion(
     prompt: "",
     points: 1,
     imageId: "",
+    choiceImageIds: ["", "", "", ""],
+    statementImageIds: ["", "", "", ""],
     explanation: "",
   };
   if (type === "single")
