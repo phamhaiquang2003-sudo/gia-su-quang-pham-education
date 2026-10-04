@@ -10,13 +10,6 @@ export default function QuizResultView({ result }: { result: QuizResult }) {
           {result.score.toLocaleString("vi-VN")}
           <span className="text-xl opacity-70"> / 10</span>
         </p>
-        <p className="text-sm">
-          Đúng hoàn toàn {result.correctCount}/{result.questionCount} câu · Chưa
-          hoàn tất {result.unansweredCount} câu
-        </p>
-        <p className="mt-2 text-xs opacity-70">
-          Điểm được tính theo trọng số giáo viên đặt cho mỗi câu.
-        </p>
       </div>
       {result.details.map((detail, index) => (
         <article
