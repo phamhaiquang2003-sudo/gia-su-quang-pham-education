@@ -38,6 +38,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
   const [navigation, setNavigation] = useState(false);
   const [mobileTab, setMobileTab] = useState<"document" | "answers">("answers");
   const [reload, setReload] = useState(0);
+  const [nextAttemptNumber, setNextAttemptNumber] = useState(1);
   const current = useRef({
     answers: {} as Answers,
     flagged: [] as string[],
@@ -51,6 +52,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
   const lockRef = useRef(false);
   const staleRef = useRef(false);
   const mounted = useRef(true);
+  const generation = useRef(0);
   const cacheKey = `phq-quiz-progress:${uid}:${id}`;
   function serverNow() {
     return performance.now() + clock.current;
@@ -93,6 +95,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
   }
   useEffect(() => {
     mounted.current = true;
+    const currentGeneration = ++generation.current;
     let cancelled = false;
     setLoading(true);
     setError("");
@@ -102,6 +105,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
       .then((data) => {
         if (cancelled) return;
         setQuiz(data.quiz);
+        setNextAttemptNumber(data.nextAttemptNumber || 1);
         setActive(data.quiz.questions[0]?.id || "");
         clock.current = data.serverNow - performance.now();
         attemptRef.current = data.attempt;
@@ -109,6 +113,13 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
         let recovered = false;
         let a = data.attempt?.answers || {},
           f = data.attempt?.flagged || [];
+        if (!data.attempt) {
+          try {
+            localStorage.removeItem(cacheKey);
+          } catch {
+            /* ignore */
+          }
+        }
         if (
           data.attempt &&
           !data.attempt.result &&
@@ -153,12 +164,20 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
         );
       })
       .catch((e) => {
-        if (!cancelled) setError(e.message);
+        if (!cancelled) {
+          setError(e.message);
+          if (e instanceof QuizApiError && e.status === 404) {
+            setQuiz(null);
+            setAttempt(null);
+            attemptRef.current = null;
+          }
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
     return () => {
+      if (generation.current === currentGeneration) generation.current++;
       cancelled = true;
       mounted.current = false;
       if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -184,6 +203,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
       )
         return;
       const version = state.version;
+      const requestGeneration = generation.current;
       setSaveStatus("Đang lưu câu trả lời…");
       try {
         const data = await quizApi<{ attempt: Attempt; serverNow: number }>(
@@ -195,6 +215,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
             flagged: state.flagged,
           },
         );
+        if (generation.current !== requestGeneration) return;
         apply(data);
         current.current.savedVersion = version;
         if (current.current.version === version) {
@@ -209,8 +230,12 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
           }
         } else cache();
       } catch (e) {
-        if (!mounted.current) return;
-        if (e instanceof QuizApiError && e.status === 409) {
+        if (!mounted.current || generation.current !== requestGeneration)
+          return;
+        if (
+          e instanceof QuizApiError &&
+          (e.status === 409 || e.status === 404)
+        ) {
           staleRef.current = true;
           setStale(true);
           setSaveStatus("Bài được cập nhật ở cửa sổ khác.");
@@ -251,6 +276,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
     await enqueue(async () => {
       const a = attemptRef.current;
       if (!a || a.result) return;
+      const requestGeneration = generation.current;
       setSaveStatus("Đang nộp và chấm bài…");
       try {
         const data = await quizApi<{ attempt: Attempt; serverNow: number }>(
@@ -262,12 +288,17 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
             flagged: current.current.flagged,
           },
         );
+        if (generation.current !== requestGeneration) return;
         apply(data);
       } catch (e) {
-        if (!mounted.current) return;
+        if (!mounted.current || generation.current !== requestGeneration)
+          return;
         setError(e instanceof Error ? e.message : "Chưa nộp được bài.");
         setSaveStatus("Chưa xác nhận nộp bài · hãy thử lại");
-        if (e instanceof QuizApiError && e.status === 409) {
+        if (
+          e instanceof QuizApiError &&
+          (e.status === 409 || e.status === 404)
+        ) {
           staleRef.current = true;
           setStale(true);
         }
@@ -487,9 +518,15 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
             <p className="mb-6 text-sm leading-relaxed text-slate-300">
               Đồng hồ chạy ngay khi bắt đầu. Bạn có thể đánh dấu câu để xem lại
               và dùng bảng số câu để chuyển nhanh. Hết giờ, bài được khóa và
-              chấm từ các câu trả lời đã lưu trước hạn. Mỗi tài khoản có một
-              lượt làm; tải lại trang để tiếp tục lượt hiện tại.
+              chấm từ các câu trả lời đã lưu trước hạn. Tải lại trang để tiếp
+              tục lượt hiện tại. Giáo viên có thể cấp thêm lượt làm lại.
             </p>
+            {nextAttemptNumber > 1 && (
+              <p className="mb-6 rounded-xl border border-emerald-300/30 bg-emerald-300/10 p-4 text-sm text-emerald-200">
+                Giáo viên đã cho phép bạn làm lại — lượt {nextAttemptNumber}.
+                Lượt mới có đáp án trống và đầy đủ thời gian làm bài.
+              </p>
+            )}
             <button
               disabled={starting}
               className="w-full rounded-xl bg-amber-300 px-5 py-4 font-bold text-slate-950 disabled:opacity-50"
@@ -504,6 +541,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
             <p className="mb-2 text-sm text-emerald-200">Đã nộp và chấm bài</p>
             <h1 className="mb-3 font-display text-3xl">{quiz.title}</h1>
             <p className="mb-6 text-xs text-slate-300">
+              Lượt {attempt.attemptNumber || 1} ·{" "}
               {attempt.submittedAt &&
                 new Date(attempt.submittedAt).toLocaleString("vi-VN")}{" "}
               · Thời gian làm:{" "}
@@ -518,6 +556,13 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
               phút
             </p>
             <QuizResultView result={attempt.result} />
+            <button
+              type="button"
+              className="mt-6 mr-3 inline-block rounded-xl border border-white/20 px-5 py-3 text-sm"
+              onClick={() => setReload((n) => n + 1)}
+            >
+              Kiểm tra lượt làm lại
+            </button>
             <a
               className="mt-6 inline-block rounded-xl border border-white/20 px-5 py-3 text-sm"
               href={subjectHref(quiz.subject)}

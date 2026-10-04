@@ -13,6 +13,7 @@ import {
   Eye,
   FileText,
   Plus,
+  RotateCcw,
   Save,
   Trash2,
 } from "lucide-react";
@@ -210,6 +211,48 @@ export default function QuizAdmin({ uid }: { uid: string }) {
       setView("results");
     });
   }
+  async function deleteQuiz(item: QuizSummary) {
+    if (
+      !window.confirm(
+        `Xóa vĩnh viễn đề “${item.title}”?\n\nĐề, toàn bộ lượt làm và kết quả học sinh của đề này sẽ bị xóa. Các lượt đang làm cũng sẽ kết thúc. Thao tác không thể hoàn tác.`,
+      )
+    )
+      return;
+    await run(async () => {
+      await quizApi("deleteQuiz", { id: item.id, revision: item.revision });
+      setList((items) => items.filter((q) => q.id !== item.id));
+      if (quiz.id === item.id) setQuiz(newQuiz());
+      if (resultQuiz?.id === item.id) {
+        setResultQuiz(null);
+        setAttempts([]);
+        setSelected(null);
+      }
+      setView("list");
+      setMessage("Đã xóa vĩnh viễn đề và các lượt làm của đề này.");
+    });
+  }
+  async function allowRetake(attempt: Attempt) {
+    if (!resultQuiz) return;
+    const name = attempt.displayName || attempt.username || "tài khoản này";
+    if (
+      !window.confirm(
+        `Cho phép ${name} làm lại đề này?\n\nLượt cũ và điểm được giữ trong lịch sử. Nếu đang làm, lượt cũ sẽ được kết thúc và chấm theo đáp án đã lưu. Lượt mới bắt đầu với đáp án trống và đủ thời gian khi học sinh bấm “Bắt đầu làm bài”.`,
+      )
+    )
+      return;
+    const quizId = resultQuiz.id;
+    await run(async () => {
+      await quizApi("allowRetake", { id: attempt.id });
+      const data = await quizApi<{ attempts: Attempt[] }>("results", {
+        id: quizId,
+      });
+      setAttempts(data.attempts);
+      setSelected(null);
+      setMessage(
+        `Đã cho phép ${name} làm lại. Học sinh tải lại trang đề rồi bấm “Bắt đầu làm bài”. Lượt cũ vẫn được giữ.`,
+      );
+    });
+  }
   const subject = getSubject(quiz.subject);
   return (
     <div className="space-y-6">
@@ -391,9 +434,10 @@ export default function QuizAdmin({ uid }: { uid: string }) {
               </label>
               <p className="mt-5 text-xs leading-relaxed text-slate-600">
                 Bản này giao đề cho tất cả tài khoản đang hoạt động. Mỗi tài
-                khoản có một lượt làm cho mỗi đề, đồng hồ bắt đầu khi bấm “Bắt
-                đầu làm bài”. Tải lại trang vẫn giữ thời hạn. Lượt quản trị được
-                ghi riêng là “Làm thử”.
+                khoản có một lượt ban đầu cho mỗi đề; bạn có thể cấp lượt làm
+                lại tại “Kết quả học sinh”. Đồng hồ bắt đầu khi bấm “Bắt đầu làm
+                bài”. Tải lại trang vẫn giữ thời hạn. Lượt quản trị được ghi
+                riêng là “Làm thử”.
               </p>
             </section>
             {quiz.mode === "document" && (
@@ -923,7 +967,13 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                           await quizApi("hide", { id: item.id });
                           setList((items) =>
                             items.map((q) =>
-                              q.id === item.id ? { ...q, status: "hidden" } : q,
+                              q.id === item.id
+                                ? {
+                                    ...q,
+                                    status: "hidden",
+                                    revision: q.revision + 1,
+                                  }
+                                : q,
                             ),
                           );
                           setMessage("Đã ẩn đề khỏi kho bài tập.");
@@ -934,6 +984,15 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                     </button>
                   </>
                 )}
+                <button
+                  type="button"
+                  disabled={busy}
+                  className="account-button-secondary text-xs text-red-700"
+                  onClick={() => void deleteQuiz(item)}
+                >
+                  <Trash2 className="size-4" />
+                  Xóa đề
+                </button>
               </div>
             </article>
           ))}
@@ -945,7 +1004,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
             <div>
               <h3 className="font-semibold">Kết quả: {resultQuiz.title}</h3>
               <p className="mt-1 text-xs text-slate-500">
-                Tối đa 200 lượt gần nhất · Học sinh và lượt làm thử quản trị
+                Tối đa 200 lượt gần nhất · Giữ lịch sử các lượt làm lại
               </p>
             </div>
             <button
@@ -973,13 +1032,18 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                     )}
                   </h4>
                   <p className="mt-1 text-xs text-slate-500">
-                    @{a.username} ·{" "}
+                    @{a.username} · Lượt {a.attemptNumber || 1} ·{" "}
                     {a.submittedAt
                       ? `Nộp ${new Date(a.submittedAt).toLocaleString("vi-VN")}`
                       : "Đang làm bài"}
                   </p>
+                  {a.isCurrent === false && (
+                    <p className="mt-1 text-xs text-sky-700">
+                      Lượt cũ · Đã cho phép làm lại
+                    </p>
+                  )}
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-3">
                   <strong>
                     {a.result
                       ? `${a.result.score.toLocaleString("vi-VN")} / 10`
@@ -991,6 +1055,22 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                       onClick={() => setSelected(a)}
                     >
                       Xem chi tiết
+                    </button>
+                  )}
+                  {a.isCurrent !== false && (
+                    <button
+                      type="button"
+                      disabled={busy || resultQuiz.status !== "published"}
+                      title={
+                        resultQuiz.status !== "published"
+                          ? "Xuất bản đề trước khi cho phép làm lại"
+                          : undefined
+                      }
+                      className="account-button-secondary text-xs"
+                      onClick={() => void allowRetake(a)}
+                    >
+                      <RotateCcw className="size-4" />
+                      Cho phép làm lại
                     </button>
                   )}
                 </div>

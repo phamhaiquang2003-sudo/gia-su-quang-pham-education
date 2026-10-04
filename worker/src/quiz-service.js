@@ -63,6 +63,12 @@ export function makeQuizService(db, user, now = () => Date.now()) {
         "Không tìm thấy lượt làm bài của bạn.",
         404,
       );
+    if (!row.is_current)
+      throw new ServiceError(
+        "failed-precondition",
+        "Giáo viên đã cho phép làm lại bài này. Hãy tải lại để bắt đầu lượt mới.",
+        409,
+      );
     return row;
   };
   async function finish(
@@ -90,6 +96,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       .prepare("SELECT * FROM quiz_attempts WHERE id=?")
       .bind(row.id)
       .first();
+    if (!updated) throw new ServiceError("not-found", "Đề đã được xóa.", 404);
     if (!updated.result) conflict();
     return updated;
   }
@@ -99,6 +106,8 @@ export function makeQuizService(db, user, now = () => Date.now()) {
   const publicAttempt = (row) => ({
     id: row.id,
     quizId: row.quiz_id,
+    attemptNumber: row.attempt_number,
+    isCurrent: Boolean(row.is_current),
     answers: JSON.parse(row.answers),
     flagged: JSON.parse(row.flagged),
     revision: row.revision,
@@ -153,6 +162,12 @@ export function makeQuizService(db, user, now = () => Date.now()) {
         .prepare("SELECT revision FROM quizzes WHERE id=?")
         .bind(id)
         .first();
+      if (!existing && data.revision !== undefined)
+        throw new ServiceError(
+          "not-found",
+          "Đề đã được xóa. Hãy tạo đề mới để tiếp tục.",
+          404,
+        );
       if (existing && existing.revision !== data.revision) conflict();
       const ids = fileIds(quiz);
       for (const file of ids) {
@@ -237,10 +252,83 @@ export function makeQuizService(db, user, now = () => Date.now()) {
         .run();
       return { success: true };
     },
+    async deleteQuiz(data) {
+      admin();
+      const row = await quizRow(data.id);
+      if (data.revision !== row.revision) conflict();
+      const attached = await db
+        .prepare(
+          "SELECT file_id FROM quiz_file_links WHERE quiz_id=? UNION SELECT l.file_id FROM attempt_file_links l JOIN quiz_attempts a ON a.id=l.attempt_id WHERE a.quiz_id=?",
+        )
+        .bind(row.id, row.id)
+        .all();
+      const statements = [
+        db
+          .prepare("DELETE FROM quizzes WHERE id=? AND revision=?")
+          .bind(row.id, row.revision),
+      ];
+      // Delete only this quiz's unshared attachments, including old snapshots.
+      for (let i = 0; i < attached.results.length; i += 80) {
+        const ids = attached.results
+          .slice(i, i + 80)
+          .map((file) => file.file_id);
+        statements.push(
+          db
+            .prepare(
+              `DELETE FROM quiz_files WHERE id IN (${ids.map(() => "?").join(",")}) AND NOT EXISTS(SELECT 1 FROM quiz_file_links WHERE file_id=quiz_files.id) AND NOT EXISTS(SELECT 1 FROM attempt_file_links WHERE file_id=quiz_files.id) AND NOT EXISTS(SELECT 1 FROM quizzes WHERE id=?)`,
+            )
+            .bind(...ids, row.id),
+        );
+      }
+      const result = await db.batch(statements);
+      if (!result[0].meta.changes) conflict();
+      return { success: true };
+    },
+    async allowRetake(data) {
+      admin();
+      checkId(data.id);
+      let attempt = await db
+        .prepare("SELECT * FROM quiz_attempts WHERE id=?")
+        .bind(data.id)
+        .first();
+      if (!attempt)
+        throw new ServiceError(
+          "not-found",
+          "Không tìm thấy lượt làm bài.",
+          404,
+        );
+      const row = await quizRow(attempt.quiz_id);
+      if (!attempt.is_current) return { success: true };
+      if (row.status !== "published")
+        throw new ServiceError(
+          "failed-precondition",
+          "Hãy xuất bản đề trước khi cho phép làm lại.",
+          409,
+        );
+      if (!attempt.result) attempt = await finish(attempt);
+      const result = await db
+        .prepare(
+          "UPDATE quiz_attempts SET is_current=0,revision=revision+1 WHERE id=? AND is_current=1 AND revision=?",
+        )
+        .bind(attempt.id, attempt.revision)
+        .run();
+      if (!result.meta.changes) {
+        const updated = await db
+          .prepare("SELECT is_current FROM quiz_attempts WHERE id=?")
+          .bind(attempt.id)
+          .first();
+        if (!updated)
+          throw new ServiceError("not-found", "Đề đã được xóa.", 404);
+        if (updated.is_current) conflict();
+      }
+      return { success: true };
+    },
     async detail(data) {
       const row = await quizRow(data.id);
       let attempt = await db
-        .prepare("SELECT * FROM quiz_attempts WHERE quiz_id=? AND user_uid=?")
+        .prepare(
+          "SELECT * FROM quiz_attempts WHERE quiz_id=? AND user_uid=? AND is_current=1",
+        )
         .bind(row.id, user.uid)
         .first();
       if (attempt) attempt = await expire(attempt);
@@ -256,13 +344,25 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       return {
         quiz: publicQuiz(quiz),
         attempt: attempt ? publicAttempt(attempt) : null,
+        nextAttemptNumber: attempt
+          ? attempt.attempt_number
+          : ((
+              await db
+                .prepare(
+                  "SELECT MAX(attempt_number) AS number FROM quiz_attempts WHERE quiz_id=? AND user_uid=?",
+                )
+                .bind(row.id, user.uid)
+                .first()
+            ).number || 0) + 1,
         serverNow: now(),
       };
     },
     async start(data) {
       const row = await quizRow(data.id);
       const old = await db
-        .prepare("SELECT * FROM quiz_attempts WHERE quiz_id=? AND user_uid=?")
+        .prepare(
+          "SELECT * FROM quiz_attempts WHERE quiz_id=? AND user_uid=? AND is_current=1",
+        )
         .bind(row.id, user.uid)
         .first();
       if (old)
@@ -288,7 +388,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       const statements = [
         db
           .prepare(
-            "INSERT OR IGNORE INTO quiz_attempts(id,quiz_id,user_uid,display_name,username,user_role,snapshot,started_at,deadline_at) SELECT ?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM quizzes WHERE id=? AND revision=? AND status='published')",
+            "INSERT OR IGNORE INTO quiz_attempts(id,quiz_id,user_uid,display_name,username,user_role,snapshot,started_at,deadline_at,attempt_number) SELECT ?,?,?,?,?,?,?,?,?,COALESCE((SELECT MAX(attempt_number) FROM quiz_attempts WHERE quiz_id=? AND user_uid=?),0)+1 WHERE EXISTS(SELECT 1 FROM quizzes WHERE id=? AND revision=? AND status='published') AND NOT EXISTS(SELECT 1 FROM quiz_attempts WHERE quiz_id=? AND user_uid=? AND is_current=1)",
           )
           .bind(
             id,
@@ -301,7 +401,11 @@ export function makeQuizService(db, user, now = () => Date.now()) {
             startedAt,
             deadline,
             row.id,
+            user.uid,
+            row.id,
             row.revision,
+            row.id,
+            user.uid,
           ),
       ];
       for (const file of fileIds(quiz))
@@ -314,7 +418,9 @@ export function makeQuizService(db, user, now = () => Date.now()) {
         );
       await db.batch(statements);
       const attempt = await db
-        .prepare("SELECT * FROM quiz_attempts WHERE quiz_id=? AND user_uid=?")
+        .prepare(
+          "SELECT * FROM quiz_attempts WHERE quiz_id=? AND user_uid=? AND is_current=1",
+        )
         .bind(row.id, user.uid)
         .first();
       if (!attempt) conflict();

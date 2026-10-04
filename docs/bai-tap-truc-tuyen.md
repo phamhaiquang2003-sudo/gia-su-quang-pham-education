@@ -31,13 +31,23 @@ PDF/PNG/JPG/WebP được tải trực tiếp, tối đa **1,8 MB mỗi tệp**,
 
 ### Học sinh
 
-Đăng nhập → mở kho môn học → **Mở bài tập** → **Bắt đầu làm bài**. Đồng hồ mới chạy khi bắt đầu; mỗi tài khoản có một lượt/đề. Bấm số câu để chuyển nhanh; dấu cờ **Đánh dấu xem lại** độc lập với trạng thái đã trả lời và không ảnh hưởng điểm.
+Đăng nhập → mở kho môn học → **Mở bài tập** → **Bắt đầu làm bài**. Đồng hồ mới chạy khi bắt đầu; mỗi tài khoản có một lượt ban đầu/đề, giáo viên có thể cấp thêm lượt. Bấm số câu để chuyển nhanh; dấu cờ **Đánh dấu xem lại** độc lập với trạng thái đã trả lời và không ảnh hưởng điểm.
 
 Câu trả lời và dấu cờ tự lưu sau khoảng 0,9 giây ngừng thay đổi. Khi mất mạng, trang giữ bản chưa đồng bộ trên thiết bị và thử lại; trạng thái lưu hiển thị trên trang. Tải lại trang lấy cùng lượt làm và thời hạn từ máy chủ. Trước khi nộp sớm có thông báo số câu chưa hoàn tất/đánh dấu.
 
-Hết giờ, khóa trả lời và chấm **các câu đã được máy chủ lưu trước hạn**, kể cả khi yêu cầu gửi đáp án đến muộn. Trang đang mở tự nộp; tác vụ máy chủ chạy mỗi 5 phút hoàn tất các lượt hết hạn theo từng đợt khi học sinh đã đóng trang. Khi offline, việc ghi kết quả có thể trễ và cần nhiều đợt nếu có nhiều lượt chờ, nhưng thời hạn được giữ nguyên. Mở lại bài hoặc giáo viên tải kết quả cũng hoàn tất các lượt đã hết hạn. Kết quả đã nộp không thể sửa hoặc làm lại bằng cùng tài khoản.
+Hết giờ, khóa trả lời và chấm **các câu đã được máy chủ lưu trước hạn**, kể cả khi yêu cầu gửi đáp án đến muộn. Trang đang mở tự nộp; tác vụ máy chủ chạy mỗi 5 phút hoàn tất các lượt hết hạn theo từng đợt khi học sinh đã đóng trang. Khi offline, việc ghi kết quả có thể trễ và cần nhiều đợt nếu có nhiều lượt chờ, nhưng thời hạn được giữ nguyên. Mở lại bài hoặc giáo viên tải kết quả cũng hoàn tất các lượt đã hết hạn. Kết quả đã nộp không thể sửa; học sinh chỉ làm lại khi giáo viên cấp thêm lượt.
 
-Đề hiện giao cho tất cả tài khoản hoạt động. Có thể **ẩn đề** khỏi kho; các lượt đã bắt đầu vẫn tiếp tục/xem kết quả. Sửa đề không thay đổi nội dung/đáp án của lượt đã bắt đầu, vì mỗi lượt lưu bản chụp riêng. Muốn cho học sinh làm một lượt mới, tạo một đề mới.
+Đề hiện giao cho tất cả tài khoản hoạt động. Có thể **ẩn đề** khỏi kho; các lượt đã bắt đầu vẫn tiếp tục/xem kết quả. Sửa đề không thay đổi nội dung/đáp án của lượt đã bắt đầu, vì mỗi lượt lưu bản chụp riêng. Giáo viên có thể cấp lượt làm lại cho từng tài khoản hoặc xóa vĩnh viễn đề.
+
+### Cho phép một học sinh làm lại
+
+**Bài tập → Danh sách đề → Kết quả học sinh → Cho phép làm lại** ở dòng đúng học sinh, rồi xác nhận. Đề cần đang xuất bản. Lượt cũ và điểm vẫn được giữ, có số lượt để đối chiếu. Nếu học sinh đang làm, lượt đó được kết thúc và chấm theo đáp án đã lưu.
+
+Học sinh tải lại trang đề (hoặc bấm **Kiểm tra lượt làm lại** trên trang kết quả), sau đó bấm **Bắt đầu làm bài**. Lượt mới có đáp án/cờ trống, sử dụng phiên bản đề hiện tại và đủ thời gian. Đồng hồ chưa chạy khi giáo viên cấp quyền. Giáo viên có thể cấp thêm lượt sau mỗi lần làm; học sinh không thể tự mở thêm lượt. Nút này cũng áp dụng cho lượt làm thử quản trị.
+
+### Xóa vĩnh viễn đề
+
+**Bài tập → Danh sách đề → Xóa đề → xác nhận**. Xóa được cả bản nháp, đề xuất bản và đề đã ẩn. Đề, mọi lượt làm và kết quả của đề bị xóa; tệp chỉ thuộc đề đó được dọn, tệp dùng chung với đề khác được giữ. Học sinh đang mở đề sẽ không thể tiếp tục lưu/nộp bài. Thao tác không thể hoàn tác.
 
 ## Kiến trúc và triển khai
 
@@ -57,4 +67,4 @@ npx wrangler d1 migrations apply phq-education-exercises --remote
 npm run deploy
 ```
 
-Frontend triển khai qua GitHub Actions khi push `main`. Migration ở `worker/migrations/0001_quizzes.sql`. Kiểm thử dùng SQLite thật để xác minh truy vấn, snapshot, quyền truy cập, chấm điểm, hạn nộp và tính lặp an toàn. D1, Worker và Firebase đều chịu hạn mức gói miễn phí tương ứng.
+Frontend triển khai qua GitHub Actions khi push `main`. Migration ở `worker/migrations/`: `0001_quizzes.sql` tạo kho, `0002_quiz_retakes.sql` giữ lịch sử và cho phép cấp thêm lượt. Áp dụng migration trước khi triển khai Worker mới. Kiểm thử dùng SQLite thật để xác minh truy vấn, snapshot, quyền truy cập, chấm điểm, hạn nộp và tính lặp an toàn. D1, Worker và Firebase đều chịu hạn mức gói miễn phí tương ứng.

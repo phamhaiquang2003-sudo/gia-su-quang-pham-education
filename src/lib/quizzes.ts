@@ -69,6 +69,8 @@ export interface QuizResult {
 export interface Attempt {
   id: string;
   quizId: string;
+  attemptNumber?: number;
+  isCurrent?: boolean;
   answers: Answers;
   flagged: string[];
   revision: number;
@@ -81,6 +83,7 @@ export interface Attempt {
   role?: string;
 }
 export interface QuizState {
+  nextAttemptNumber?: number;
   quiz: Quiz;
   attempt: Attempt | null;
   serverNow: number;

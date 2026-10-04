@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { makeQuizService, finalizeExpired } from "../src/quiz-service.js";
 import {
   grade,
@@ -17,12 +17,11 @@ import { requireQuizUser } from "../src/quiz-auth.js";
 function database() {
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec("PRAGMA foreign_keys=ON;");
-  sqlite.exec(
-    readFileSync(
-      new URL("../migrations/0001_quizzes.sql", import.meta.url),
-      "utf8",
-    ),
-  );
+  const migrations = new URL("../migrations/", import.meta.url);
+  for (const file of readdirSync(migrations)
+    .filter((file) => file.endsWith(".sql"))
+    .sort())
+    sqlite.exec(readFileSync(new URL(file, migrations), "utf8"));
   const db = {
     prepare(sql) {
       let params = [];
@@ -117,6 +116,287 @@ const studentUser = {
   displayName: "Học sinh",
   username: "student",
 };
+
+test("retake migration preserves existing attempts, answers, results and attachment links inside a transaction", () => {
+  const sqlite = new DatabaseSync(":memory:");
+  try {
+    sqlite.exec("PRAGMA foreign_keys=ON;");
+    sqlite.exec(
+      readFileSync(
+        new URL("../migrations/0001_quizzes.sql", import.meta.url),
+        "utf8",
+      ),
+    );
+    sqlite
+      .prepare(
+        "INSERT INTO quizzes(id,owner_uid,title,subject,category,status,body,question_count,duration_minutes,created_at,updated_at) VALUES('legacy','teacher','Legacy','toan','Lớp 12','published',?,3,1,100,100)",
+      )
+      .run(JSON.stringify(fixture()));
+    sqlite
+      .prepare(
+        "INSERT INTO quiz_files(id,owner_uid,name,mime,data,created_at) VALUES('image','teacher','image.png','image/png',?,100)",
+      )
+      .run(new Uint8Array([137, 80, 78, 71]));
+    sqlite
+      .prepare(
+        "INSERT INTO quiz_attempts(id,quiz_id,user_uid,display_name,username,user_role,snapshot,answers,flagged,revision,started_at,deadline_at,submitted_at,result) VALUES('old','legacy','student','Student','student','student',?,'{\"single\":\"B\"}','[\"tf\"]',3,100,60100,200,?)",
+      )
+      .run(
+        JSON.stringify(fixture()),
+        JSON.stringify(grade(fixture(), { single: "B" })),
+      );
+    sqlite.exec("INSERT INTO attempt_file_links VALUES('old','image');");
+    const before = sqlite.prepare("SELECT * FROM quiz_attempts").get();
+    sqlite.exec("BEGIN");
+    sqlite.exec(
+      readFileSync(
+        new URL("../migrations/0002_quiz_retakes.sql", import.meta.url),
+        "utf8",
+      ),
+    );
+    sqlite.exec("COMMIT");
+    const after = sqlite.prepare("SELECT * FROM quiz_attempts").get();
+    assert.deepEqual(
+      { ...after, attempt_number: undefined, is_current: undefined },
+      { ...before, attempt_number: undefined, is_current: undefined },
+    );
+    assert.equal(after.attempt_number, 1);
+    assert.equal(after.is_current, 1);
+    assert.equal(
+      sqlite
+        .prepare(
+          "SELECT file_id FROM attempt_file_links WHERE attempt_id='old'",
+        )
+        .get().file_id,
+      "image",
+    );
+    assert.deepEqual(sqlite.prepare("PRAGMA foreign_key_check").all(), []);
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("only the teacher can release a student's current attempt; history survives and retakes start blank with a fresh deadline and snapshot", async () => {
+  const { db, sqlite } = database();
+  let now = 1_000_000;
+  try {
+    const teacher = makeQuizService(db, adminUser, () => now);
+    const student = makeQuizService(db, studentUser, () => now);
+    const other = makeQuizService(
+      db,
+      { ...studentUser, uid: "other" },
+      () => now,
+    );
+    const { quiz } = await teacher.save({ quiz: fixture() });
+    const first = await student.start({ id: quiz.id });
+    const otherFirst = await other.start({ id: quiz.id });
+    const submitted = await student.submit({
+      id: first.attempt.id,
+      revision: 0,
+      answers: { single: "B", short: "0.5" },
+      flagged: ["tf"],
+    });
+    await assert.rejects(
+      student.allowRetake({ id: first.attempt.id }),
+      (e) => e.status === 403,
+    );
+    assert.equal(
+      (await student.start({ id: quiz.id })).attempt.id,
+      first.attempt.id,
+    );
+    await teacher.allowRetake({ id: first.attempt.id });
+    const detail = await student.detail({ id: quiz.id });
+    assert.equal(detail.attempt, null);
+    assert.equal(detail.nextAttemptNumber, 2);
+    assert.equal(
+      (await other.detail({ id: quiz.id })).attempt.id,
+      otherFirst.attempt.id,
+    );
+    const updated = fixture();
+    updated.durationMinutes = 2;
+    updated.questions[0].answer = "A";
+    await teacher.save({ id: quiz.id, revision: 1, quiz: updated });
+    now += 600_000;
+    const second = await student.start({ id: quiz.id });
+    assert.notEqual(second.attempt.id, first.attempt.id);
+    assert.equal(second.attempt.attemptNumber, 2);
+    assert.deepEqual(second.attempt.answers, {});
+    assert.deepEqual(second.attempt.flagged, []);
+    assert.equal(second.attempt.deadlineAt, now + 120_000);
+    assert.equal(second.quiz.durationMinutes, 2);
+    await teacher.allowRetake({ id: first.attempt.id });
+    assert.equal(
+      (await student.start({ id: quiz.id })).attempt.id,
+      second.attempt.id,
+    );
+    await assert.rejects(
+      student.progress({
+        id: first.attempt.id,
+        revision: 1,
+        answers: { single: "A" },
+        flagged: [],
+      }),
+      (e) => e.status === 409,
+    );
+    await assert.rejects(
+      student.submit({
+        id: first.attempt.id,
+        revision: 1,
+        answers: {},
+        flagged: [],
+      }),
+      (e) => e.status === 409,
+    );
+    const history = await teacher.results({ id: quiz.id });
+    const old = history.attempts.find((a) => a.id === first.attempt.id);
+    assert.equal(old.isCurrent, false);
+    assert.equal(old.result.score, submitted.attempt.result.score);
+    assert.equal(old.result.details[0].expected, "B");
+    assert.deepEqual(old.flagged, ["tf"]);
+    const secondSubmitted = await student.submit({
+      id: second.attempt.id,
+      revision: 0,
+      answers: { single: "A", short: "0.5" },
+      flagged: [],
+    });
+    assert.equal(secondSubmitted.attempt.result.details[0].expected, "A");
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("granting a retake closes an in-progress attempt using only saved answers; repeated grants do not grant unlimited retries", async () => {
+  const { db, sqlite } = database();
+  let now = 1_000_000;
+  try {
+    const teacher = makeQuizService(db, adminUser, () => now),
+      student = makeQuizService(db, studentUser, () => now);
+    const { quiz } = await teacher.save({ quiz: fixture() });
+    const first = await student.start({ id: quiz.id });
+    await student.progress({
+      id: first.attempt.id,
+      revision: 0,
+      answers: { single: "B" },
+      flagged: ["short"],
+    });
+    now += 2000;
+    await teacher.allowRetake({ id: first.attempt.id });
+    await teacher.allowRetake({ id: first.attempt.id });
+    const history = await teacher.results({ id: quiz.id });
+    assert.equal(history.attempts.length, 1);
+    assert.equal(history.attempts[0].result.score, 2.5);
+    assert.equal(history.attempts[0].submittedAt, now);
+    const second = await student.start({ id: quiz.id });
+    assert.equal(second.attempt.attemptNumber, 2);
+    assert.equal(
+      (await student.start({ id: quiz.id })).attempt.id,
+      second.attempt.id,
+    );
+    await teacher.hide({ id: quiz.id });
+    await assert.rejects(
+      teacher.allowRetake({ id: second.attempt.id }),
+      (e) => e.status === 409,
+    );
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("permanent deletion removes all attempts and exclusive old/current files, preserves shared files and other quizzes, rejects stale editors", async () => {
+  const { db, sqlite } = database();
+  try {
+    const teacher = makeQuizService(db, adminUser),
+      student = makeQuizService(db, studentUser);
+    const upload = async (name) =>
+      (
+        await teacher.upload(
+          new Request(`https://example.com/api/quiz/upload?name=${name}.pdf`, {
+            method: "POST",
+            headers: { "Content-Type": "application/pdf" },
+            body: "%PDF-1.4\n%%EOF",
+          }),
+        )
+      ).file.id;
+    const shared = await upload("shared"),
+      oldFile = await upload("old"),
+      newFile = await upload("new");
+    const input = {
+      ...fixture(),
+      mode: "document",
+      documentIds: [shared, oldFile],
+    };
+    const { quiz } = await teacher.save({ quiz: input });
+    const first = await student.start({ id: quiz.id });
+    await teacher.allowRetake({ id: first.attempt.id });
+    const current = { ...input, documentIds: [shared, newFile] };
+    await teacher.save({ id: quiz.id, revision: 1, quiz: current });
+    const second = await student.start({ id: quiz.id });
+    const { quiz: keeper } = await teacher.save({
+      quiz: { ...fixture(), mode: "document", documentIds: [shared] },
+    });
+    await assert.rejects(
+      student.deleteQuiz({ id: quiz.id, revision: 2 }),
+      (e) => e.status === 403,
+    );
+    await assert.rejects(
+      teacher.deleteQuiz({ id: quiz.id, revision: 1 }),
+      (e) => e.status === 409,
+    );
+    assert.equal(
+      (await student.detail({ id: quiz.id })).attempt.id,
+      second.attempt.id,
+    );
+    await teacher.deleteQuiz({ id: quiz.id, revision: 2 });
+    assert.equal(
+      sqlite
+        .prepare("SELECT COUNT(*) AS n FROM quiz_attempts WHERE quiz_id=?")
+        .get(quiz.id).n,
+      0,
+    );
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM attempt_file_links").get().n,
+      0,
+    );
+    await assert.rejects(
+      student.detail({ id: quiz.id }),
+      (e) => e.status === 404,
+    );
+    await assert.rejects(
+      student.submit({ id: second.attempt.id, answers: {}, flagged: [] }),
+      (e) => e.status === 404,
+    );
+    await assert.rejects(
+      teacher.file({ id: oldFile }),
+      (e) => e.status === 404,
+    );
+    await assert.rejects(
+      teacher.file({ id: newFile }),
+      (e) => e.status === 404,
+    );
+    assert.equal((await student.file({ id: shared })).status, 200);
+    assert.equal(
+      (await teacher.adminDetail({ id: keeper.id })).quiz.title,
+      fixture().title,
+    );
+    await assert.rejects(
+      teacher.save({ id: quiz.id, revision: 2, quiz: current }),
+      (e) => e.status === 404,
+    );
+    for (const status of ["draft", "hidden"]) {
+      const { quiz: q } = await teacher.save({
+        quiz: { ...fixture(), status },
+      });
+      await teacher.deleteQuiz({ id: q.id, revision: q.revision });
+      await assert.rejects(
+        teacher.adminDetail({ id: q.id }),
+        (e) => e.status === 404,
+      );
+    }
+    assert.deepEqual(sqlite.prepare("PRAGMA foreign_key_check").all(), []);
+  } finally {
+    sqlite.close();
+  }
+});
 
 test("mixed question grading handles decimals, fractions, tolerance and partial true/false credit", () => {
   const quiz = validateQuiz(fixture());
