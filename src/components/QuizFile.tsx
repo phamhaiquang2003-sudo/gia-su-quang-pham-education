@@ -5,10 +5,12 @@ export default function QuizFile({
   id,
   imageOnly = false,
   alt = "Ảnh câu hỏi",
+  openImage = false,
 }: {
   id: string;
   imageOnly?: boolean;
   alt?: string;
+  openImage?: boolean;
 }) {
   const [file, setFile] = useState<{ url: string; type: string } | null>(null);
   const [error, setError] = useState("");
@@ -56,11 +58,23 @@ export default function QuizFile({
     );
   if (file.type.startsWith("image/"))
     return (
-      <img
-        src={file.url}
-        alt={alt}
-        className="mx-auto max-h-[80vh] max-w-full rounded-xl object-contain"
-      />
+      <div className="space-y-3">
+        <img
+          src={file.url}
+          alt={alt}
+          className="mx-auto max-h-[80vh] max-w-full rounded-xl object-contain"
+        />
+        {openImage && (
+          <a
+            href={file.url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-block text-sm underline"
+          >
+            Mở ảnh kích thước đầy đủ
+          </a>
+        )}
+      </div>
     );
   if (imageOnly) return <p>Hãy dùng tệp ảnh cho câu hỏi.</p>;
   return (

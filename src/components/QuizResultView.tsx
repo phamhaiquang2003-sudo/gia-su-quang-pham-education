@@ -2,6 +2,30 @@ import { displayAnswer, type QuizResult } from "@/lib/quizzes";
 import QuizFile from "./QuizFile";
 
 export default function QuizResultView({ result }: { result: QuizResult }) {
+  if (result.manual)
+    return (
+      <div className="rounded-2xl border border-sky-300/30 bg-sky-200/10 p-6">
+        {result.status === "pending" ? (
+          <p className="font-semibold">Đã nộp bài · Chờ gia sư chấm</p>
+        ) : (
+          <>
+            <p className="text-sm">Điểm theo thang 10</p>
+            <p className="my-3 text-4xl font-bold">
+              {result.score.toLocaleString("vi-VN")}{" "}
+              <span className="text-xl opacity-70">/ 10</span>
+            </p>
+            {result.feedback && (
+              <div className="mt-4">
+                <h3 className="font-semibold">Nhận xét của gia sư</h3>
+                <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed">
+                  {result.feedback}
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-sky-300/30 bg-sky-200/10 p-6 text-center">

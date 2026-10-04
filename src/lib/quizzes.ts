@@ -2,7 +2,7 @@ import { getFirebase } from "./firebase";
 import { adminApiUrl } from "./admin-config";
 import type { SubjectId } from "./subjects";
 
-export type QuestionType = "single" | "truefalse" | "short";
+export type QuestionType = "single" | "truefalse" | "short" | "essay";
 export interface Question {
   id: string;
   type: QuestionType;
@@ -28,6 +28,7 @@ export interface Quiz {
   category: string;
   status: "draft" | "published" | "hidden";
   mode: "inline" | "document";
+  gradingMode?: "auto" | "manual";
   durationMinutes: number;
   instructions: string;
   accessCode?: string;
@@ -48,9 +49,19 @@ export interface QuizSummary {
   durationMinutes: number;
   requiresAccessCode?: boolean;
   createdAt: number;
+  gradingMode?: "auto" | "manual";
   updatedAt: number;
 }
-export type Answers = Record<string, string | (boolean | null)[]>;
+export interface EssayAnswer {
+  text: string;
+  imageIds: string[];
+}
+export type Answers = Record<string, string | (boolean | null)[] | EssayAnswer>;
+export function essayAnswer(value: Answers[string] | undefined): EssayAnswer {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : { text: "", imageIds: [] };
+}
 export interface GradeDetail {
   id: string;
   type: QuestionType;
@@ -64,6 +75,10 @@ export interface GradeDetail {
   explanationImageId?: string;
 }
 export interface QuizResult {
+  manual?: boolean;
+  status?: "pending" | "graded";
+  feedback?: string;
+  gradedAt?: number;
   score: number;
   earned: number;
   total: number;
@@ -73,6 +88,7 @@ export interface QuizResult {
   details: GradeDetail[];
 }
 export interface Attempt {
+  quiz?: Quiz;
   id: string;
   quizId: string;
   attemptNumber?: number;
@@ -108,7 +124,7 @@ async function request(operation: string, data: unknown, file?: File) {
   let response: Response;
   try {
     response = await fetch(
-      `${adminApiUrl}/api/quiz/${operation}${file ? `?name=${encodeURIComponent(file.name)}` : ""}`,
+      `${adminApiUrl}/api/quiz/${operation}${file ? `?${new URLSearchParams({ name: file.name, ...(data as Record<string, string>) })}` : ""}`,
       {
         method: "POST",
         headers: {
@@ -154,6 +170,21 @@ export async function uploadQuizFile(file: File) {
 export async function loadQuizFile(id: string) {
   return (await request("file", { id })).blob();
 }
+export async function uploadSubmissionFile(
+  file: File,
+  attemptId: string,
+  questionId: string,
+  revision: number,
+) {
+  if (file.size > 1_800_000) throw new Error("Ảnh cần nhỏ hơn 1,8 MB.");
+  return (
+    await request(
+      "submissionUpload",
+      { attemptId, questionId, revision: String(revision) },
+      file,
+    )
+  ).json() as Promise<{ attempt: Attempt; serverNow: number }>;
+}
 export function quizHref(quiz: { id: string; subject: SubjectId }) {
   return `${import.meta.env.BASE_URL}bai-tap.html?mon=${quiz.subject}&de=${encodeURIComponent(quiz.id)}`;
 }
@@ -161,6 +192,10 @@ export function isAnswered(
   question: Question,
   answer: Answers[string] | undefined,
 ) {
+  if (question.type === "essay") {
+    const value = essayAnswer(answer);
+    return Boolean(value.text.trim() || value.imageIds.length);
+  }
   return question.type === "truefalse"
     ? Array.isArray(answer) &&
         answer.length === 4 &&
@@ -194,6 +229,7 @@ export function newQuestion(
       answer: [true, true, true, true],
       scoring: "equal",
     };
+  if (type === "essay") return base;
   return { ...base, acceptedAnswers: [""], tolerance: 0 };
 }
 export function newQuiz(): Quiz {

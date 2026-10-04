@@ -35,6 +35,20 @@ PDF/PNG/JPG/WebP được tải trực tiếp, tối đa **1,8 MB mỗi tệp**,
 - Với đề có mật khẩu, học sinh nhập đúng mã giáo viên cung cấp và bấm **Bắt đầu làm bài**. Trước đó, câu hỏi và tệp của riêng đề được giữ kín; nhập sai không tạo lượt làm hay chạy đồng hồ. Mã không được gửi trong dữ liệu học sinh.
 - Sau khi đã bắt đầu, tải lại trang vẫn tiếp tục đúng lượt mà không cần nhập lại mã. Đổi mã không ảnh hưởng lượt đang làm; lượt làm lại cần mã hiện tại. Tài khoản học sinh vẫn phải đăng nhập như trước.
 
+### Bài tập tự luận — gia sư chấm thủ công
+
+1. Trong **Thông tin đề → Loại bài tập**, chọn **Tự luận · Gia sư chấm thủ công**.
+2. Chọn cách đưa đề lên:
+   - **Tệp đề PDF / ảnh · Nộp bài chung:** tải PDF của đề, không cần khai báo từng câu hoặc đáp án. Học sinh có một vùng nộp bài chung cho cả đề.
+   - **Dán ảnh / soạn từng câu tự luận:** chụp và dán ảnh vào vùng **Ảnh câu hỏi** (Ctrl + V) hoặc nhập nội dung, thêm các câu nếu cần. Mỗi câu có vùng trả lời và ảnh bài làm riêng.
+3. Lưu nháp hoặc xuất bản. Có thể đặt mật khẩu 6 số như đề trắc nghiệm.
+4. Học sinh bắt đầu lượt làm, nhập bài giải hoặc tải nhiều ảnh bài viết tay từ máy tính/điện thoại. Có thể dán ảnh vào vùng trả lời. Mỗi lượt tối đa **20 ảnh PNG/JPG/WebP**, mỗi ảnh dưới **1,8 MB**; ảnh lớn tự nén. Ảnh được lưu trên máy chủ ngay khi tải thành công, có thể gỡ trước khi nộp. Văn bản tự lưu/khôi phục như bài trắc nghiệm.
+5. Sau khi nộp hoặc hết giờ, bài được khóa với trạng thái **Đã nộp bài · Chờ gia sư chấm**, chưa hiển thị điểm. Hệ thống không tự chấm bài tự luận.
+6. Giáo viên mở **Danh sách đề → Kết quả học sinh → Xem bài và chấm điểm**, xem ảnh/nội dung, nhập **Điểm (thang 10)** và **Nhận xét của gia sư**, bấm **Lưu điểm và nhận xét**. Có thể chỉnh điểm sau đó.
+7. Học sinh mở lại đề hoặc bấm **Cập nhật điểm và nhận xét** để xem điểm và nhận xét. Gia sư có thể cấp lượt làm lại; bài cũ và điểm được giữ trong lịch sử, lượt mới trống và dùng đề hiện tại.
+
+Ảnh bài nộp chỉ học sinh sở hữu lượt làm và quản trị được đọc. Xóa vĩnh viễn đề xóa cả ảnh bài nộp và lịch sử của đề đó. Các ảnh đề dùng chung vẫn được giữ.
+
 ### Quy tắc chấm
 
 - Điểm từng câu là trọng số, tổng điểm được quy đổi về thang 10 và làm tròn 2 chữ số thập phân.
@@ -74,6 +88,8 @@ Học sinh tải lại trang đề (hoặc bấm **Kiểm tra lượt làm lại
 - Firestore Rules không cần mở thêm quyền cho kho đề này.
 
 Chạy từ thư mục `worker`:
+
+Migration `0004_manual_submissions.sql` bổ sung liên kết ảnh bài nộp tự luận riêng tư và mã xác nhận cho thao tác gỡ ảnh nguyên tử. Áp dụng trước khi triển khai Worker hỗ trợ tự luận.
 
 ```powershell
 npm test

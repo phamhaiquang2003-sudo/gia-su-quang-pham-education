@@ -28,6 +28,10 @@ function partImages(value, label) {
 
 export function validateQuiz(input) {
   if (!input || typeof input !== "object") fail("Thiếu thông tin đề.");
+  const gradingMode = input.gradingMode || "auto";
+  if (!["auto", "manual"].includes(gradingMode))
+    fail("Cách chấm điểm không hợp lệ.");
+  const wholeSubmission = gradingMode === "manual" && input.mode === "document";
   const title = text(input.title, 160, "Tên đề", true);
   const accessCode = input.accessCode === undefined ? "" : input.accessCode;
   if (
@@ -49,7 +53,8 @@ export function validateQuiz(input) {
     fail("Thời gian làm bài cần từ 1 đến 360 phút.");
   if (
     !Array.isArray(input.questions) ||
-    input.questions.length < 1 ||
+    input.questions.length < (wholeSubmission ? 0 : 1) ||
+    (wholeSubmission && input.questions.length !== 0) ||
     input.questions.length > 100
   )
     fail("Mỗi đề cần từ 1 đến 100 câu.");
@@ -58,7 +63,11 @@ export function validateQuiz(input) {
     if (!q || !validId(q.id) || ids.has(q.id))
       fail(`Mã câu ${index + 1} không hợp lệ hoặc bị trùng.`);
     ids.add(q.id);
-    if (!["single", "truefalse", "short"].includes(q.type))
+    if (
+      !(
+        gradingMode === "manual" ? ["essay"] : ["single", "truefalse", "short"]
+      ).includes(q.type)
+    )
       fail(`Dạng câu ${index + 1} không hợp lệ.`);
     const prompt = text(
       q.prompt,
@@ -83,6 +92,7 @@ export function validateQuiz(input) {
       explanation: text(q.explanation || "", 5000, "Lời giải"),
       explanationImageId,
     };
+    if (q.type === "essay") return common;
     if (q.type === "single") {
       if (
         !Array.isArray(q.choices) ||
@@ -154,6 +164,7 @@ export function validateQuiz(input) {
   if (files.length > 608) fail("Mỗi đề dùng tối đa 608 tệp.");
   return {
     title,
+    gradingMode,
     accessCode,
     subject: input.subject,
     category: text(input.category || "", 100, "Danh mục"),
@@ -206,14 +217,35 @@ export function publicQuiz(quiz) {
 export function validateResponses(quiz, input, flags = []) {
   if (!input || typeof input !== "object" || Array.isArray(input))
     fail("Câu trả lời không hợp lệ.");
-  const allowed = new Set(quiz.questions.map((q) => q.id));
+  const wholeSubmission =
+    quiz.gradingMode === "manual" && quiz.mode === "document";
+  const allowed = new Set(
+    wholeSubmission ? ["__submission"] : quiz.questions.map((q) => q.id),
+  );
   if (Object.keys(input).some((id) => !allowed.has(id)))
     fail("Có câu trả lời ngoài đề.");
   const answers = {};
-  for (const q of quiz.questions) {
+  for (const q of wholeSubmission
+    ? [{ id: "__submission", type: "essay" }]
+    : quiz.questions) {
     const a = input[q.id];
     if (a === undefined || a === null || a === "") continue;
-    if (q.type === "single") {
+    if (q.type === "essay") {
+      if (!a || typeof a !== "object" || Array.isArray(a))
+        fail("Bài tự luận không hợp lệ.");
+      const imageIds = a.imageIds || [];
+      if (
+        !Array.isArray(imageIds) ||
+        imageIds.length > 20 ||
+        imageIds.some((id) => !validId(id)) ||
+        new Set(imageIds).size !== imageIds.length
+      )
+        fail("Mỗi bài nộp dùng tối đa 20 ảnh hợp lệ.");
+      answers[q.id] = {
+        text: text(a.text || "", 10000, "Bài tự luận"),
+        imageIds,
+      };
+    } else if (q.type === "single") {
       if (!["A", "B", "C", "D"].includes(a)) fail("Lựa chọn không hợp lệ.");
       answers[q.id] = a;
     } else if (q.type === "truefalse") {
@@ -228,6 +260,20 @@ export function validateResponses(quiz, input, flags = []) {
       answers[q.id] = text(a, 100, "Câu trả lời ngắn");
     }
   }
+  if (
+    Object.values(answers).reduce(
+      (sum, answer) => sum + (answer?.imageIds?.length || 0),
+      0,
+    ) > 20
+  )
+    fail("Mỗi lượt làm dùng tối đa 20 ảnh bài nộp.");
+  if (
+    Object.values(answers).reduce(
+      (sum, answer) => sum + (answer?.text?.length || 0),
+      0,
+    ) > 60000
+  )
+    fail("Tổng nội dung tự luận tối đa 60000 ký tự.");
   if (
     !Array.isArray(flags) ||
     flags.length > quiz.questions.length ||
@@ -260,11 +306,26 @@ export function shortMatches(value, expected, tolerance = 0) {
   return normalized(value) === normalized(expected);
 }
 export function answered(q, a) {
+  if (q.type === "essay")
+    return Boolean(a && (a.text?.trim() || a.imageIds?.length));
   return q.type === "truefalse"
     ? Array.isArray(a) && a.every((v) => typeof v === "boolean")
     : typeof a === "string" && Boolean(a.trim());
 }
 export function grade(quiz, answers) {
+  if (quiz.gradingMode === "manual")
+    return {
+      manual: true,
+      status: "pending",
+      score: 0,
+      earned: 0,
+      total: 10,
+      correctCount: 0,
+      unansweredCount: 0,
+      questionCount: quiz.questions.length,
+      feedback: "",
+      details: [],
+    };
   let earned = 0,
     total = 0,
     correctCount = 0,

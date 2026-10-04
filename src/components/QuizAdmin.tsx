@@ -40,6 +40,7 @@ import QuizFile from "./QuizFile";
 import QuizQuestions from "./QuizQuestions";
 import QuizResultView from "./QuizResultView";
 import QuizImageInput from "./QuizImageInput";
+import QuizManualGrader from "./QuizManualGrader";
 import { clipboardImage, prepareQuizImage } from "@/lib/quiz-images";
 type ImagePurpose = "question" | "explanation" | "choice" | "statement";
 
@@ -67,6 +68,7 @@ const types: [QuestionType, string][] = [
   ["single", "Chọn A/B/C/D"],
   ["truefalse", "Đúng / Sai (4 ý)"],
   ["short", "Trả lời ngắn"],
+  ["essay", "Tự luận"],
 ];
 const statusLabels = {
   draft: "Bản nháp",
@@ -78,7 +80,13 @@ export default function QuizAdmin({ uid }: { uid: string }) {
   const [quiz, setQuiz] = useState<Quiz>(() => {
     try {
       const q = JSON.parse(sessionStorage.getItem(cacheKey) || "null");
-      if (q && Array.isArray(q.questions) && q.questions.length) return q;
+      if (
+        q &&
+        Array.isArray(q.questions) &&
+        (q.questions.length ||
+          (q.gradingMode === "manual" && q.mode === "document"))
+      )
+        return q;
     } catch {
       /* new draft */
     }
@@ -272,13 +280,57 @@ export default function QuizAdmin({ uid }: { uid: string }) {
     });
   }
   const subject = getSubject(quiz.subject);
+  const manual = quiz.gradingMode === "manual";
+  const availableTypes = types.filter(([type]) =>
+    manual ? type === "essay" : type !== "essay",
+  );
+  function changeFormat(gradingMode: "auto" | "manual", mode: Quiz["mode"]) {
+    if (
+      gradingMode === "manual" &&
+      mode === "document" &&
+      quiz.questions.length &&
+      !window.confirm(
+        "Đề tự luận PDF chỉ có phần nộp bài chung. Bỏ danh sách câu đang soạn để chuyển sang dạng này?",
+      )
+    )
+      return;
+    update({
+      gradingMode,
+      mode,
+      questions:
+        gradingMode === "manual" && mode === "document"
+          ? []
+          : (quiz.questions.length
+              ? quiz.questions
+              : [
+                  newQuestion(
+                    gradingMode === "manual" ? "essay" : "single",
+                    mode === "document",
+                  ),
+                ]
+            ).map((q) =>
+              gradingMode === "manual"
+                ? { ...q, type: "essay" }
+                : q.type === "essay"
+                  ? {
+                      ...newQuestion("single", mode === "document"),
+                      id: q.id,
+                      prompt: q.prompt,
+                      imageId: q.imageId,
+                      points: q.points,
+                    }
+                  : q,
+            ),
+    });
+    setAddType(gradingMode === "manual" ? "essay" : "single");
+  }
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold">Quản lý bài tập</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Tạo đề, đặt thời gian và chấm tự động theo thang 10.
+            Tạo đề trắc nghiệm hoặc tự luận, chấm tự động và chấm thủ công.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -413,16 +465,46 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                   />
                 </label>
                 <label className="account-label">
+                  Loại bài tập
+                  <select
+                    className="account-input"
+                    value={quiz.gradingMode || "auto"}
+                    disabled={busy}
+                    onChange={(e) =>
+                      changeFormat(
+                        e.target.value as "auto" | "manual",
+                        quiz.mode,
+                      )
+                    }
+                  >
+                    <option value="auto">Trắc nghiệm · Chấm tự động</option>
+                    <option value="manual">
+                      Tự luận · Gia sư chấm thủ công
+                    </option>
+                  </select>
+                </label>
+                <label className="account-label">
                   Cách đưa đề lên
                   <select
                     className="account-input"
                     value={quiz.mode}
                     onChange={(e) =>
-                      update({ mode: e.target.value as Quiz["mode"] })
+                      changeFormat(
+                        quiz.gradingMode || "auto",
+                        e.target.value as Quiz["mode"],
+                      )
                     }
                   >
-                    <option value="inline">Soạn từng câu trực tiếp</option>
-                    <option value="document">PDF / ảnh + phiếu trả lời</option>
+                    <option value="inline">
+                      {manual
+                        ? "Dán ảnh / soạn từng câu tự luận"
+                        : "Soạn từng câu trực tiếp"}
+                    </option>
+                    <option value="document">
+                      {manual
+                        ? "Tệp đề PDF / ảnh · Nộp bài chung"
+                        : "PDF / ảnh + phiếu trả lời"}
+                    </option>
                   </select>
                 </label>
                 <label className="account-label sm:col-span-2">
@@ -460,20 +542,30 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                   sinh vào làm không cần mật khẩu đề.
                 </span>
               </label>
-              <label className="mt-5 flex items-start gap-3 text-sm">
-                <input
-                  className="mt-0.5 size-4 accent-blue-700"
-                  type="checkbox"
-                  checked={quiz.revealAnswers}
-                  onChange={(e) => update({ revealAnswers: e.target.checked })}
-                />
-                <span>
-                  Hiện đáp án và lời giải ngay sau khi nộp
-                  <p className="mt-1 text-xs text-slate-500">
-                    Bỏ chọn để học sinh chỉ thấy điểm và câu trả lời của mình.
-                  </p>
-                </span>
-              </label>
+              {!manual && (
+                <label className="mt-5 flex items-start gap-3 text-sm">
+                  <input
+                    className="mt-0.5 size-4 accent-blue-700"
+                    type="checkbox"
+                    checked={quiz.revealAnswers}
+                    onChange={(e) =>
+                      update({ revealAnswers: e.target.checked })
+                    }
+                  />
+                  <span>
+                    Hiện đáp án và lời giải ngay sau khi nộp
+                    <p className="mt-1 text-xs text-slate-500">
+                      Bỏ chọn để học sinh chỉ thấy điểm và câu trả lời của mình.
+                    </p>
+                  </span>
+                </label>
+              )}
+              {manual && (
+                <p className="mt-5 text-sm text-slate-600">
+                  Học sinh nộp ảnh bài làm và có thể nhập lời giải. Bạn nhập
+                  điểm thang 10 và nhận xét tại “Kết quả học sinh”.
+                </p>
+              )}
               <p className="mt-5 text-xs leading-relaxed text-slate-600">
                 Bản này giao đề cho tất cả tài khoản đang hoạt động. Mỗi tài
                 khoản có một lượt ban đầu cho mỗi đề; bạn có thể cấp lượt làm
@@ -487,7 +579,9 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                 <h3 className="mb-2 font-semibold">2. Tệp đề PDF / ảnh</h3>
                 <p className="mb-4 text-sm text-slate-600">
                   Tải tối đa 8 tệp, mỗi tệp dưới 1,8 MB (PDF, PNG, JPG, WebP).
-                  Bên dưới, khai báo các câu theo đúng thứ tự trong tệp.
+                  {manual
+                    ? "Học sinh nộp bài chung cho cả đề; không cần khai báo từng câu trả lời."
+                    : "Bên dưới, khai báo các câu theo đúng thứ tự trong tệp."}
                 </p>
                 <label className="account-label">
                   Chọn tệp đề
@@ -530,427 +624,463 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                 </div>
               </section>
             )}
-            <section>
-              <div className="mb-4 flex flex-wrap justify-between gap-3">
-                <h3 className="font-semibold">
-                  {quiz.mode === "document" ? "3" : "2"}. Câu hỏi và đáp án (
-                  {quiz.questions.length})
-                </h3>
-                <span className="text-xs text-slate-600">
-                  Tổng trọng số:{" "}
-                  {quiz.questions.reduce((n, q) => n + (q.points || 0), 0)} ·
-                  Quy đổi về 10 điểm
-                </span>
-              </div>
-              <p className="mb-4 text-sm text-slate-600">
-                Chụp cả câu hỏi và các lựa chọn rồi dán bằng Ctrl + V vào vùng
-                “Ảnh câu hỏi”. Không cần gõ lại phần đã có trong ảnh. Chọn đáp
-                án đúng bên dưới để chấm tự động; ảnh đáp án / lời giải dùng để
-                học sinh xem sau khi nộp. Điểm là trọng số của mỗi câu.
-              </p>
-              <div className="space-y-5">
-                {quiz.questions.map((q, index) => (
-                  <article
-                    key={q.id}
-                    className="rounded-2xl border border-slate-200 p-4 sm:p-6"
-                  >
-                    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                      <h4 className="font-semibold">Câu {index + 1}</h4>
-                      <div className="flex gap-1">
-                        {([-1, 1] as const).map((step) => (
+            {!(manual && quiz.mode === "document") && (
+              <section>
+                <div className="mb-4 flex flex-wrap justify-between gap-3">
+                  <h3 className="font-semibold">
+                    {quiz.mode === "document" ? "3" : "2"}.{" "}
+                    {manual ? "Câu hỏi tự luận" : "Câu hỏi và đáp án"} (
+                    {quiz.questions.length})
+                  </h3>
+                  {!manual && (
+                    <span className="text-xs text-slate-600">
+                      Tổng trọng số:{" "}
+                      {quiz.questions.reduce((n, q) => n + (q.points || 0), 0)}{" "}
+                      · Quy đổi về 10 điểm
+                    </span>
+                  )}
+                </div>
+                <p className="mb-4 text-sm text-slate-600">
+                  {manual ? (
+                    "Dán ảnh câu hỏi bằng Ctrl + V vào vùng “Ảnh câu hỏi” hoặc nhập nội dung. Học sinh có vùng trả lời và tải ảnh bài làm riêng cho từng câu."
+                  ) : (
+                    <>
+                      Chụp cả câu hỏi và các lựa chọn rồi dán bằng Ctrl + V vào
+                      vùng “Ảnh câu hỏi”. Không cần gõ lại phần đã có trong ảnh.
+                      Chọn đáp án đúng bên dưới để chấm tự động; ảnh đáp án /
+                      lời giải dùng để học sinh xem sau khi nộp. Điểm là trọng
+                      số của mỗi câu.
+                    </>
+                  )}
+                </p>
+                <div className="space-y-5">
+                  {quiz.questions.map((q, index) => (
+                    <article
+                      key={q.id}
+                      className="rounded-2xl border border-slate-200 p-4 sm:p-6"
+                    >
+                      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                        <h4 className="font-semibold">Câu {index + 1}</h4>
+                        <div className="flex gap-1">
+                          {([-1, 1] as const).map((step) => (
+                            <button
+                              key={step}
+                              type="button"
+                              title={
+                                step === -1 ? "Chuyển lên" : "Chuyển xuống"
+                              }
+                              aria-label={`${step === -1 ? "Chuyển lên" : "Chuyển xuống"} câu ${index + 1}`}
+                              disabled={
+                                busy ||
+                                index + step < 0 ||
+                                index + step >= quiz.questions.length
+                              }
+                              className="rounded-lg p-2 hover:bg-slate-100 disabled:opacity-30"
+                              onClick={() => {
+                                const arr = [...quiz.questions];
+                                [arr[index], arr[index + step]] = [
+                                  arr[index + step],
+                                  arr[index],
+                                ];
+                                update({ questions: arr });
+                              }}
+                            >
+                              {step === -1 ? (
+                                <ArrowUp className="size-4" />
+                              ) : (
+                                <ArrowDown className="size-4" />
+                              )}
+                            </button>
+                          ))}
                           <button
-                            key={step}
                             type="button"
-                            title={step === -1 ? "Chuyển lên" : "Chuyển xuống"}
-                            aria-label={`${step === -1 ? "Chuyển lên" : "Chuyển xuống"} câu ${index + 1}`}
-                            disabled={
-                              busy ||
-                              index + step < 0 ||
-                              index + step >= quiz.questions.length
-                            }
-                            className="rounded-lg p-2 hover:bg-slate-100 disabled:opacity-30"
+                            aria-label={`Nhân bản câu ${index + 1}`}
+                            disabled={busy || quiz.questions.length >= 100}
+                            className="rounded-lg p-2 hover:bg-slate-100"
                             onClick={() => {
                               const arr = [...quiz.questions];
-                              [arr[index], arr[index + step]] = [
-                                arr[index + step],
-                                arr[index],
-                              ];
+                              arr.splice(index + 1, 0, {
+                                ...structuredClone(q),
+                                id: crypto.randomUUID(),
+                              });
                               update({ questions: arr });
                             }}
                           >
-                            {step === -1 ? (
-                              <ArrowUp className="size-4" />
-                            ) : (
-                              <ArrowDown className="size-4" />
-                            )}
+                            <Copy className="size-4" />
                           </button>
-                        ))}
-                        <button
-                          type="button"
-                          aria-label={`Nhân bản câu ${index + 1}`}
-                          disabled={busy || quiz.questions.length >= 100}
-                          className="rounded-lg p-2 hover:bg-slate-100"
-                          onClick={() => {
-                            const arr = [...quiz.questions];
-                            arr.splice(index + 1, 0, {
-                              ...structuredClone(q),
-                              id: crypto.randomUUID(),
-                            });
-                            update({ questions: arr });
-                          }}
-                        >
-                          <Copy className="size-4" />
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`Xóa câu ${index + 1}`}
-                          disabled={busy || quiz.questions.length <= 1}
-                          className="rounded-lg p-2 text-red-700 hover:bg-red-50 disabled:opacity-30"
-                          onClick={() => {
-                            if (window.confirm(`Xóa câu ${index + 1}?`))
-                              update({
-                                questions: quiz.questions.filter(
-                                  (item) => item.id !== q.id,
-                                ),
-                              });
-                          }}
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_120px]">
-                      <label className="account-label">
-                        Dạng câu hỏi
-                        <select
-                          className="account-input"
-                          value={q.type}
-                          onChange={(e) => {
-                            const next = newQuestion(
-                              e.target.value as QuestionType,
-                              quiz.mode === "document",
-                            );
-                            updateQuestion(q.id, {
-                              ...next,
-                              ...(q.imageId ? imageChoices(next) : {}),
-                              id: q.id,
-                              prompt: q.prompt,
-                              imageId: q.imageId,
-                              explanation: q.explanation,
-                              explanationImageId: q.explanationImageId,
-                              points: q.points,
-                            });
-                          }}
-                        >
-                          {types.map(([t, label]) => (
-                            <option value={t} key={t}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="account-label">
-                        Điểm trọng số
-                        <input
-                          className="account-input"
-                          type="number"
-                          min={0.01}
-                          max={100}
-                          step={0.01}
-                          value={q.points}
-                          required
-                          onChange={(e) =>
-                            updateQuestion(q.id, {
-                              points: Number(e.target.value),
-                            })
-                          }
-                        />
-                      </label>
-                    </div>
-                    <label className="account-label mt-4">
-                      {quiz.mode === "document"
-                        ? "Nội dung / ghi chú câu (tùy chọn)"
-                        : "Nội dung câu hỏi"}
-                      <textarea
-                        className="account-input min-h-24 resize-y"
-                        required={quiz.mode === "inline" && !q.imageId}
-                        maxLength={5000}
-                        value={q.prompt}
-                        onChange={(e) =>
-                          updateQuestion(q.id, { prompt: e.target.value })
-                        }
-                        onPaste={(event) => pasteImage(event, q.id, "question")}
-                        placeholder={
-                          quiz.mode === "document"
-                            ? "Có thể để trống khi đề đã có trong PDF/ảnh"
-                            : "Gõ nội dung hoặc Ctrl + V để dán ảnh câu hỏi; có ảnh thì không cần gõ lại…"
-                        }
-                      />
-                    </label>
-                    <QuizImageInput
-                      label="Ảnh câu hỏi"
-                      imageId={q.imageId}
-                      disabled={busy}
-                      onUpload={(file) => upload(file, q.id)}
-                      onRemove={() => updateQuestion(q.id, { imageId: "" })}
-                    />
-                    {q.type === "single" && (
-                      <div className="mt-5 space-y-3">
-                        <p className="text-sm font-semibold">
-                          Các lựa chọn — tích đáp án đúng
-                        </p>
-                        {q.choices?.map((choice, i) => (
-                          <div
-                            key={i}
-                            className="min-w-0 rounded-xl border border-slate-200 p-3"
-                          >
-                            <label className="flex items-center gap-3">
-                              <input
-                                type="radio"
-                                name={`correct-${q.id}`}
-                                aria-label={`Đáp án đúng ${"ABCD"[i]} câu ${index + 1}`}
-                                className="size-4 shrink-0 accent-blue-700"
-                                checked={q.answer === "ABCD"[i]}
-                                onChange={() =>
-                                  updateQuestion(q.id, { answer: "ABCD"[i] })
-                                }
-                              />
-                              <span className="text-sm font-semibold">
-                                {"ABCD"[i]}.
-                              </span>
-                              <input
-                                aria-label={`Lựa chọn ${"ABCD"[i]} câu ${index + 1}`}
-                                className="account-input"
-                                required={!q.choiceImageIds?.[i]}
-                                maxLength={2000}
-                                value={choice}
-                                placeholder={`Nội dung lựa chọn ${"ABCD"[i]}`}
-                                onPaste={(event) =>
-                                  pasteImage(event, q.id, "choice", i)
-                                }
-                                onChange={(e) =>
-                                  updateQuestion(q.id, {
-                                    choices: q.choices?.map((v, j) =>
-                                      i === j ? e.target.value : v,
-                                    ),
-                                  })
-                                }
-                              />
-                            </label>
-                            <QuizImageInput
-                              label={`Ảnh lựa chọn ${"ABCD"[i]} · Câu ${index + 1}`}
-                              imageId={q.choiceImageIds?.[i]}
-                              disabled={busy}
-                              compact
-                              onUpload={(file) =>
-                                upload(file, q.id, "choice", i)
-                              }
-                              onRemove={() =>
-                                updateQuestion(q.id, {
-                                  choiceImageIds: Array.from(
-                                    { length: 4 },
-                                    (_, j) =>
-                                      i === j
-                                        ? ""
-                                        : q.choiceImageIds?.[j] || "",
+                          <button
+                            type="button"
+                            aria-label={`Xóa câu ${index + 1}`}
+                            disabled={busy || quiz.questions.length <= 1}
+                            className="rounded-lg p-2 text-red-700 hover:bg-red-50 disabled:opacity-30"
+                            onClick={() => {
+                              if (window.confirm(`Xóa câu ${index + 1}?`))
+                                update({
+                                  questions: quiz.questions.filter(
+                                    (item) => item.id !== q.id,
                                   ),
+                                });
+                            }}
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_120px]">
+                        <label className="account-label">
+                          Dạng câu hỏi
+                          <select
+                            className="account-input"
+                            value={q.type}
+                            onChange={(e) => {
+                              const next = newQuestion(
+                                e.target.value as QuestionType,
+                                quiz.mode === "document",
+                              );
+                              updateQuestion(q.id, {
+                                ...next,
+                                ...(q.imageId ? imageChoices(next) : {}),
+                                id: q.id,
+                                prompt: q.prompt,
+                                imageId: q.imageId,
+                                explanation: q.explanation,
+                                explanationImageId: q.explanationImageId,
+                                points: q.points,
+                              });
+                            }}
+                          >
+                            {availableTypes.map(([t, label]) => (
+                              <option value={t} key={t}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        {!manual && (
+                          <label className="account-label">
+                            Điểm trọng số
+                            <input
+                              className="account-input"
+                              type="number"
+                              min={0.01}
+                              max={100}
+                              step={0.01}
+                              value={q.points}
+                              required
+                              onChange={(e) =>
+                                updateQuestion(q.id, {
+                                  points: Number(e.target.value),
                                 })
                               }
                             />
-                          </div>
-                        ))}
+                          </label>
+                        )}
                       </div>
-                    )}
-                    {q.type === "truefalse" && (
-                      <div className="mt-5 space-y-4">
-                        <p className="text-sm font-semibold">Bốn ý và đáp án</p>
-                        {q.statements?.map((s, i) => (
-                          <div
-                            key={i}
-                            className="min-w-0 rounded-xl border border-slate-200 p-3"
-                          >
-                            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_110px]">
-                              <label className="account-label">
-                                Ý {"abcd"[i]}
+                      <label className="account-label mt-4">
+                        {quiz.mode === "document"
+                          ? "Nội dung / ghi chú câu (tùy chọn)"
+                          : "Nội dung câu hỏi"}
+                        <textarea
+                          className="account-input min-h-24 resize-y"
+                          required={quiz.mode === "inline" && !q.imageId}
+                          maxLength={5000}
+                          value={q.prompt}
+                          onChange={(e) =>
+                            updateQuestion(q.id, { prompt: e.target.value })
+                          }
+                          onPaste={(event) =>
+                            pasteImage(event, q.id, "question")
+                          }
+                          placeholder={
+                            quiz.mode === "document"
+                              ? "Có thể để trống khi đề đã có trong PDF/ảnh"
+                              : "Gõ nội dung hoặc Ctrl + V để dán ảnh câu hỏi; có ảnh thì không cần gõ lại…"
+                          }
+                        />
+                      </label>
+                      <QuizImageInput
+                        label="Ảnh câu hỏi"
+                        imageId={q.imageId}
+                        disabled={busy}
+                        onUpload={(file) => upload(file, q.id)}
+                        onRemove={() => updateQuestion(q.id, { imageId: "" })}
+                      />
+                      {q.type === "single" && (
+                        <div className="mt-5 space-y-3">
+                          <p className="text-sm font-semibold">
+                            Các lựa chọn — tích đáp án đúng
+                          </p>
+                          {q.choices?.map((choice, i) => (
+                            <div
+                              key={i}
+                              className="min-w-0 rounded-xl border border-slate-200 p-3"
+                            >
+                              <label className="flex items-center gap-3">
                                 <input
+                                  type="radio"
+                                  name={`correct-${q.id}`}
+                                  aria-label={`Đáp án đúng ${"ABCD"[i]} câu ${index + 1}`}
+                                  className="size-4 shrink-0 accent-blue-700"
+                                  checked={q.answer === "ABCD"[i]}
+                                  onChange={() =>
+                                    updateQuestion(q.id, { answer: "ABCD"[i] })
+                                  }
+                                />
+                                <span className="text-sm font-semibold">
+                                  {"ABCD"[i]}.
+                                </span>
+                                <input
+                                  aria-label={`Lựa chọn ${"ABCD"[i]} câu ${index + 1}`}
                                   className="account-input"
-                                  required={!q.statementImageIds?.[i]}
+                                  required={!q.choiceImageIds?.[i]}
                                   maxLength={2000}
-                                  value={s}
+                                  value={choice}
+                                  placeholder={`Nội dung lựa chọn ${"ABCD"[i]}`}
                                   onPaste={(event) =>
-                                    pasteImage(event, q.id, "statement", i)
+                                    pasteImage(event, q.id, "choice", i)
                                   }
                                   onChange={(e) =>
                                     updateQuestion(q.id, {
-                                      statements: q.statements?.map((v, j) =>
+                                      choices: q.choices?.map((v, j) =>
                                         i === j ? e.target.value : v,
                                       ),
                                     })
                                   }
                                 />
                               </label>
-                              <label className="account-label">
-                                Đáp án
-                                <select
-                                  className="account-input"
-                                  value={String((q.answer as boolean[])[i])}
-                                  onChange={(e) =>
-                                    updateQuestion(q.id, {
-                                      answer: (q.answer as boolean[]).map(
-                                        (v, j) =>
-                                          i === j
-                                            ? e.target.value === "true"
-                                            : v,
-                                      ),
-                                    })
-                                  }
-                                >
-                                  <option value="true">Đúng</option>
-                                  <option value="false">Sai</option>
-                                </select>
-                              </label>
+                              <QuizImageInput
+                                label={`Ảnh lựa chọn ${"ABCD"[i]} · Câu ${index + 1}`}
+                                imageId={q.choiceImageIds?.[i]}
+                                disabled={busy}
+                                compact
+                                onUpload={(file) =>
+                                  upload(file, q.id, "choice", i)
+                                }
+                                onRemove={() =>
+                                  updateQuestion(q.id, {
+                                    choiceImageIds: Array.from(
+                                      { length: 4 },
+                                      (_, j) =>
+                                        i === j
+                                          ? ""
+                                          : q.choiceImageIds?.[j] || "",
+                                    ),
+                                  })
+                                }
+                              />
                             </div>
-                            <QuizImageInput
-                              label={`Ảnh ý ${"abcd"[i]} · Câu ${index + 1}`}
-                              imageId={q.statementImageIds?.[i]}
-                              disabled={busy}
-                              compact
-                              onUpload={(file) =>
-                                upload(file, q.id, "statement", i)
-                              }
-                              onRemove={() =>
+                          ))}
+                        </div>
+                      )}
+                      {q.type === "truefalse" && (
+                        <div className="mt-5 space-y-4">
+                          <p className="text-sm font-semibold">
+                            Bốn ý và đáp án
+                          </p>
+                          {q.statements?.map((s, i) => (
+                            <div
+                              key={i}
+                              className="min-w-0 rounded-xl border border-slate-200 p-3"
+                            >
+                              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_110px]">
+                                <label className="account-label">
+                                  Ý {"abcd"[i]}
+                                  <input
+                                    className="account-input"
+                                    required={!q.statementImageIds?.[i]}
+                                    maxLength={2000}
+                                    value={s}
+                                    onPaste={(event) =>
+                                      pasteImage(event, q.id, "statement", i)
+                                    }
+                                    onChange={(e) =>
+                                      updateQuestion(q.id, {
+                                        statements: q.statements?.map((v, j) =>
+                                          i === j ? e.target.value : v,
+                                        ),
+                                      })
+                                    }
+                                  />
+                                </label>
+                                <label className="account-label">
+                                  Đáp án
+                                  <select
+                                    className="account-input"
+                                    value={String((q.answer as boolean[])[i])}
+                                    onChange={(e) =>
+                                      updateQuestion(q.id, {
+                                        answer: (q.answer as boolean[]).map(
+                                          (v, j) =>
+                                            i === j
+                                              ? e.target.value === "true"
+                                              : v,
+                                        ),
+                                      })
+                                    }
+                                  >
+                                    <option value="true">Đúng</option>
+                                    <option value="false">Sai</option>
+                                  </select>
+                                </label>
+                              </div>
+                              <QuizImageInput
+                                label={`Ảnh ý ${"abcd"[i]} · Câu ${index + 1}`}
+                                imageId={q.statementImageIds?.[i]}
+                                disabled={busy}
+                                compact
+                                onUpload={(file) =>
+                                  upload(file, q.id, "statement", i)
+                                }
+                                onRemove={() =>
+                                  updateQuestion(q.id, {
+                                    statementImageIds: Array.from(
+                                      { length: 4 },
+                                      (_, j) =>
+                                        i === j
+                                          ? ""
+                                          : q.statementImageIds?.[j] || "",
+                                    ),
+                                  })
+                                }
+                              />
+                            </div>
+                          ))}
+                          <label className="account-label">
+                            Cách tính điểm Đúng/Sai
+                            <select
+                              className="account-input"
+                              value={q.scoring}
+                              onChange={(e) =>
                                 updateQuestion(q.id, {
-                                  statementImageIds: Array.from(
-                                    { length: 4 },
-                                    (_, j) =>
-                                      i === j
-                                        ? ""
-                                        : q.statementImageIds?.[j] || "",
-                                  ),
+                                  scoring: e.target
+                                    .value as Question["scoring"],
+                                })
+                              }
+                            >
+                              <option value="equal">
+                                Chia đều: mỗi ý đúng được 25% điểm câu
+                              </option>
+                              <option value="exam">
+                                Đúng 1/2/3/4 ý → 10% / 25% / 50% / 100% điểm câu
+                              </option>
+                            </select>
+                          </label>
+                        </div>
+                      )}
+                      {q.type === "short" && (
+                        <div className="mt-5 grid gap-4 sm:grid-cols-[minmax(0,1fr)_140px]">
+                          <label className="account-label">
+                            Đáp án được chấp nhận (mỗi dòng một đáp án)
+                            <textarea
+                              className="account-input min-h-24"
+                              required
+                              value={q.acceptedAnswers?.join("\n")}
+                              onChange={(e) =>
+                                updateQuestion(q.id, {
+                                  acceptedAnswers: e.target.value.split("\n"),
+                                })
+                              }
+                              placeholder="0,5"
+                            />
+                            <span className="text-xs font-normal text-slate-500">
+                              Tự nhận diện 0,5 = 0.5 = 1/2. Tối đa 10 đáp án.
+                            </span>
+                          </label>
+                          <label className="account-label">
+                            Sai số số học
+                            <input
+                              className="account-input"
+                              type="number"
+                              min={0}
+                              max={100}
+                              step="any"
+                              value={q.tolerance}
+                              onChange={(e) =>
+                                updateQuestion(q.id, {
+                                  tolerance: Number(e.target.value),
                                 })
                               }
                             />
-                          </div>
-                        ))}
-                        <label className="account-label">
-                          Cách tính điểm Đúng/Sai
-                          <select
-                            className="account-input"
-                            value={q.scoring}
-                            onChange={(e) =>
-                              updateQuestion(q.id, {
-                                scoring: e.target.value as Question["scoring"],
-                              })
-                            }
-                          >
-                            <option value="equal">
-                              Chia đều: mỗi ý đúng được 25% điểm câu
-                            </option>
-                            <option value="exam">
-                              Đúng 1/2/3/4 ý → 10% / 25% / 50% / 100% điểm câu
-                            </option>
-                          </select>
-                        </label>
-                      </div>
-                    )}
-                    {q.type === "short" && (
-                      <div className="mt-5 grid gap-4 sm:grid-cols-[minmax(0,1fr)_140px]">
-                        <label className="account-label">
-                          Đáp án được chấp nhận (mỗi dòng một đáp án)
-                          <textarea
-                            className="account-input min-h-24"
-                            required
-                            value={q.acceptedAnswers?.join("\n")}
-                            onChange={(e) =>
-                              updateQuestion(q.id, {
-                                acceptedAnswers: e.target.value.split("\n"),
-                              })
-                            }
-                            placeholder="0,5"
-                          />
-                          <span className="text-xs font-normal text-slate-500">
-                            Tự nhận diện 0,5 = 0.5 = 1/2. Tối đa 10 đáp án.
-                          </span>
-                        </label>
-                        <label className="account-label">
-                          Sai số số học
-                          <input
-                            className="account-input"
-                            type="number"
-                            min={0}
-                            max={100}
-                            step="any"
-                            value={q.tolerance}
-                            onChange={(e) =>
-                              updateQuestion(q.id, {
-                                tolerance: Number(e.target.value),
-                              })
-                            }
-                          />
-                          <span className="text-xs font-normal text-slate-500">
-                            0 = khớp chính xác
-                          </span>
-                        </label>
-                      </div>
-                    )}
-                    <label className="account-label mt-5">
-                      Lời giải (tùy chọn)
-                      <textarea
-                        className="account-input min-h-20"
-                        maxLength={5000}
-                        value={q.explanation || ""}
-                        onChange={(e) =>
-                          updateQuestion(q.id, { explanation: e.target.value })
+                            <span className="text-xs font-normal text-slate-500">
+                              0 = khớp chính xác
+                            </span>
+                          </label>
+                        </div>
+                      )}
+                      <label className="account-label mt-5">
+                        Lời giải (tùy chọn)
+                        <textarea
+                          className="account-input min-h-20"
+                          maxLength={5000}
+                          value={q.explanation || ""}
+                          onChange={(e) =>
+                            updateQuestion(q.id, {
+                              explanation: e.target.value,
+                            })
+                          }
+                          onPaste={(event) =>
+                            pasteImage(event, q.id, "explanation")
+                          }
+                          placeholder="Gõ lời giải hoặc Ctrl + V để dán ảnh đáp án / lời giải…"
+                        />
+                      </label>
+                      <QuizImageInput
+                        label="Ảnh đáp án / lời giải"
+                        imageId={q.explanationImageId}
+                        disabled={busy}
+                        onUpload={(file) => upload(file, q.id, "explanation")}
+                        onRemove={() =>
+                          updateQuestion(q.id, { explanationImageId: "" })
                         }
-                        onPaste={(event) =>
-                          pasteImage(event, q.id, "explanation")
-                        }
-                        placeholder="Gõ lời giải hoặc Ctrl + V để dán ảnh đáp án / lời giải…"
                       />
-                    </label>
-                    <QuizImageInput
-                      label="Ảnh đáp án / lời giải"
-                      imageId={q.explanationImageId}
-                      disabled={busy}
-                      onUpload={(file) => upload(file, q.id, "explanation")}
-                      onRemove={() =>
-                        updateQuestion(q.id, { explanationImageId: "" })
-                      }
-                    />
-                  </article>
-                ))}
-              </div>
-              <div className="mt-5 flex flex-wrap gap-3">
-                <select
-                  aria-label="Dạng câu cần thêm"
-                  className="account-input w-full sm:w-auto"
-                  value={addType}
-                  onChange={(e) => setAddType(e.target.value as QuestionType)}
-                >
-                  {types.map(([type, label]) => (
-                    <option key={type} value={type}>
-                      {label}
-                    </option>
+                    </article>
                   ))}
-                </select>
-                <button
-                  type="button"
-                  className="account-button-secondary"
-                  disabled={busy || quiz.questions.length >= 100}
-                  onClick={() =>
-                    update({
-                      questions: [
-                        ...quiz.questions,
-                        newQuestion(addType, quiz.mode === "document"),
-                      ],
-                    })
-                  }
-                >
-                  <Plus className="size-4" />
-                  Thêm câu hỏi
-                </button>
-              </div>
-            </section>
+                </div>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <select
+                    aria-label="Dạng câu cần thêm"
+                    className="account-input w-full sm:w-auto"
+                    value={
+                      manual
+                        ? "essay"
+                        : addType === "essay"
+                          ? "single"
+                          : addType
+                    }
+                    onChange={(e) => setAddType(e.target.value as QuestionType)}
+                  >
+                    {availableTypes.map(([type, label]) => (
+                      <option key={type} value={type}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="account-button-secondary"
+                    disabled={busy || quiz.questions.length >= 100}
+                    onClick={() =>
+                      update({
+                        questions: [
+                          ...quiz.questions,
+                          newQuestion(
+                            manual
+                              ? "essay"
+                              : addType === "essay"
+                                ? "single"
+                                : addType,
+                            quiz.mode === "document",
+                          ),
+                        ],
+                      })
+                    }
+                  >
+                    <Plus className="size-4" />
+                    Thêm câu hỏi
+                  </button>
+                </div>
+              </section>
+            )}
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
               <p className="mb-4 text-xs text-blue-900">
                 Nội dung đang soạn được giữ trong tab này. “Lưu nháp” lưu lên
@@ -1013,7 +1143,10 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                   <h3 className="break-words font-semibold">{item.title}</h3>
                   <p className="mt-2 text-sm text-slate-500">
                     {getSubject(item.subject).label} · {item.category} ·{" "}
-                    {item.questionCount} câu · {item.durationMinutes} phút
+                    {item.gradingMode === "manual" && item.questionCount === 0
+                      ? "Tự luận PDF"
+                      : `${item.questionCount} câu`}{" "}
+                    · {item.durationMinutes} phút
                   </p>
                   {item.requiresAccessCode && (
                     <p className="mt-2 text-xs font-semibold text-amber-700">
@@ -1147,16 +1280,20 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <strong>
-                    {a.result
-                      ? `${a.result.score.toLocaleString("vi-VN")} / 10`
-                      : "—"}
+                    {a.result?.manual && a.result.status === "pending"
+                      ? "Chờ chấm"
+                      : a.result
+                        ? `${a.result.score.toLocaleString("vi-VN")} / 10`
+                        : "—"}
                   </strong>
                   {a.result && (
                     <button
                       className="account-button-secondary text-xs"
                       onClick={() => setSelected(a)}
                     >
-                      Xem chi tiết
+                      {a.result.manual
+                        ? "Xem bài và chấm điểm"
+                        : "Xem chi tiết"}
                     </button>
                   )}
                   {a.isCurrent !== false && (
@@ -1212,7 +1349,23 @@ export default function QuizAdmin({ uid }: { uid: string }) {
         <DialogContent className="account-page max-h-[90svh] max-w-2xl overflow-y-auto">
           <DialogTitle>Bài nộp của {selected?.displayName}</DialogTitle>
           <DialogDescription>{resultQuiz?.title}</DialogDescription>
-          {selected?.result && <QuizResultView result={selected.result} />}
+          {selected?.result &&
+            (selected.result.manual ? (
+              <QuizManualGrader
+                key={selected.id}
+                attempt={selected}
+                onSaved={(updated) => {
+                  setSelected(updated);
+                  setAttempts((items) =>
+                    items.map((item) =>
+                      item.id === updated.id ? updated : item,
+                    ),
+                  );
+                }}
+              />
+            ) : (
+              <QuizResultView result={selected.result} />
+            ))}
         </DialogContent>
       </Dialog>
     </div>

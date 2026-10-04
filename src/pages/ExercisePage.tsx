@@ -409,8 +409,13 @@ export default function ExercisePage() {
                       {q.title}
                     </h2>
                     <p className="mb-6 mt-4 text-sm text-slate-300">
-                      {q.questionCount} câu hỏi · {q.durationMinutes} phút ·
-                      Chấm tự động
+                      {q.gradingMode === "manual" && q.questionCount === 0
+                        ? "Đề PDF"
+                        : `${q.questionCount} câu hỏi`}{" "}
+                      · {q.durationMinutes} phút ·{" "}
+                      {q.gradingMode === "manual"
+                        ? "Tự luận · Gia sư chấm"
+                        : "Chấm tự động"}
                     </p>
                     {q.requiresAccessCode && (
                       <p className="mb-4 flex items-center gap-2 text-xs text-amber-200">

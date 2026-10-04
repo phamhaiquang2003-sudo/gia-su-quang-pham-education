@@ -1,5 +1,6 @@
 import { Flag } from "lucide-react";
 import QuizFile from "./QuizFile";
+import QuizEssayAnswer from "./QuizEssayAnswer";
 import type { Answers, Question } from "@/lib/quizzes";
 
 export default function QuizQuestions({
@@ -10,6 +11,8 @@ export default function QuizQuestions({
   onFlag,
   disabled = false,
   onActive,
+  onUpload,
+  onRemoveImage,
 }: {
   questions: Question[];
   answers: Answers;
@@ -18,6 +21,8 @@ export default function QuizQuestions({
   onFlag: (id: string) => void;
   disabled?: boolean;
   onActive?: (id: string) => void;
+  onUpload?: (questionId: string, files: File[]) => Promise<void>;
+  onRemoveImage?: (id: string) => Promise<void>;
 }) {
   return (
     <div className="space-y-5">
@@ -34,7 +39,9 @@ export default function QuizQuestions({
             <h2 className="font-semibold">
               Câu {index + 1}{" "}
               <span className="ml-2 text-xs font-normal text-slate-300">
-                {q.points} điểm trọng số
+                {q.type === "essay"
+                  ? "Gia sư chấm thủ công"
+                  : `${q.points} điểm trọng số`}
               </span>
             </h2>
             <button
@@ -160,6 +167,18 @@ export default function QuizQuestions({
                   className="exercise-input mt-2"
                 />
               </label>
+            )}
+            {q.type === "essay" && (
+              <QuizEssayAnswer
+                label={`Bài làm câu ${index + 1}`}
+                value={answers[q.id]}
+                disabled={disabled}
+                onChange={(value) => onAnswer(q.id, value)}
+                onUpload={(files) =>
+                  onUpload?.(q.id, files) || Promise.resolve()
+                }
+                onRemove={onRemoveImage}
+              />
             )}
           </fieldset>
         </section>

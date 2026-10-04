@@ -4,6 +4,8 @@ import {
   quizApi,
   QuizApiError,
   isAnswered,
+  essayAnswer,
+  uploadSubmissionFile,
   type QuizState,
   type Quiz,
   type Attempt,
@@ -21,6 +23,9 @@ import QuizQuestions from "./QuizQuestions";
 import QuizFile from "./QuizFile";
 import QuizResultView from "./QuizResultView";
 import QuizAccessCodeInput from "./QuizAccessCodeInput";
+import QuizEssayAnswer from "./QuizEssayAnswer";
+import QuizManualReview from "./QuizManualReview";
+import { prepareQuizImage } from "@/lib/quiz-images";
 
 export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
@@ -32,6 +37,8 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const uploadRef = useRef(false);
   const [accessCode, setAccessCode] = useState("");
   const [locked, setLocked] = useState(false);
   const [stale, setStale] = useState(false);
@@ -100,6 +107,8 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
     const currentGeneration = ++generation.current;
     let cancelled = false;
     setLoading(true);
+    uploadRef.current = false;
+    setUploading(false);
     setError("");
     staleRef.current = false;
     setAccessCode("");
@@ -251,6 +260,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
   function changed(a: Answers, f: string[]) {
     if (
       lockRef.current ||
+      uploadRef.current ||
       staleRef.current ||
       !attemptRef.current ||
       serverNow() >= attemptRef.current.deadlineAt
@@ -268,6 +278,110 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
     cache();
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => void syncProgress(), 900);
+  }
+  async function mutateSubmission(
+    action: (
+      attempt: Attempt,
+    ) => Promise<{ attempt: Attempt; serverNow: number }>,
+  ) {
+    if (uploadRef.current || lockRef.current || staleRef.current) return;
+    uploadRef.current = true;
+    setUploading(true);
+    const requestGeneration = generation.current;
+    try {
+      await syncProgress();
+      if (
+        staleRef.current ||
+        current.current.savedVersion !== current.current.version
+      )
+        throw new Error("Hãy lưu phần trả lời trước khi tải hoặc gỡ ảnh.");
+      await enqueue(async () => {
+        const a = attemptRef.current;
+        if (
+          !a ||
+          a.result ||
+          serverNow() >= a.deadlineAt ||
+          requestGeneration !== generation.current
+        )
+          return;
+        const data = await action(a);
+        if (requestGeneration !== generation.current || !mounted.current)
+          return;
+        apply(data);
+        current.current = {
+          answers: data.attempt.answers,
+          flagged: data.attempt.flagged,
+          version: 0,
+          savedVersion: 0,
+        };
+        setAnswers(data.attempt.answers);
+        setFlagged(data.attempt.flagged);
+        try {
+          localStorage.removeItem(cacheKey);
+        } catch {
+          /* storage unavailable */
+        }
+        setSaveStatus("Đã lưu trên máy chủ");
+        setError("");
+      });
+    } catch (e) {
+      if (requestGeneration !== generation.current || !mounted.current) return;
+      setError(e instanceof Error ? e.message : "Chưa tải được ảnh bài làm.");
+      if (e instanceof QuizApiError && (e.status === 409 || e.status === 404)) {
+        staleRef.current = true;
+        setStale(true);
+      }
+    } finally {
+      if (requestGeneration === generation.current && mounted.current) {
+        uploadRef.current = false;
+        setUploading(false);
+      }
+    }
+  }
+  async function uploadWork(questionId: string, files: File[]) {
+    const uploadGeneration = generation.current;
+    await mutateSubmission(async (a) => {
+      const imageCount = Object.values(a.answers).reduce(
+        (sum, value) => sum + essayAnswer(value).imageIds.length,
+        0,
+      );
+      if (imageCount + files.length > 20)
+        throw new Error(
+          "Mỗi lượt làm được tải tối đa 20 ảnh. Hãy gỡ ảnh cũ nếu cần thay ảnh mới.",
+        );
+      let latest = { attempt: a, serverNow: serverNow() };
+      for (const file of files) {
+        if (uploadGeneration !== generation.current || !mounted.current)
+          throw new Error("Đã chuyển sang lượt khác.");
+        const ready = await prepareQuizImage(file);
+        latest = await uploadSubmissionFile(
+          ready,
+          latest.attempt.id,
+          questionId,
+          latest.attempt.revision,
+        );
+        if (uploadGeneration !== generation.current || !mounted.current)
+          throw new Error("Đã chuyển sang lượt khác.");
+        apply(latest);
+        current.current = {
+          answers: latest.attempt.answers,
+          flagged: latest.attempt.flagged,
+          version: 0,
+          savedVersion: 0,
+        };
+        setAnswers(latest.attempt.answers);
+      }
+      return latest;
+    });
+  }
+  async function removeWork(fileId: string) {
+    await mutateSubmission((a) =>
+      quizApi("removeSubmissionFile", {
+        id: a.id,
+        revision: a.revision,
+        fileId,
+      }),
+    );
   }
   async function submit() {
     if (staleRef.current || attemptRef.current?.result) return;
@@ -339,7 +453,8 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
     const warn = (e: BeforeUnloadEvent) => {
       if (
         !attemptRef.current?.result &&
-        current.current.version !== current.current.savedVersion
+        (uploadRef.current ||
+          current.current.version !== current.current.savedVersion)
       ) {
         e.preventDefault();
         e.returnValue = "";
@@ -396,43 +511,55 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
   const answeredCount =
     quiz?.questions.filter((q) => isAnswered(q, answers[q.id])).length || 0;
   const unansweredCount = (quiz?.questions.length || 0) - answeredCount;
+  const wholeSubmission =
+    quiz?.gradingMode === "manual" && quiz.mode === "document";
   const seconds = Math.ceil(remaining / 1000);
   const timer = `${Math.floor(seconds / 60)
     .toString()
     .padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
   const nav = (
     <div>
-      <h2 className="mb-4 font-semibold">Bảng câu hỏi</h2>
-      <div className="grid grid-cols-5 gap-2">
-        {quiz?.questions.map((q, index) => (
-          <button
-            key={q.id}
-            type="button"
-            onClick={() => jump(q.id)}
-            aria-label={`Câu ${index + 1}, ${isAnswered(q, answers[q.id]) ? "đã trả lời" : "chưa trả lời"}${flagged.includes(q.id) ? ", đánh dấu xem lại" : ""}`}
-            aria-current={active === q.id ? "true" : undefined}
-            className={`relative min-h-11 rounded-lg border text-sm font-semibold ${isAnswered(q, answers[q.id]) ? "border-emerald-300/50 bg-emerald-400/20 text-emerald-100" : "border-white/30 bg-white/5"} ${active === q.id ? "ring-2 ring-sky-300 ring-offset-2 ring-offset-slate-950" : ""}`}
-          >
-            {index + 1}
-            {flagged.includes(q.id) && (
-              <Flag className="absolute -right-1 -top-1 size-3.5 fill-amber-300 text-amber-300" />
-            )}
-          </button>
-        ))}
-      </div>
-      <div className="mt-5 space-y-2 text-xs text-slate-200">
-        <p>
-          Đã trả lời: {answeredCount}/{quiz?.questions.length}
+      <h2 className="mb-4 font-semibold">
+        {wholeSubmission ? "Bài tự luận" : "Bảng câu hỏi"}
+      </h2>
+      {wholeSubmission ? (
+        <p className="text-sm text-slate-200">
+          Nộp ảnh bài làm chung cho cả đề PDF. Gia sư sẽ chấm điểm và nhận xét.
         </p>
-        <p>Chưa hoàn tất: {unansweredCount}</p>
-        <p className="flex items-center gap-2">
-          <Flag className="size-3 text-amber-200" />
-          Đánh dấu xem lại: {flagged.length}
-        </p>
-      </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-5 gap-2">
+            {quiz?.questions.map((q, index) => (
+              <button
+                key={q.id}
+                type="button"
+                onClick={() => jump(q.id)}
+                aria-label={`Câu ${index + 1}, ${isAnswered(q, answers[q.id]) ? "đã trả lời" : "chưa trả lời"}${flagged.includes(q.id) ? ", đánh dấu xem lại" : ""}`}
+                aria-current={active === q.id ? "true" : undefined}
+                className={`relative min-h-11 rounded-lg border text-sm font-semibold ${isAnswered(q, answers[q.id]) ? "border-emerald-300/50 bg-emerald-400/20 text-emerald-100" : "border-white/30 bg-white/5"} ${active === q.id ? "ring-2 ring-sky-300 ring-offset-2 ring-offset-slate-950" : ""}`}
+              >
+                {index + 1}
+                {flagged.includes(q.id) && (
+                  <Flag className="absolute -right-1 -top-1 size-3.5 fill-amber-300 text-amber-300" />
+                )}
+              </button>
+            ))}
+          </div>
+          <div className="mt-5 space-y-2 text-xs text-slate-200">
+            <p>
+              Đã trả lời: {answeredCount}/{quiz?.questions.length}
+            </p>
+            <p>Chưa hoàn tất: {unansweredCount}</p>
+            <p className="flex items-center gap-2">
+              <Flag className="size-3 text-amber-200" />
+              Đánh dấu xem lại: {flagged.length}
+            </p>
+          </div>
+        </>
+      )}
       <button
         className="mt-5 w-full rounded-xl bg-amber-300 px-4 py-3 text-sm font-bold text-slate-950 disabled:opacity-50"
-        disabled={locked || stale}
+        disabled={locked || stale || uploading}
         onClick={() => setConfirm(true)}
       >
         Nộp bài
@@ -511,7 +638,9 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
             <h1 className="font-display text-4xl">{quiz.title}</h1>
             <div className="my-6 flex flex-wrap gap-3 text-sm">
               <span className="rounded-lg bg-white/10 px-3 py-2">
-                {quiz.questionCount ?? quiz.questions.length} câu hỏi
+                {quiz.gradingMode === "manual" && quiz.mode === "document"
+                  ? "Tự luận · Đề PDF"
+                  : `${quiz.questionCount ?? quiz.questions.length} câu hỏi`}
               </span>
               <span className="rounded-lg bg-white/10 px-3 py-2">
                 {quiz.durationMinutes} phút
@@ -526,10 +655,17 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
               </p>
             )}
             <p className="mb-6 text-sm leading-relaxed text-slate-300">
-              Đồng hồ chạy ngay khi bắt đầu. Bạn có thể đánh dấu câu để xem lại
-              và dùng bảng số câu để chuyển nhanh. Hết giờ, bài được khóa và
-              chấm từ các câu trả lời đã lưu trước hạn. Tải lại trang để tiếp
-              tục lượt hiện tại. Giáo viên có thể cấp thêm lượt làm lại.
+              {quiz.gradingMode === "manual" ? (
+                "Đồng hồ chạy ngay khi bắt đầu. Nộp ảnh bài làm hoặc nhập phần trả lời; gia sư sẽ chấm thủ công. Hết giờ, bài được nộp từ nội dung đã lưu. Tải lại trang vẫn tiếp tục lượt hiện tại."
+              ) : (
+                <>
+                  Đồng hồ chạy ngay khi bắt đầu. Bạn có thể đánh dấu câu để xem
+                  lại và dùng bảng số câu để chuyển nhanh. Hết giờ, bài được
+                  khóa và chấm từ các câu trả lời đã lưu trước hạn. Tải lại
+                  trang để tiếp tục lượt hiện tại. Giáo viên có thể cấp thêm
+                  lượt làm lại.
+                </>
+              )}
             </p>
             {nextAttemptNumber > 1 && (
               <p className="mb-6 rounded-xl border border-emerald-300/30 bg-emerald-300/10 p-4 text-sm text-emerald-200">
@@ -565,7 +701,11 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
         )}
         {!loading && quiz && attempt?.result && (
           <section className="exercise-panel mx-auto max-w-3xl p-5 sm:p-8">
-            <p className="mb-2 text-sm text-emerald-200">Đã nộp và chấm bài</p>
+            <p className="mb-2 text-sm text-emerald-200">
+              {attempt.result.manual
+                ? "Đã nộp bài tự luận"
+                : "Đã nộp và chấm bài"}
+            </p>
             <h1 className="mb-3 font-display text-3xl">{quiz.title}</h1>
             <p className="mb-6 text-xs text-slate-300">
               Lượt {attempt.attemptNumber || 1} ·{" "}
@@ -582,7 +722,20 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
               )}{" "}
               phút
             </p>
-            <QuizResultView result={attempt.result} />
+            {attempt.result.manual ? (
+              <QuizManualReview attempt={attempt} quiz={quiz} />
+            ) : (
+              <QuizResultView result={attempt.result} />
+            )}
+            {attempt.result.manual && (
+              <button
+                type="button"
+                className="mt-6 mr-3 rounded-xl border border-white/20 px-5 py-3 text-sm"
+                onClick={() => setReload((n) => n + 1)}
+              >
+                Cập nhật điểm và nhận xét
+              </button>
+            )}
             <button
               type="button"
               className="mt-6 mr-3 inline-block rounded-xl border border-white/20 px-5 py-3 text-sm"
@@ -602,15 +755,17 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
           <>
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
               <p role="status" className="text-xs text-slate-300">
-                {saveStatus}
+                {uploading ? "Đang xử lý ảnh bài làm…" : saveStatus}
               </p>
-              <button
-                className="flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2 text-sm lg:hidden"
-                onClick={() => setNavigation(true)}
-              >
-                <Grid3X3 className="size-4" />
-                Bảng câu hỏi ({answeredCount}/{quiz.questions.length})
-              </button>
+              {!wholeSubmission && (
+                <button
+                  className="flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2 text-sm lg:hidden"
+                  onClick={() => setNavigation(true)}
+                >
+                  <Grid3X3 className="size-4" />
+                  Bảng câu hỏi ({answeredCount}/{quiz.questions.length})
+                </button>
+              )}
             </div>
             {remaining <= 60_000 && (
               <p
@@ -653,29 +808,53 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
                 <div
                   className={`min-w-0 ${quiz.mode === "document" && mobileTab !== "answers" ? "hidden xl:block" : ""}`}
                 >
-                  <QuizQuestions
-                    questions={quiz.questions}
-                    answers={answers}
-                    flagged={flagged}
-                    onAnswer={(q, value) =>
-                      changed(
-                        { ...current.current.answers, [q]: value },
-                        current.current.flagged,
-                      )
-                    }
-                    onFlag={(q) =>
-                      changed(
-                        current.current.answers,
-                        current.current.flagged.includes(q)
-                          ? current.current.flagged.filter((f) => f !== q)
-                          : [...current.current.flagged, q],
-                      )
-                    }
-                    disabled={locked || stale || remaining <= 0}
-                    onActive={setActive}
-                  />
+                  {wholeSubmission ? (
+                    <section className="exercise-panel p-5 sm:p-6">
+                      <h2 className="mb-4 font-semibold">
+                        Nộp bài làm cho cả đề
+                      </h2>
+                      <QuizEssayAnswer
+                        value={answers.__submission}
+                        disabled={
+                          locked || stale || uploading || remaining <= 0
+                        }
+                        onChange={(value) =>
+                          changed(
+                            { ...current.current.answers, __submission: value },
+                            [],
+                          )
+                        }
+                        onUpload={(files) => uploadWork("__submission", files)}
+                        onRemove={removeWork}
+                      />
+                    </section>
+                  ) : (
+                    <QuizQuestions
+                      questions={quiz.questions}
+                      answers={answers}
+                      flagged={flagged}
+                      onAnswer={(q, value) =>
+                        changed(
+                          { ...current.current.answers, [q]: value },
+                          current.current.flagged,
+                        )
+                      }
+                      onFlag={(q) =>
+                        changed(
+                          current.current.answers,
+                          current.current.flagged.includes(q)
+                            ? current.current.flagged.filter((f) => f !== q)
+                            : [...current.current.flagged, q],
+                        )
+                      }
+                      disabled={locked || stale || uploading || remaining <= 0}
+                      onActive={setActive}
+                      onUpload={uploadWork}
+                      onRemoveImage={removeWork}
+                    />
+                  )}
                   <button
-                    disabled={locked || stale}
+                    disabled={locked || stale || uploading}
                     className="mt-5 w-full rounded-xl bg-amber-300 py-4 font-bold text-slate-950 disabled:opacity-50 lg:hidden"
                     onClick={() => setConfirm(true)}
                   >
@@ -703,8 +882,15 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
         <DialogContent className="exercise-page">
           <DialogTitle>Nộp bài để chấm điểm?</DialogTitle>
           <DialogDescription className="text-slate-200">
-            Bạn còn {unansweredCount} câu chưa hoàn tất và {flagged.length} câu
-            đánh dấu xem lại. Sau khi nộp, bạn không thể thay đổi câu trả lời.
+            {wholeSubmission ? (
+              "Bài làm và ảnh đã tải sẽ được gửi cho gia sư chấm. Sau khi nộp, bạn không thể thay đổi bài."
+            ) : (
+              <>
+                Bạn còn {unansweredCount} câu chưa hoàn tất và {flagged.length}{" "}
+                câu đánh dấu xem lại. Sau khi nộp, bạn không thể thay đổi câu
+                trả lời.
+              </>
+            )}
           </DialogDescription>
           <div className="flex flex-wrap justify-end gap-3">
             <button
@@ -715,6 +901,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
             </button>
             <button
               className="rounded-xl bg-amber-300 px-4 py-3 text-sm font-bold text-slate-950"
+              disabled={uploading || locked || stale}
               onClick={() => void submit()}
             >
               Nộp bài

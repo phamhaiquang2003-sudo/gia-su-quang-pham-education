@@ -103,6 +103,7 @@ export function makeHandler({
             "allowRetake",
             "results",
             "upload",
+            "manualGrade",
           ].includes(quizOperation),
         );
         const service = makeQuizService(env.QUIZ_DB, user);
@@ -121,11 +122,14 @@ export function makeHandler({
           "results",
           "upload",
           "file",
+          "submissionUpload",
+          "removeSubmissionFile",
+          "manualGrade",
         ];
         if (!operations.includes(quizOperation))
           throw new ServiceError("not-found", "Không tìm thấy chức năng.", 404);
         let data = {};
-        if (quizOperation !== "upload") {
+        if (!["upload", "submissionUpload"].includes(quizOperation)) {
           if (
             request.headers
               .get("Content-Type")
@@ -153,7 +157,9 @@ export function makeHandler({
             );
         }
         const result = await service[quizOperation](
-          quizOperation === "upload" ? request : data,
+          ["upload", "submissionUpload"].includes(quizOperation)
+            ? request
+            : data,
         );
         if (result instanceof Response) {
           const h = new Headers(result.headers);

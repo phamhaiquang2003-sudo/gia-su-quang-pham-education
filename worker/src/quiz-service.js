@@ -30,6 +30,7 @@ const summary = (row) => ({
   questionCount: row.question_count,
   durationMinutes: row.duration_minutes,
   requiresAccessCode: Boolean(row.requires_access_code),
+  gradingMode: row.grading_mode || "auto",
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -72,6 +73,31 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       );
     return row;
   };
+  async function validateSubmissionImages(row, answers) {
+    const requested = Object.entries(answers).flatMap(([questionId, answer]) =>
+      (answer?.imageIds || []).map((id) => ({ id, questionId })),
+    );
+    if (!requested.length) return;
+    const links = await db
+      .prepare(
+        "SELECT file_id,question_id FROM submission_file_links WHERE attempt_id=?",
+      )
+      .bind(row.id)
+      .all();
+    if (
+      requested.some(
+        ({ id, questionId }) =>
+          !links.results.some(
+            (link) => link.file_id === id && link.question_id === questionId,
+          ),
+      )
+    )
+      throw new ServiceError(
+        "permission-denied",
+        "Ảnh bài nộp không thuộc câu hỏi và lượt làm này.",
+        403,
+      );
+  }
   async function finish(
     row,
     answers = JSON.parse(row.answers),
@@ -79,6 +105,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
     flagged = JSON.parse(row.flagged),
   ) {
     if (row.result) return row;
+    await validateSubmissionImages(row, answers);
     const result = grade(JSON.parse(row.snapshot), answers);
     await db
       .prepare(
@@ -105,6 +132,9 @@ export function makeQuizService(db, user, now = () => Date.now()) {
     return !row.result && row.deadline_at <= now() ? finish(row) : row;
   }
   const publicAttempt = (row) => ({
+    ...(JSON.parse(row.snapshot).gradingMode === "manual"
+      ? { quiz: publicQuiz(JSON.parse(row.snapshot)) }
+      : {}),
     id: row.id,
     quizId: row.quiz_id,
     attemptNumber: row.attempt_number,
@@ -127,7 +157,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
     async list(data) {
       const rows = await db
         .prepare(
-          "SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at,CASE WHEN COALESCE(json_extract(body,'$.accessCode'),'')<>'' THEN 1 ELSE 0 END AS requires_access_code FROM quizzes WHERE status='published' AND subject=? ORDER BY created_at DESC LIMIT 200",
+          "SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at,json_extract(body,'$.gradingMode') AS grading_mode,CASE WHEN COALESCE(json_extract(body,'$.accessCode'),'')<>'' THEN 1 ELSE 0 END AS requires_access_code FROM quizzes WHERE status='published' AND subject=? ORDER BY created_at DESC LIMIT 200",
         )
         .bind(data.subject)
         .all();
@@ -137,7 +167,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       admin();
       const rows = await db
         .prepare(
-          "SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at,CASE WHEN COALESCE(json_extract(body,'$.accessCode'),'')<>'' THEN 1 ELSE 0 END AS requires_access_code FROM quizzes ORDER BY created_at DESC LIMIT 200",
+          "SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at,json_extract(body,'$.gradingMode') AS grading_mode,CASE WHEN COALESCE(json_extract(body,'$.accessCode'),'')<>'' THEN 1 ELSE 0 END AS requires_access_code FROM quizzes ORDER BY created_at DESC LIMIT 200",
         )
         .all();
       return { quizzes: rows.results.map(summary) };
@@ -175,7 +205,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
         const chunk = ids.slice(i, i + 80);
         const row = await db
           .prepare(
-            `SELECT COUNT(*) AS count FROM quiz_files WHERE owner_uid=? AND id IN (${chunk.map(() => "?").join(",")})`,
+            `SELECT COUNT(*) AS count FROM quiz_files WHERE owner_uid=? AND id IN (${chunk.map(() => "?").join(",")}) AND NOT EXISTS(SELECT 1 FROM submission_file_links WHERE file_id=quiz_files.id)`,
           )
           .bind(user.uid, ...chunk)
           .first();
@@ -247,6 +277,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
         quiz: {
           ...summary(await quizRow(id)),
           requiresAccessCode: Boolean(quiz.accessCode),
+          gradingMode: quiz.gradingMode,
         },
       };
     },
@@ -267,9 +298,9 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       if (data.revision !== row.revision) conflict();
       const attached = await db
         .prepare(
-          "SELECT file_id FROM quiz_file_links WHERE quiz_id=? UNION SELECT l.file_id FROM attempt_file_links l JOIN quiz_attempts a ON a.id=l.attempt_id WHERE a.quiz_id=?",
+          "SELECT file_id FROM quiz_file_links WHERE quiz_id=? UNION SELECT l.file_id FROM attempt_file_links l JOIN quiz_attempts a ON a.id=l.attempt_id WHERE a.quiz_id=? UNION SELECT l.file_id FROM submission_file_links l JOIN quiz_attempts a ON a.id=l.attempt_id WHERE a.quiz_id=?",
         )
-        .bind(row.id, row.id)
+        .bind(row.id, row.id, row.id)
         .all();
       const statements = [
         db
@@ -284,7 +315,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
         statements.push(
           db
             .prepare(
-              `DELETE FROM quiz_files WHERE id IN (${ids.map(() => "?").join(",")}) AND NOT EXISTS(SELECT 1 FROM quiz_file_links WHERE file_id=quiz_files.id) AND NOT EXISTS(SELECT 1 FROM attempt_file_links WHERE file_id=quiz_files.id) AND NOT EXISTS(SELECT 1 FROM quizzes WHERE id=?)`,
+              `DELETE FROM quiz_files WHERE id IN (${ids.map(() => "?").join(",")}) AND NOT EXISTS(SELECT 1 FROM quiz_file_links WHERE file_id=quiz_files.id) AND NOT EXISTS(SELECT 1 FROM attempt_file_links WHERE file_id=quiz_files.id) AND NOT EXISTS(SELECT 1 FROM submission_file_links WHERE file_id=quiz_files.id) AND NOT EXISTS(SELECT 1 FROM quizzes WHERE id=?)`,
             )
             .bind(...ids, row.id),
         );
@@ -502,6 +533,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
         data.answers,
         data.flagged,
       );
+      await validateSubmissionImages(row, response.answers);
       const write = await db
         .prepare(
           "UPDATE quiz_attempts SET answers=?,flagged=?,revision=revision+1 WHERE id=? AND revision=? AND submitted_at IS NULL AND deadline_at>?",
@@ -564,55 +596,201 @@ export function makeQuizService(db, user, now = () => Date.now()) {
         })),
       };
     },
-    async upload(request) {
+    async manualGrade(data) {
       admin();
-      const mime = request.headers.get("Content-Type")?.split(";")[0];
+      checkId(data.id);
+      const row = await db
+        .prepare("SELECT * FROM quiz_attempts WHERE id=?")
+        .bind(data.id)
+        .first();
+      if (!row)
+        throw new ServiceError("not-found", "Không tìm thấy bài nộp.", 404);
       if (
-        !["application/pdf", "image/png", "image/jpeg", "image/webp"].includes(
-          mime,
-        )
+        JSON.parse(row.snapshot).gradingMode !== "manual" ||
+        row.submitted_at === null
+      )
+        throw new ServiceError(
+          "failed-precondition",
+          "Chỉ chấm thủ công bài tự luận đã nộp.",
+          409,
+        );
+      if (data.revision !== row.revision) conflict();
+      if (
+        typeof data.score !== "number" ||
+        !Number.isFinite(data.score) ||
+        data.score < 0 ||
+        data.score > 10 ||
+        typeof data.feedback !== "string" ||
+        data.feedback.length > 5000
       )
         throw new ServiceError(
           "invalid-argument",
-          "Chỉ nhận PDF, PNG, JPG hoặc WebP.",
+          "Nhập điểm từ 0 đến 10 và nhận xét tối đa 5000 ký tự.",
         );
-      if (Number(request.headers.get("Content-Length") || 0) > 1_800_000)
+      const result = {
+        ...JSON.parse(row.result),
+        manual: true,
+        status: "graded",
+        score: Math.round(data.score * 100) / 100,
+        earned: Math.round(data.score * 100) / 100,
+        feedback: data.feedback.trim(),
+        gradedAt: now(),
+      };
+      const write = await db
+        .prepare(
+          "UPDATE quiz_attempts SET result=?,revision=revision+1 WHERE id=? AND revision=? AND submitted_at IS NOT NULL",
+        )
+        .bind(JSON.stringify(result), row.id, data.revision)
+        .run();
+      if (!write.meta.changes) conflict();
+      return {
+        attempt: publicAttempt(
+          await db
+            .prepare("SELECT * FROM quiz_attempts WHERE id=?")
+            .bind(row.id)
+            .first(),
+        ),
+        serverNow: now(),
+      };
+    },
+    async submissionUpload(request) {
+      const params = new URL(request.url).searchParams;
+      const row = await ownAttempt(params.get("attemptId"));
+      const quiz = JSON.parse(row.snapshot),
+        questionId = params.get("questionId");
+      if (
+        quiz.gradingMode !== "manual" ||
+        (quiz.mode === "document"
+          ? questionId !== "__submission"
+          : !quiz.questions.some(
+              (q) => q.id === questionId && q.type === "essay",
+            ))
+      )
         throw new ServiceError(
           "invalid-argument",
-          "Tệp cần nhỏ hơn 1,8 MB.",
-          413,
+          "Không tìm thấy phần nộp tự luận.",
         );
-      const buffer = await readLimitedBody(request, 1_800_000);
-      const bytes = new Uint8Array(buffer);
-      const magic = new TextDecoder().decode(bytes.slice(0, 12));
-      const valid =
-        (mime === "application/pdf" && magic.startsWith("%PDF-")) ||
-        (mime === "image/png" &&
-          bytes[0] === 137 &&
-          magic.slice(1, 4) === "PNG") ||
-        (mime === "image/jpeg" &&
-          bytes[0] === 255 &&
-          bytes[1] === 216 &&
-          bytes[2] === 255) ||
-        (mime === "image/webp" &&
-          magic.startsWith("RIFF") &&
-          magic.slice(8, 12) === "WEBP");
-      if (!valid)
+      if (row.submitted_at !== null || row.deadline_at <= now())
+        throw new ServiceError(
+          "failed-precondition",
+          "Bài đã nộp hoặc hết thời gian; không thể thêm ảnh.",
+          409,
+        );
+      if (Number(params.get("revision")) !== row.revision) conflict();
+      const count = await db
+        .prepare(
+          "SELECT COUNT(*) AS n FROM submission_file_links WHERE attempt_id=?",
+        )
+        .bind(row.id)
+        .first();
+      if (count.n >= 20)
         throw new ServiceError(
           "invalid-argument",
-          "Nội dung tệp không khớp định dạng.",
+          "Mỗi lượt làm được tải tối đa 20 ảnh. Gỡ ảnh cũ để thay ảnh mới.",
         );
-      const name = new URL(request.url).searchParams.get("name") || "Tệp đề";
-      if (name.length > 160)
-        throw new ServiceError("invalid-argument", "Tên tệp quá dài.");
-      const id = crypto.randomUUID();
+      const file = await readUpload(request, true);
+      const answers = JSON.parse(row.answers),
+        old = answers[questionId] || { text: "", imageIds: [] };
+      answers[questionId] = {
+        text: old.text,
+        imageIds: [...old.imageIds, file.id],
+      };
+      const timestamp = now();
+      const writes = await db.batch([
+        db
+          .prepare(
+            "INSERT INTO quiz_files(id,owner_uid,name,mime,data,created_at) SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM quiz_attempts WHERE id=? AND user_uid=? AND revision=? AND is_current=1 AND submitted_at IS NULL AND deadline_at>?) AND (SELECT COUNT(*) FROM submission_file_links WHERE attempt_id=?)<20",
+          )
+          .bind(
+            file.id,
+            user.uid,
+            file.name,
+            file.mime,
+            file.buffer,
+            timestamp,
+            row.id,
+            user.uid,
+            row.revision,
+            timestamp,
+            row.id,
+          ),
+        db
+          .prepare(
+            "INSERT INTO submission_file_links(attempt_id,question_id,file_id) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM quiz_files WHERE id=?)",
+          )
+          .bind(row.id, questionId, file.id, file.id),
+        db
+          .prepare(
+            "UPDATE quiz_attempts SET answers=?,revision=revision+1 WHERE id=? AND revision=? AND EXISTS(SELECT 1 FROM submission_file_links WHERE file_id=?)",
+          )
+          .bind(JSON.stringify(answers), row.id, row.revision, file.id),
+      ]);
+      if (!writes[0].meta.changes) conflict();
+      return {
+        attempt: publicAttempt(await ownAttempt(row.id)),
+        serverNow: now(),
+      };
+    },
+    async removeSubmissionFile(data) {
+      const row = await ownAttempt(data.id);
+      if (
+        row.submitted_at !== null ||
+        row.deadline_at <= now() ||
+        JSON.parse(row.snapshot).gradingMode !== "manual"
+      )
+        throw new ServiceError(
+          "failed-precondition",
+          "Bài đã nộp hoặc hết thời gian; không thể gỡ ảnh.",
+          409,
+        );
+      if (data.revision !== row.revision) conflict();
+      checkId(data.fileId);
+      const link = await db
+        .prepare(
+          "SELECT file_id FROM submission_file_links WHERE attempt_id=? AND file_id=?",
+        )
+        .bind(row.id, data.fileId)
+        .first();
+      if (!link)
+        throw new ServiceError("not-found", "Không tìm thấy ảnh bài nộp.", 404);
+      const answers = JSON.parse(row.answers);
+      for (const answer of Object.values(answers))
+        if (answer?.imageIds)
+          answer.imageIds = answer.imageIds.filter((id) => id !== data.fileId);
+      const nonce = crypto.randomUUID();
+      const writes = await db.batch([
+        db
+          .prepare(
+            "UPDATE quiz_attempts SET answers=?,revision=revision+1,mutation_token=? WHERE id=? AND revision=? AND submitted_at IS NULL AND deadline_at>?",
+          )
+          .bind(JSON.stringify(answers), nonce, row.id, row.revision, now()),
+        db
+          .prepare(
+            "DELETE FROM submission_file_links WHERE attempt_id=? AND file_id=? AND EXISTS(SELECT 1 FROM quiz_attempts WHERE id=? AND mutation_token=?)",
+          )
+          .bind(row.id, data.fileId, row.id, nonce),
+        db
+          .prepare(
+            "DELETE FROM quiz_files WHERE id=? AND NOT EXISTS(SELECT 1 FROM submission_file_links WHERE file_id=?) AND NOT EXISTS(SELECT 1 FROM quiz_file_links WHERE file_id=?) AND NOT EXISTS(SELECT 1 FROM attempt_file_links WHERE file_id=?)",
+          )
+          .bind(data.fileId, data.fileId, data.fileId, data.fileId),
+      ]);
+      if (!writes[0].meta.changes) conflict();
+      return {
+        attempt: publicAttempt(await ownAttempt(row.id)),
+        serverNow: now(),
+      };
+    },
+    async upload(request) {
+      admin();
+      const { id, name, mime, buffer } = await readUpload(request);
       await db
         .prepare(
           "INSERT INTO quiz_files(id,owner_uid,name,mime,data,created_at) VALUES(?,?,?,?,?,?)",
         )
         .bind(id, user.uid, name, mime, buffer, now())
         .run();
-      return { file: { id, name, mime, size: bytes.length } };
+      return { file: { id, name, mime, size: buffer.byteLength } };
     },
     async file(data) {
       checkId(data.id);
@@ -623,6 +801,18 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       if (!meta)
         throw new ServiceError("not-found", "Không tìm thấy tệp đề.", 404);
       if (!user.admin) {
+        const submission = await db
+          .prepare(
+            "SELECT a.user_uid FROM submission_file_links l JOIN quiz_attempts a ON a.id=l.attempt_id WHERE l.file_id=?",
+          )
+          .bind(data.id)
+          .first();
+        if (submission && submission.user_uid !== user.uid)
+          throw new ServiceError(
+            "permission-denied",
+            "Bạn không được xem bài nộp này.",
+            403,
+          );
         const candidates = await db
           .prepare(
             "SELECT q.body AS body,0 AS reveal,0 AS is_attempt FROM quiz_file_links l JOIN quizzes q ON q.id=l.quiz_id WHERE l.file_id=? AND q.status='published' UNION ALL SELECT a.snapshot AS body,CASE WHEN a.submitted_at IS NOT NULL THEN 1 ELSE 0 END AS reveal,1 AS is_attempt FROM attempt_file_links l JOIN quiz_attempts a ON a.id=l.attempt_id WHERE l.file_id=? AND a.user_uid=?",
@@ -636,7 +826,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
             row.reveal && quiz.revealAnswers ? quiz : publicQuiz(quiz);
           return fileIds(visible).includes(data.id);
         });
-        if (!access)
+        if (!access && !submission)
           throw new ServiceError(
             "permission-denied",
             "Tệp đề chưa được công bố.",
@@ -657,6 +847,49 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       });
     },
   };
+}
+
+async function readUpload(request, imageOnly = false) {
+  const mime = request.headers.get("Content-Type")?.split(";")[0];
+  const allowed = imageOnly
+    ? ["image/png", "image/jpeg", "image/webp"]
+    : ["application/pdf", "image/png", "image/jpeg", "image/webp"];
+  if (!allowed.includes(mime))
+    throw new ServiceError(
+      "invalid-argument",
+      imageOnly
+        ? "Bài nộp chỉ nhận ảnh PNG, JPG hoặc WebP."
+        : "Chỉ nhận PDF, PNG, JPG hoặc WebP.",
+    );
+  if (Number(request.headers.get("Content-Length") || 0) > 1_800_000)
+    throw new ServiceError("invalid-argument", "Tệp cần nhỏ hơn 1,8 MB.", 413);
+  const buffer = await readLimitedBody(request, 1_800_000),
+    bytes = new Uint8Array(buffer);
+  // Decode only ASCII signature bytes; WebP size bytes can contain invalid UTF-8.
+  const ascii = (start, end) => String.fromCharCode(...bytes.slice(start, end));
+  const valid =
+    (mime === "application/pdf" && ascii(0, 5) === "%PDF-") ||
+    (mime === "image/png" &&
+      bytes[0] === 137 &&
+      ascii(1, 8) === "PNG\r\n\x1a\n") ||
+    (mime === "image/jpeg" &&
+      bytes[0] === 255 &&
+      bytes[1] === 216 &&
+      bytes[2] === 255) ||
+    (mime === "image/webp" &&
+      ascii(0, 4) === "RIFF" &&
+      ascii(8, 12) === "WEBP");
+  if (!valid)
+    throw new ServiceError(
+      "invalid-argument",
+      "Nội dung tệp không khớp định dạng.",
+    );
+  const name =
+    new URL(request.url).searchParams.get("name") ||
+    (imageOnly ? "Ảnh bài làm" : "Tệp đề");
+  if (name.length > 160)
+    throw new ServiceError("invalid-argument", "Tên tệp quá dài.");
+  return { id: crypto.randomUUID(), name, mime, buffer };
 }
 
 export async function readLimitedBody(request, limit) {

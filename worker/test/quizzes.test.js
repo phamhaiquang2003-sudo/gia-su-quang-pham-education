@@ -8,12 +8,404 @@ import {
   publicQuiz,
   publicResult,
   validateQuiz,
+  validateResponses,
   shortMatches,
   fileIds,
 } from "../src/quiz-model.js";
 import { requireQuizUser } from "../src/quiz-auth.js";
 
 // Run the real SQL against SQLite, including atomic batches and preconditions.
+const submissionPng = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1]);
+function workUpload(
+  attempt,
+  questionId,
+  bytes = submissionPng,
+  mime = "image/png",
+) {
+  return new Request(
+    `https://example.test/api/quiz/submissionUpload?attemptId=${attempt.id}&questionId=${questionId}&revision=${attempt.revision}&name=work.png`,
+    {
+      method: "POST",
+      headers: { "Content-Type": mime },
+      body: bytes,
+    },
+  );
+}
+function essayFixture(mode = "inline") {
+  return {
+    ...fixture(),
+    gradingMode: "manual",
+    mode,
+    questions:
+      mode === "document"
+        ? []
+        : [
+            {
+              id: "essay-one",
+              type: "essay",
+              prompt: "Giải câu 1",
+              points: 1,
+              imageId: "",
+            },
+            {
+              id: "essay-two",
+              type: "essay",
+              prompt: "Giải câu 2",
+              points: 1,
+              imageId: "",
+            },
+          ],
+    documentIds: mode === "document" ? ["essay-pdf"] : [],
+  };
+}
+
+test("manual authoring supports PDF without answer rows and inline essay questions, and rejects mixed modes/invalid submissions", () => {
+  assert.equal(validateQuiz(essayFixture()).questions[0].type, "essay");
+  assert.equal(validateQuiz(essayFixture("document")).questions.length, 0);
+  assert.throws(() => validateQuiz({ ...essayFixture(), gradingMode: "auto" }));
+  assert.throws(() =>
+    validateQuiz({
+      ...essayFixture("document"),
+      questions: essayFixture().questions,
+    }),
+  );
+  assert.throws(() => validateQuiz({ ...fixture(), gradingMode: "manual" }));
+  assert.throws(() =>
+    validateQuiz({ ...essayFixture("document"), documentIds: [] }),
+  );
+  const quiz = validateQuiz(essayFixture());
+  for (const answers of [
+    { "essay-one": "plain string" },
+    { other: { text: "x", imageIds: [] } },
+    { "essay-one": { text: "x", imageIds: ["bad id"] } },
+    { "essay-one": { imageIds: ["same", "same"] } },
+  ])
+    assert.throws(() => validateResponses(quiz, answers));
+});
+
+test("private essay images autosave to their own question/attempt; submit waits for manual grading, teacher can grade/regrade, retakes and deletion retain correct ownership", async () => {
+  const { db, sqlite } = database();
+  let now = 1_000_000;
+  try {
+    const teacher = makeQuizService(db, adminUser, () => now),
+      student = makeQuizService(db, studentUser, () => now),
+      other = makeQuizService(
+        db,
+        { ...studentUser, uid: "essay-other" },
+        () => now,
+      );
+    const saved = await teacher.save({
+        quiz: { ...essayFixture(), accessCode: "012345" },
+      }),
+      id = saved.quiz.id;
+    assert.equal(saved.quiz.gradingMode, "manual");
+    assert.equal(
+      (await student.list({ subject: "toan" })).quizzes[0].gradingMode,
+      "manual",
+    );
+    await assert.rejects(student.start({ id }), (e) => e.status === 403);
+    let { attempt: a } = await student.start({ id, accessCode: "012345" });
+    await assert.rejects(student.submissionUpload(workUpload(a, "outside")));
+    await assert.rejects(
+      other.submissionUpload(workUpload(a, "essay-one")),
+      (e) => e.status === 404,
+    );
+    await assert.rejects(
+      student.submissionUpload(
+        workUpload(
+          a,
+          "essay-one",
+          new TextEncoder().encode("%PDF-test"),
+          "application/pdf",
+        ),
+      ),
+    );
+    await assert.rejects(
+      student.submissionUpload(
+        workUpload(a, "essay-one", new Uint8Array([1, 2, 3])),
+      ),
+    );
+    const upload = await student.submissionUpload(workUpload(a, "essay-one"));
+    const fileId = upload.attempt.answers["essay-one"].imageIds[0];
+    assert.equal(upload.attempt.revision, a.revision + 1);
+    a = upload.attempt;
+    assert.equal(
+      (await student.detail({ id })).attempt.answers["essay-one"].imageIds[0],
+      fileId,
+    );
+    assert.equal((await student.file({ id: fileId })).status, 200);
+    assert.equal((await teacher.file({ id: fileId })).status, 200);
+    await assert.rejects(other.file({ id: fileId }), (e) => e.status === 403);
+    await assert.rejects(
+      student.progress({
+        id: a.id,
+        revision: a.revision,
+        answers: { "essay-two": { text: "", imageIds: [fileId] } },
+      }),
+      (e) => e.status === 403,
+    );
+    const answers = {
+      ...a.answers,
+      "essay-one": { text: "Bài giải viết tay", imageIds: [fileId] },
+    };
+    a = (
+      await student.progress({
+        id: a.id,
+        revision: a.revision,
+        answers,
+        flagged: [],
+      })
+    ).attempt;
+    await assert.rejects(
+      student.manualGrade({
+        id: a.id,
+        revision: a.revision,
+        score: 10,
+        feedback: "",
+      }),
+      (e) => e.status === 403,
+    );
+    await assert.rejects(
+      teacher.manualGrade({
+        id: a.id,
+        revision: a.revision,
+        score: 10,
+        feedback: "",
+      }),
+      (e) => e.status === 409,
+    );
+    const pending = await student.submit({
+      id: a.id,
+      revision: a.revision,
+      answers,
+      flagged: [],
+    });
+    a = pending.attempt;
+    assert.equal(a.result.manual, true);
+    assert.equal(a.result.status, "pending");
+    assert.equal(a.result.details.length, 0);
+    await assert.rejects(
+      student.submissionUpload(workUpload(a, "essay-one")),
+      (e) => e.status === 409,
+    );
+    await assert.rejects(
+      student.removeSubmissionFile({ id: a.id, revision: a.revision, fileId }),
+      (e) => e.status === 409,
+    );
+    assert.deepEqual(
+      (
+        await student.submit({
+          id: a.id,
+          revision: a.revision,
+          answers: {},
+          flagged: [],
+        })
+      ).attempt.answers,
+      answers,
+    );
+    for (const score of [-1, 11, NaN, "8"])
+      await assert.rejects(
+        teacher.manualGrade({
+          id: a.id,
+          revision: a.revision,
+          score,
+          feedback: "",
+        }),
+      );
+    a = (
+      await teacher.manualGrade({
+        id: a.id,
+        revision: a.revision,
+        score: 8.75,
+        feedback: "Trình bày tốt, cần bổ sung đơn vị.",
+      })
+    ).attempt;
+    assert.equal(a.result.status, "graded");
+    assert.equal(a.result.score, 8.75);
+    await assert.rejects(
+      teacher.manualGrade({
+        id: a.id,
+        revision: a.revision - 1,
+        score: 9,
+        feedback: "",
+      }),
+      (e) => e.status === 409,
+    );
+    a = (
+      await teacher.manualGrade({
+        id: a.id,
+        revision: a.revision,
+        score: 9,
+        feedback: "Đã cập nhật.",
+      })
+    ).attempt;
+    assert.equal(
+      (await student.detail({ id })).attempt.result.feedback,
+      "Đã cập nhật.",
+    );
+    await teacher.allowRetake({ id: a.id });
+    const retake = await student.start({ id, accessCode: "012345" });
+    assert.deepEqual(retake.attempt.answers, {});
+    await assert.rejects(
+      student.progress({
+        id: retake.attempt.id,
+        revision: 0,
+        answers: { "essay-one": { text: "", imageIds: [fileId] } },
+      }),
+      (e) => e.status === 403,
+    );
+    assert.equal((await student.file({ id: fileId })).status, 200);
+    assert.equal(
+      (await teacher.results({ id })).attempts.find((old) => old.id === a.id)
+        .result.score,
+      9,
+    );
+    await teacher.deleteQuiz({ id, revision: saved.quiz.revision });
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM submission_file_links").get().n,
+      0,
+    );
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_files").get().n,
+      0,
+    );
+    assert.deepEqual(sqlite.prepare("PRAGMA foreign_key_check").all(), []);
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("manual PDF uses one submission, uploaded work survives deadline and changed quiz; removing images and 20-file limit are enforced", async () => {
+  const { db, sqlite } = database();
+  let now = 1_000_000;
+  try {
+    const teacher = makeQuizService(db, adminUser, () => now),
+      student = makeQuizService(db, studentUser, () => now);
+    sqlite
+      .prepare(
+        "INSERT INTO quiz_files(id,owner_uid,name,mime,data,created_at) VALUES('essay-pdf','teacher','test.pdf','application/pdf',?,1)",
+      )
+      .run(new TextEncoder().encode("%PDF-test"));
+    const { quiz } = await teacher.save({ quiz: essayFixture("document") });
+    let a = (await student.start({ id: quiz.id })).attempt;
+    a = (await student.submissionUpload(workUpload(a, "__submission"))).attempt;
+    const removedId = a.answers.__submission.imageIds[0];
+    await assert.rejects(
+      student.removeSubmissionFile({
+        id: a.id,
+        revision: a.revision - 1,
+        fileId: removedId,
+      }),
+      (e) => e.status === 409,
+    );
+    a = (
+      await student.removeSubmissionFile({
+        id: a.id,
+        revision: a.revision,
+        fileId: removedId,
+      })
+    ).attempt;
+    assert.equal(a.answers.__submission.imageIds.length, 0);
+    await assert.rejects(
+      student.file({ id: removedId }),
+      (e) => e.status === 404,
+    );
+    for (let i = 0; i < 20; i++)
+      a = (await student.submissionUpload(workUpload(a, "__submission")))
+        .attempt;
+    await assert.rejects(
+      student.submissionUpload(workUpload(a, "__submission")),
+      (e) => e.message.includes("20"),
+    );
+    await teacher.save({
+      id: quiz.id,
+      revision: quiz.revision,
+      quiz: fixture(),
+    });
+    now = a.deadlineAt + 1;
+    const expired = (await student.detail({ id: quiz.id })).attempt;
+    assert.equal(expired.result.status, "pending");
+    assert.equal(expired.answers.__submission.imageIds.length, 20);
+    const late = await student.submit({
+      id: a.id,
+      revision: a.revision,
+      answers: { __submission: { text: "Late", imageIds: [] } },
+      flagged: [],
+    });
+    assert.equal(late.attempt.answers.__submission.text, "");
+    const graded = await teacher.manualGrade({
+      id: expired.id,
+      revision: expired.revision,
+      score: 0,
+      feedback: "Cần làm lại",
+    });
+    assert.equal(graded.attempt.result.score, 0);
+    assert.equal(graded.attempt.result.status, "graded");
+    await teacher.deleteQuiz({ id: quiz.id, revision: quiz.revision + 1 });
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_files").get().n,
+      0,
+    );
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("student uploads and removals are atomic across concurrent edits; WebP signature checks do not decode size bytes", async () => {
+  const { db, sqlite } = database();
+  try {
+    const teacher = makeQuizService(db, adminUser, () => 1_000_000),
+      student = makeQuizService(db, studentUser, () => 1_000_000);
+    const { quiz } = await teacher.save({ quiz: essayFixture() });
+    let a = (await student.start({ id: quiz.id })).attempt;
+    const webp = new Uint8Array([
+      82, 73, 70, 70, 0xc2, 0xa0, 0, 0, 87, 69, 66, 80, 1,
+    ]);
+    a = (
+      await student.submissionUpload(
+        workUpload(a, "essay-one", webp, "image/webp"),
+      )
+    ).attempt;
+    a = (await student.submissionUpload(workUpload(a, "essay-two"))).attempt;
+    const originalBatch = db.batch.bind(db);
+    let raced = false;
+    db.batch = async (statements) => {
+      if (!raced) {
+        raced = true;
+        sqlite
+          .prepare("UPDATE quiz_attempts SET revision=revision+1 WHERE id=?")
+          .run(a.id);
+      }
+      return originalBatch(statements);
+    };
+    const fileId = a.answers["essay-one"].imageIds[0];
+    await assert.rejects(
+      student.removeSubmissionFile({ id: a.id, revision: a.revision, fileId }),
+      (e) => e.status === 409,
+    );
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM submission_file_links").get().n,
+      2,
+    );
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_files").get().n,
+      2,
+    );
+    a = (await student.detail({ id: quiz.id })).attempt;
+    raced = false;
+    await assert.rejects(
+      student.submissionUpload(workUpload(a, "essay-one")),
+      (e) => e.status === 409,
+    );
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_files").get().n,
+      2,
+    );
+    assert.deepEqual(sqlite.prepare("PRAGMA foreign_key_check").all(), []);
+  } finally {
+    sqlite.close();
+  }
+});
 function database() {
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec("PRAGMA foreign_keys=ON;");
