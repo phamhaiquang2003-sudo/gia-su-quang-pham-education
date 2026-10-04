@@ -20,6 +20,7 @@ import StarryBackground from "./StarryBackground";
 import QuizQuestions from "./QuizQuestions";
 import QuizFile from "./QuizFile";
 import QuizResultView from "./QuizResultView";
+import QuizAccessCodeInput from "./QuizAccessCodeInput";
 
 export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
@@ -545,18 +546,10 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
               {quiz.requiresAccessCode && (
                 <label className="mb-5 block text-sm font-semibold">
                   Mật khẩu đề
-                  <input
-                    className="mt-2 block w-full rounded-xl border border-white/25 bg-white/10 px-4 py-3 font-mono text-xl tracking-[0.3em] text-white outline-none focus:border-amber-300"
-                    type="password"
-                    inputMode="numeric"
-                    pattern="[0-9]{6}"
-                    maxLength={6}
-                    required
-                    autoComplete="off"
+                  <QuizAccessCodeInput
                     disabled={starting}
                     value={accessCode}
-                    onChange={(event) => setAccessCode(event.target.value)}
-                    aria-label="Mật khẩu đề"
+                    onChange={setAccessCode}
                   />
                 </label>
               )}
