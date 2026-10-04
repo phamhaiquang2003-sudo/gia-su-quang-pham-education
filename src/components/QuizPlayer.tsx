@@ -416,9 +416,6 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
           <Flag className="size-3 text-amber-200" />
           Đánh dấu xem lại: {flagged.length}
         </p>
-        <p className="pt-2 text-slate-400">
-          Xanh lá: đã trả lời · Cờ vàng: xem lại · Viền xanh: câu đang xem
-        </p>
       </div>
       <button
         className="mt-5 w-full rounded-xl bg-amber-300 px-4 py-3 text-sm font-bold text-slate-950 disabled:opacity-50"
