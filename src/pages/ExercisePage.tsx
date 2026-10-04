@@ -412,6 +412,12 @@ export default function ExercisePage() {
                       {q.questionCount} câu hỏi · {q.durationMinutes} phút ·
                       Chấm tự động
                     </p>
+                    {q.requiresAccessCode && (
+                      <p className="mb-4 flex items-center gap-2 text-xs text-amber-200">
+                        <LockKeyhole className="size-3.5" aria-hidden="true" />
+                        Cần mật khẩu đề
+                      </p>
+                    )}
                     <a
                       className="mt-auto rounded-xl border border-sky-300/30 bg-sky-300/10 px-4 py-3 text-center text-sm font-semibold hover:bg-sky-300/20"
                       href={quizHref(q)}

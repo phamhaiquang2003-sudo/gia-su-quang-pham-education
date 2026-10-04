@@ -29,6 +29,7 @@ const summary = (row) => ({
   revision: row.revision,
   questionCount: row.question_count,
   durationMinutes: row.duration_minutes,
+  requiresAccessCode: Boolean(row.requires_access_code),
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -126,7 +127,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
     async list(data) {
       const rows = await db
         .prepare(
-          "SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at FROM quizzes WHERE status='published' AND subject=? ORDER BY created_at DESC LIMIT 200",
+          "SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at,CASE WHEN COALESCE(json_extract(body,'$.accessCode'),'')<>'' THEN 1 ELSE 0 END AS requires_access_code FROM quizzes WHERE status='published' AND subject=? ORDER BY created_at DESC LIMIT 200",
         )
         .bind(data.subject)
         .all();
@@ -136,7 +137,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       admin();
       const rows = await db
         .prepare(
-          "SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at FROM quizzes ORDER BY created_at DESC LIMIT 200",
+          "SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at,CASE WHEN COALESCE(json_extract(body,'$.accessCode'),'')<>'' THEN 1 ELSE 0 END AS requires_access_code FROM quizzes ORDER BY created_at DESC LIMIT 200",
         )
         .all();
       return { quizzes: rows.results.map(summary) };
@@ -242,7 +243,12 @@ export function makeQuizService(db, user, now = () => Date.now()) {
         );
       const results = await db.batch(statements);
       if (!results[0].meta.changes) conflict();
-      return { quiz: summary(await quizRow(id)) };
+      return {
+        quiz: {
+          ...summary(await quizRow(id)),
+          requiresAccessCode: Boolean(quiz.accessCode),
+        },
+      };
     },
     async hide(data) {
       admin();
@@ -344,8 +350,14 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       const quiz = attempt
         ? JSON.parse(attempt.snapshot)
         : { ...JSON.parse(row.body), id: row.id, revision: row.revision };
+      const visible = publicQuiz(quiz);
+      if (!attempt && quiz.accessCode) {
+        visible.questions = [];
+        visible.documentIds = [];
+        visible.instructions = "";
+      }
       return {
-        quiz: publicQuiz(quiz),
+        quiz: visible,
         attempt: attempt ? publicAttempt(attempt) : null,
         nextAttemptNumber: attempt
           ? attempt.attempt_number
@@ -380,8 +392,55 @@ export function makeQuizService(db, user, now = () => Date.now()) {
           "Hãy xuất bản đề trước khi bắt đầu làm bài.",
           403,
         );
+      const { accessCode, ...body } = JSON.parse(row.body);
+      if (accessCode) {
+        const failures = await db
+          .prepare(
+            "SELECT * FROM quiz_access_failures WHERE quiz_id=? AND user_uid=?",
+          )
+          .bind(row.id, user.uid)
+          .first();
+        if (
+          failures?.quiz_revision === row.revision &&
+          failures.failures >= 5 &&
+          failures.retry_after > now()
+        )
+          throw new ServiceError(
+            "resource-exhausted",
+            "Bạn đã nhập sai nhiều lần. Vui lòng đợi 1 phút rồi thử lại.",
+            429,
+          );
+        if (data.accessCode !== accessCode) {
+          const timestamp = now();
+          await db
+            .prepare(
+              "INSERT INTO quiz_access_failures(quiz_id,user_uid,quiz_revision,failures,retry_after) VALUES(?,?,?,1,?) ON CONFLICT(quiz_id,user_uid) DO UPDATE SET quiz_revision=excluded.quiz_revision,failures=CASE WHEN quiz_access_failures.retry_after<=? OR quiz_access_failures.quiz_revision<>excluded.quiz_revision THEN 1 ELSE quiz_access_failures.failures+1 END,retry_after=CASE WHEN quiz_access_failures.retry_after<=? OR quiz_access_failures.quiz_revision<>excluded.quiz_revision THEN excluded.retry_after ELSE quiz_access_failures.retry_after END",
+            )
+            .bind(
+              row.id,
+              user.uid,
+              row.revision,
+              timestamp + 60_000,
+              timestamp,
+              timestamp,
+            )
+            .run();
+          throw new ServiceError(
+            "permission-denied",
+            "Mật khẩu đề không đúng. Hãy nhập mã 6 chữ số giáo viên cung cấp.",
+            403,
+          );
+        }
+        await db
+          .prepare(
+            "DELETE FROM quiz_access_failures WHERE quiz_id=? AND user_uid=?",
+          )
+          .bind(row.id, user.uid)
+          .run();
+      }
       const quiz = {
-        ...JSON.parse(row.body),
+        ...body,
+        requiresAccessCode: Boolean(accessCode),
         id: row.id,
         revision: row.revision,
       };
@@ -566,12 +625,13 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       if (!user.admin) {
         const candidates = await db
           .prepare(
-            "SELECT q.body AS body,0 AS reveal FROM quiz_file_links l JOIN quizzes q ON q.id=l.quiz_id WHERE l.file_id=? AND q.status='published' UNION ALL SELECT a.snapshot AS body,CASE WHEN a.submitted_at IS NOT NULL THEN 1 ELSE 0 END AS reveal FROM attempt_file_links l JOIN quiz_attempts a ON a.id=l.attempt_id WHERE l.file_id=? AND a.user_uid=?",
+            "SELECT q.body AS body,0 AS reveal,0 AS is_attempt FROM quiz_file_links l JOIN quizzes q ON q.id=l.quiz_id WHERE l.file_id=? AND q.status='published' UNION ALL SELECT a.snapshot AS body,CASE WHEN a.submitted_at IS NOT NULL THEN 1 ELSE 0 END AS reveal,1 AS is_attempt FROM attempt_file_links l JOIN quiz_attempts a ON a.id=l.attempt_id WHERE l.file_id=? AND a.user_uid=?",
           )
           .bind(data.id, data.id, user.uid)
           .all();
         const access = candidates.results.some((row) => {
           const quiz = JSON.parse(row.body);
+          if (!row.is_attempt && quiz.accessCode) return false;
           const visible =
             row.reveal && quiz.revealAnswers ? quiz : publicQuiz(quiz);
           return fileIds(visible).includes(data.id);

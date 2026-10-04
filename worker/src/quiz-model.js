@@ -29,6 +29,12 @@ function partImages(value, label) {
 export function validateQuiz(input) {
   if (!input || typeof input !== "object") fail("Thiếu thông tin đề.");
   const title = text(input.title, 160, "Tên đề", true);
+  const accessCode = input.accessCode === undefined ? "" : input.accessCode;
+  if (
+    typeof accessCode !== "string" ||
+    (accessCode !== "" && !/^[0-9]{6}$/.test(accessCode))
+  )
+    fail("Mật khẩu đề phải gồm đúng 6 chữ số, hoặc để trống.");
   if (!subjectIds.includes(input.subject)) fail("Môn học không hợp lệ.");
   if (!["draft", "published", "hidden"].includes(input.status))
     fail("Trạng thái đề không hợp lệ.");
@@ -148,6 +154,7 @@ export function validateQuiz(input) {
   if (files.length > 608) fail("Mỗi đề dùng tối đa 608 tệp.");
   return {
     title,
+    accessCode,
     subject: input.subject,
     category: text(input.category || "", 100, "Danh mục"),
     status: input.status,
@@ -175,8 +182,11 @@ export function fileIds(quiz) {
 }
 
 export function publicQuiz(quiz) {
+  const { accessCode, ...visible } = quiz;
   return {
-    ...quiz,
+    ...visible,
+    requiresAccessCode: Boolean(accessCode) || quiz.requiresAccessCode === true,
+    questionCount: quiz.questions.length,
     questions: quiz.questions.map((q) => ({
       id: q.id,
       type: q.type,

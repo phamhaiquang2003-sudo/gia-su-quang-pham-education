@@ -28,6 +28,13 @@ PDF/PNG/JPG/WebP được tải trực tiếp, tối đa **1,8 MB mỗi tệp**,
 - Có ảnh riêng thì nội dung chữ của lựa chọn/ý đó được để trống, hoặc dùng kết hợp chữ và ảnh. Vẫn chọn đáp án đúng / Đúng–Sai để chấm tự động.
 - Dán lại để thay ảnh, **Bỏ ảnh** chỉ gỡ ảnh của đúng lựa chọn đó. Ảnh hiển thị ở đúng lựa chọn trong **Xem trước** và khi học sinh làm bài; bản nháp, nhân bản câu và snapshot lượt làm đều giữ ảnh.
 
+### Mật khẩu đề (tùy chọn)
+
+- Trong **Thông tin đề**, nhập **Mật khẩu đề (6 chữ số, tùy chọn)** bằng một mã do giáo viên tự chọn, ví dụ `038572`. Giữ nguyên cả số 0 ở đầu. Bấm **Lưu nháp** hoặc **Xuất bản đề** để lưu.
+- Để trống ô này thì học sinh đã đăng nhập vào làm không cần mật khẩu đề. Xóa mã cũ rồi lưu để bỏ yêu cầu mật khẩu; nhập mã khác rồi lưu để đổi mã.
+- Với đề có mật khẩu, học sinh nhập đúng mã giáo viên cung cấp và bấm **Bắt đầu làm bài**. Trước đó, câu hỏi và tệp của riêng đề được giữ kín; nhập sai không tạo lượt làm hay chạy đồng hồ. Mã không được gửi trong dữ liệu học sinh.
+- Sau khi đã bắt đầu, tải lại trang vẫn tiếp tục đúng lượt mà không cần nhập lại mã. Đổi mã không ảnh hưởng lượt đang làm; lượt làm lại cần mã hiện tại. Tài khoản học sinh vẫn phải đăng nhập như trước.
+
 ### Quy tắc chấm
 
 - Điểm từng câu là trọng số, tổng điểm được quy đổi về thang 10 và làm tròn 2 chữ số thập phân.
@@ -61,7 +68,7 @@ Học sinh tải lại trang đề (hoặc bấm **Kiểm tra lượt làm lại
 - Firebase Auth + hồ sơ Firestore tiếp tục xác thực tài khoản/claim quản trị, trạng thái hoạt động, khóa Auth và thu hồi phiên.
 - Worker `phq-education-admin` nhận các thao tác `/api/quiz/*`; chỉ quản trị được lưu/xem đáp án và xem toàn bộ kết quả. Học sinh chỉ xem lượt làm của chính mình.
 - Cloudflare **D1 Free** `phq-education-exercises`, binding `QUIZ_DB`, lưu đề, tệp nhị phân, lượt làm, đáp án và kết quả. Không dùng Firebase Storage, Cloud Functions hoặc Blaze.
-- Tệp chưa xuất bản chỉ quản trị truy cập. Tệp câu hỏi xuất bản được tài khoản hoạt động đọc; ảnh đáp án/lời giải chỉ được đọc sau khi nộp và phiên bản của lượt làm cho phép công bố đáp án. Tệp của phiên bản cũ vẫn truy cập được qua lượt làm của chính học sinh.
+- Tệp chưa xuất bản chỉ quản trị truy cập. Với đề có mật khẩu, học sinh chỉ được đọc tệp của đề sau khi đã bắt đầu đúng mật khẩu. Ảnh đáp án/lời giải chỉ được đọc sau khi nộp và phiên bản của lượt làm cho phép công bố đáp án. Tệp của phiên bản cũ vẫn truy cập được qua lượt làm của chính học sinh.
 - Dữ liệu gửi học sinh trước nộp không chứa đáp án/lời giải; điểm tính trên Worker. Đáp án giáo viên soạn chỉ lưu trong vùng quản trị và trên máy chủ.
 - Các thay đổi tiến độ dùng số phiên bản; hai cửa sổ sửa cùng lượt sẽ yêu cầu tải lại để tránh ghi đè âm thầm. Nộp lặp lại trả về cùng kết quả.
 - Firestore Rules không cần mở thêm quyền cho kho đề này.
@@ -74,4 +81,4 @@ npx wrangler d1 migrations apply phq-education-exercises --remote
 npm run deploy
 ```
 
-Frontend triển khai qua GitHub Actions khi push `main`. Migration ở `worker/migrations/`: `0001_quizzes.sql` tạo kho, `0002_quiz_retakes.sql` giữ lịch sử và cho phép cấp thêm lượt. Áp dụng migration trước khi triển khai Worker mới. Kiểm thử dùng SQLite thật để xác minh truy vấn, snapshot, quyền truy cập, chấm điểm, hạn nộp và tính lặp an toàn. D1, Worker và Firebase đều chịu hạn mức gói miễn phí tương ứng.
+Frontend triển khai qua GitHub Actions khi push `main`. Migration ở `worker/migrations/`: `0001_quizzes.sql` tạo kho, `0002_quiz_retakes.sql` giữ lịch sử và cho phép cấp thêm lượt, `0003_quiz_access_codes.sql` giới hạn số lần nhập sai mật khẩu theo tài khoản/đề. Áp dụng migration trước khi triển khai Worker mới. Kiểm thử dùng SQLite thật để xác minh truy vấn, snapshot, quyền truy cập, chấm điểm, hạn nộp và tính lặp an toàn. D1, Worker và Firebase đều chịu hạn mức gói miễn phí tương ứng.

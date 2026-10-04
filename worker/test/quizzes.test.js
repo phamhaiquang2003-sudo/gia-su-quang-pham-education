@@ -117,6 +117,233 @@ const studentUser = {
   username: "student",
 };
 
+test("optional quiz access codes require exactly six digits and preserve leading zeros", () => {
+  assert.equal(validateQuiz(fixture()).accessCode, "");
+  for (const accessCode of ["", "000000", "012345", "987654"]) {
+    const quiz = validateQuiz({ ...fixture(), accessCode });
+    assert.equal(quiz.accessCode, accessCode);
+    assert.equal(publicQuiz(quiz).accessCode, undefined);
+    assert.equal(publicQuiz(quiz).requiresAccessCode, Boolean(accessCode));
+  }
+  for (const accessCode of [
+    null,
+    123456,
+    "12345",
+    "1234567",
+    "12a456",
+    " 123456",
+    "123456 ",
+    "１２３４５６",
+  ])
+    assert.throws(() => validateQuiz({ ...fixture(), accessCode }));
+});
+
+test("quiz codes gate question content, PDFs and individual images before starting; correct code unlocks an own snapshot, resume and retakes follow current settings", async () => {
+  const { db, sqlite } = database();
+  let now = 1_000_000;
+  try {
+    const teacher = makeQuizService(db, adminUser, () => now),
+      student = makeQuizService(db, studentUser, () => now);
+    const input = {
+      ...fixture(),
+      accessCode: "012345",
+      mode: "document",
+      documentIds: ["code-pdf"],
+    };
+    input.questions[0].imageId = "code-stem";
+    input.questions[0].choiceImageIds = ["code-choice", "", "", ""];
+    input.questions[0].explanationImageId = "code-solution";
+    for (const id of ["code-pdf", "code-stem", "code-choice", "code-solution"])
+      sqlite
+        .prepare(
+          "INSERT INTO quiz_files(id,owner_uid,name,mime,data,created_at) VALUES(?,'teacher',?,'image/png',?,1)",
+        )
+        .run(id, id, new Uint8Array([137, 80, 78, 71]));
+    const { quiz } = await teacher.save({ quiz: input }),
+      id = quiz.id;
+    assert.equal(quiz.requiresAccessCode, true);
+    assert.equal((await teacher.adminDetail({ id })).quiz.accessCode, "012345");
+    for (const operation of ["list", "listAdmin"]) {
+      const data = await teacher[operation]({ subject: "toan" });
+      assert.equal(data.quizzes[0].requiresAccessCode, true);
+      assert.ok(!JSON.stringify(data).includes("012345"));
+    }
+    const detail = await student.detail({ id });
+    assert.equal(detail.quiz.requiresAccessCode, true);
+    assert.equal(detail.quiz.questionCount, 3);
+    assert.deepEqual(detail.quiz.questions, []);
+    assert.deepEqual(detail.quiz.documentIds, []);
+    assert.equal(detail.quiz.accessCode, undefined);
+    for (const file of fileIds(input))
+      await assert.rejects(student.file({ id: file }), (e) => e.status === 403);
+    for (const accessCode of [undefined, 12345, "12345", "111111"])
+      await assert.rejects(
+        student.start({ id, accessCode }),
+        (e) => e.status === 403,
+      );
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_attempts").get().n,
+      0,
+    );
+    now += 20_000;
+    const started = await student.start({ id, accessCode: "012345" });
+    assert.equal(started.attempt.startedAt, now);
+    assert.equal(started.attempt.deadlineAt, now + 60_000);
+    assert.equal(started.quiz.questions.length, 3);
+    assert.equal(started.quiz.accessCode, undefined);
+    const snapshot = JSON.parse(
+      sqlite.prepare("SELECT snapshot FROM quiz_attempts").get().snapshot,
+    );
+    assert.equal(snapshot.accessCode, undefined);
+    assert.ok(!JSON.stringify(snapshot).includes("012345"));
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_access_failures").get().n,
+      0,
+    );
+    for (const file of ["code-pdf", "code-stem", "code-choice"])
+      assert.equal((await student.file({ id: file })).status, 200);
+    await assert.rejects(
+      student.file({ id: "code-solution" }),
+      (e) => e.status === 403,
+    );
+    const other = makeQuizService(
+      db,
+      { ...studentUser, uid: "other" },
+      () => now,
+    );
+    await assert.rejects(
+      other.file({ id: "code-choice" }),
+      (e) => e.status === 403,
+    );
+    await teacher.save({
+      id,
+      revision: 1,
+      quiz: { ...input, accessCode: "654321" },
+    });
+    assert.equal((await student.start({ id })).attempt.id, started.attempt.id);
+    assert.equal((await student.detail({ id })).quiz.questions.length, 3);
+    const result = await student.submit({
+      id: started.attempt.id,
+      revision: 0,
+      answers: { single: "B", tf: [true, false, true, false], short: "0.5" },
+      flagged: [],
+    });
+    assert.equal(result.attempt.result.score, 10);
+    assert.equal((await student.file({ id: "code-solution" })).status, 200);
+    await teacher.allowRetake({ id: started.attempt.id });
+    assert.deepEqual((await student.detail({ id })).quiz.questions, []);
+    await assert.rejects(
+      student.start({ id, accessCode: "012345" }),
+      (e) => e.status === 403,
+    );
+    now += 1_000;
+    const retake = await student.start({ id, accessCode: "654321" });
+    assert.equal(retake.attempt.attemptNumber, 2);
+    assert.deepEqual(retake.attempt.answers, {});
+    assert.equal(retake.attempt.deadlineAt, now + 60_000);
+    await teacher.save({ id, revision: 2, quiz: { ...input, accessCode: "" } });
+    assert.equal((await other.detail({ id })).quiz.questions.length, 3);
+    assert.equal((await other.detail({ id })).quiz.requiresAccessCode, false);
+    assert.equal((await other.start({ id })).quiz.questions.length, 3);
+    // Bodies written before this feature have no accessCode field.
+    const legacy = await teacher.save({ quiz: fixture() });
+    sqlite
+      .prepare(
+        "UPDATE quizzes SET body=json_remove(body,'$.accessCode') WHERE id=?",
+      )
+      .run(legacy.quiz.id);
+    assert.equal(
+      (await student.list({ subject: "toan" })).quizzes.find(
+        (q) => q.id === legacy.quiz.id,
+      ).requiresAccessCode,
+      false,
+    );
+    assert.equal(
+      (await student.start({ id: legacy.quiz.id })).quiz.questions.length,
+      3,
+    );
+    await teacher.deleteQuiz({ id, revision: 3 });
+    assert.deepEqual(sqlite.prepare("PRAGMA foreign_key_check").all(), []);
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("incorrect code checks are bounded per user and revision; cooldown and teacher code changes release the limit without creating attempts", async () => {
+  const { db, sqlite } = database();
+  let now = 1_000_000;
+  try {
+    const teacher = makeQuizService(db, adminUser, () => now),
+      student = makeQuizService(db, studentUser, () => now);
+    const { quiz } = await teacher.save({
+        quiz: { ...fixture(), accessCode: "012345" },
+      }),
+      id = quiz.id;
+    for (let i = 0; i < 5; i++)
+      await assert.rejects(
+        student.start({ id, accessCode: "111111" }),
+        (e) => e.status === 403,
+      );
+    await assert.rejects(
+      student.start({ id, accessCode: "012345" }),
+      (e) => e.status === 429,
+    );
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_attempts").get().n,
+      0,
+    );
+    const other = makeQuizService(
+      db,
+      { ...studentUser, uid: "other" },
+      () => now,
+    );
+    assert.equal(
+      (await other.start({ id, accessCode: "012345" })).quiz.questions.length,
+      3,
+    );
+    now += 60_001;
+    await assert.rejects(
+      student.start({ id, accessCode: "111111" }),
+      (e) => e.status === 403,
+    );
+    assert.equal(
+      sqlite
+        .prepare(
+          "SELECT failures FROM quiz_access_failures WHERE user_uid='student'",
+        )
+        .get().failures,
+      1,
+    );
+    for (let i = 0; i < 4; i++)
+      await assert.rejects(
+        student.start({ id, accessCode: "111111" }),
+        (e) => e.status === 403,
+      );
+    await teacher.save({
+      id,
+      revision: 1,
+      quiz: { ...fixture(), accessCode: "654321" },
+    });
+    assert.equal(
+      (await student.start({ id, accessCode: "654321" })).quiz.questions.length,
+      3,
+    );
+    const third = makeQuizService(
+      db,
+      { ...studentUser, uid: "third" },
+      () => now,
+    );
+    await assert.rejects(third.start({ id }), (e) => e.status === 403);
+    await teacher.deleteQuiz({ id, revision: 2 });
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_access_failures").get().n,
+      0,
+    );
+  } finally {
+    sqlite.close();
+  }
+});
+
 test("retake migration preserves existing attempts, answers, results and attachment links inside a transaction", () => {
   const sqlite = new DatabaseSync(":memory:");
   try {

@@ -30,6 +30,9 @@ export interface Quiz {
   mode: "inline" | "document";
   durationMinutes: number;
   instructions: string;
+  accessCode?: string;
+  requiresAccessCode?: boolean;
+  questionCount?: number;
   revealAnswers: boolean;
   documentIds: string[];
   questions: Question[];
@@ -43,6 +46,7 @@ export interface QuizSummary {
   revision: number;
   questionCount: number;
   durationMinutes: number;
+  requiresAccessCode?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -201,6 +205,7 @@ export function newQuiz(): Quiz {
     mode: "inline",
     durationMinutes: 45,
     instructions: "",
+    accessCode: "",
     revealAnswers: true,
     documentIds: [],
     questions: [newQuestion()],

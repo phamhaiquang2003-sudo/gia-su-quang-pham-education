@@ -31,6 +31,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [accessCode, setAccessCode] = useState("");
   const [locked, setLocked] = useState(false);
   const [stale, setStale] = useState(false);
   const [saveStatus, setSaveStatus] = useState("Đã lưu trên máy chủ");
@@ -100,6 +101,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
     setLoading(true);
     setError("");
     staleRef.current = false;
+    setAccessCode("");
     setStale(false);
     quizApi<QuizState>("detail", { id })
       .then((data) => {
@@ -350,8 +352,10 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
     setStarting(true);
     setError("");
     try {
-      const data = await quizApi<QuizState>("start", { id });
+      const data = await quizApi<QuizState>("start", { id, accessCode });
       setQuiz(data.quiz);
+      setAccessCode("");
+      setActive(data.quiz.questions[0]?.id || "");
       if (data.attempt) {
         apply({ attempt: data.attempt, serverNow: data.serverNow });
         setAnswers(data.attempt.answers);
@@ -366,6 +370,14 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Chưa bắt đầu được bài.");
+      if (e instanceof QuizApiError && (e.status === 403 || e.status === 409)) {
+        try {
+          const data = await quizApi<QuizState>("detail", { id });
+          setQuiz(data.quiz);
+        } catch {
+          /* Keep the original start error. */
+        }
+      }
     } finally {
       setStarting(false);
     }
@@ -498,7 +510,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
             <h1 className="font-display text-4xl">{quiz.title}</h1>
             <div className="my-6 flex flex-wrap gap-3 text-sm">
               <span className="rounded-lg bg-white/10 px-3 py-2">
-                {quiz.questions.length} câu hỏi
+                {quiz.questionCount ?? quiz.questions.length} câu hỏi
               </span>
               <span className="rounded-lg bg-white/10 px-3 py-2">
                 {quiz.durationMinutes} phút
@@ -524,13 +536,46 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
                 Lượt mới có đáp án trống và đầy đủ thời gian làm bài.
               </p>
             )}
-            <button
-              disabled={starting}
-              className="w-full rounded-xl bg-amber-300 px-5 py-4 font-bold text-slate-950 disabled:opacity-50"
-              onClick={() => void start()}
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void start();
+              }}
             >
-              {starting ? "Đang bắt đầu…" : "Bắt đầu làm bài"}
-            </button>
+              {quiz.requiresAccessCode && (
+                <label className="mb-5 block text-sm font-semibold">
+                  Mật khẩu đề
+                  <input
+                    className="mt-2 block w-full rounded-xl border border-white/25 bg-white/10 px-4 py-3 font-mono text-xl tracking-[0.3em] text-white outline-none focus:border-amber-300"
+                    type="password"
+                    inputMode="numeric"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    required
+                    autoComplete="off"
+                    disabled={starting}
+                    value={accessCode}
+                    onChange={(event) => setAccessCode(event.target.value)}
+                    placeholder="6 chữ số"
+                    aria-label="Mật khẩu đề"
+                    aria-describedby="student-access-code-help"
+                  />
+                  <span
+                    id="student-access-code-help"
+                    className="mt-2 block text-xs font-normal leading-relaxed text-slate-300"
+                  >
+                    Nhập mã 6 chữ số giáo viên cung cấp để bắt đầu làm bài.
+                  </span>
+                </label>
+              )}
+              <button
+                type="submit"
+                disabled={starting}
+                className="w-full rounded-xl bg-amber-300 px-5 py-4 font-bold text-slate-950 disabled:opacity-50"
+              >
+                {starting ? "Đang bắt đầu…" : "Bắt đầu làm bài"}
+              </button>
+            </form>
           </section>
         )}
         {!loading && quiz && attempt?.result && (

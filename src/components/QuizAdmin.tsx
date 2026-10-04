@@ -436,6 +436,30 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                   />
                 </label>
               </div>
+              <label className="account-label mt-5">
+                Mật khẩu đề (6 chữ số, tùy chọn)
+                <input
+                  className="account-input max-w-sm font-mono tracking-widest"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  autoComplete="off"
+                  disabled={busy}
+                  value={quiz.accessCode || ""}
+                  onChange={(e) => update({ accessCode: e.target.value })}
+                  placeholder="Ví dụ: 038572"
+                  aria-label="Mật khẩu đề (6 chữ số, tùy chọn)"
+                  aria-describedby="quiz-access-code-help"
+                />
+                <span
+                  id="quiz-access-code-help"
+                  className="text-xs font-normal leading-relaxed text-slate-500"
+                >
+                  Tự chọn 6 chữ số rồi cung cấp cho học sinh. Để trống để học
+                  sinh vào làm không cần mật khẩu đề.
+                </span>
+              </label>
               <label className="mt-5 flex items-start gap-3 text-sm">
                 <input
                   className="mt-0.5 size-4 accent-blue-700"
@@ -991,6 +1015,11 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                     {getSubject(item.subject).label} · {item.category} ·{" "}
                     {item.questionCount} câu · {item.durationMinutes} phút
                   </p>
+                  {item.requiresAccessCode && (
+                    <p className="mt-2 text-xs font-semibold text-amber-700">
+                      Có mật khẩu đề
+                    </p>
+                  )}
                 </div>
                 <span
                   className={`h-fit rounded-full px-3 py-1 text-xs ${item.status === "published" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}
