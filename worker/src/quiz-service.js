@@ -298,6 +298,33 @@ export function makeQuizService(db, user, now = () => Date.now()) {
         .run();
       return { success: true };
     },
+    async unhide(data) {
+      admin();
+      const row = await quizRow(data.id);
+      if (data.revision !== row.revision) conflict();
+      if (row.status !== "hidden")
+        throw new ServiceError(
+          "failed-precondition",
+          "Đề đã thay đổi trạng thái. Hãy tải lại danh sách đề.",
+          409,
+        );
+      const write = await db
+        .prepare(
+          "UPDATE quizzes SET status='published',body=json_set(body,'$.status','published'),revision=revision+1,updated_at=? WHERE id=? AND revision=? AND status='hidden'",
+        )
+        .bind(now(), row.id, row.revision)
+        .run();
+      if (!write.meta.changes) conflict();
+      const updated = await quizRow(row.id),
+        body = JSON.parse(updated.body);
+      return {
+        quiz: {
+          ...summary(updated),
+          requiresAccessCode: Boolean(body.accessCode),
+          gradingMode: body.gradingMode || "auto",
+        },
+      };
+    },
     async deleteQuiz(data) {
       admin();
       const row = await quizRow(data.id);

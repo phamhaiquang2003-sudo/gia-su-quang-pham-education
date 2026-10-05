@@ -1209,6 +1209,30 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                     </button>
                   </>
                 )}
+                {item.status === "hidden" && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    className="account-button-secondary text-xs"
+                    onClick={() =>
+                      void run(async () => {
+                        const data = await quizApi<{ quiz: QuizSummary }>(
+                          "unhide",
+                          { id: item.id, revision: item.revision },
+                        );
+                        setList((items) =>
+                          items.map((q) => (q.id === item.id ? data.quiz : q)),
+                        );
+                        setMessage(
+                          "Đã bỏ ẩn đề. Học sinh có thể mở lại đề trong kho bài tập.",
+                        );
+                      })
+                    }
+                  >
+                    <Eye className="size-4" />
+                    Bỏ ẩn
+                  </button>
+                )}
                 <button
                   type="button"
                   disabled={busy}

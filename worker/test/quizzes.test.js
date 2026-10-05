@@ -189,6 +189,107 @@ function essayFixture(mode = "inline") {
   };
 }
 
+test("unhide republishes only a current hidden quiz, preserving answer keys, files, attempts and grades", async () => {
+  const { db, sqlite } = database();
+  let now = 1_000_000;
+  try {
+    const teacher = makeQuizService(db, adminUser, () => now),
+      student = makeQuizService(db, studentUser, () => now);
+    const input = { ...fixture(), accessCode: "012345" };
+    input.questions[0].imageId = "unhide-image";
+    sqlite
+      .prepare(
+        "INSERT INTO quiz_files(id,owner_uid,name,mime,data,created_at) VALUES('unhide-image','teacher','image.png','image/png',?,1)",
+      )
+      .run(submissionPng);
+    const { quiz } = await teacher.save({ quiz: input });
+    const started = await student.start({ id: quiz.id, accessCode: "012345" });
+    await student.submit({
+      id: started.attempt.id,
+      revision: 0,
+      answers: { single: "B", tf: [true, false, true, false], short: "0.5" },
+      flagged: [],
+    });
+    const before = sqlite
+      .prepare("SELECT * FROM quiz_attempts WHERE id=?")
+      .get(started.attempt.id);
+    await teacher.hide({ id: quiz.id });
+    assert.equal((await student.list({ subject: "toan" })).quizzes.length, 0);
+    await assert.rejects(
+      student.unhide({ id: quiz.id, revision: 2 }),
+      (e) => e.status === 403,
+    );
+    await assert.rejects(
+      teacher.unhide({ id: quiz.id, revision: 1 }),
+      (e) => e.status === 409,
+    );
+    now += 1000;
+    const restored = (await teacher.unhide({ id: quiz.id, revision: 2 })).quiz;
+    assert.equal(restored.status, "published");
+    assert.equal(restored.revision, 3);
+    assert.equal(restored.requiresAccessCode, true);
+    assert.equal(restored.updatedAt, now);
+    assert.equal(
+      (await student.list({ subject: "toan" })).quizzes[0].id,
+      quiz.id,
+    );
+    assert.deepEqual(
+      (await teacher.adminDetail({ id: quiz.id })).quiz.questions,
+      validateQuiz(input).questions,
+    );
+    assert.deepEqual(
+      sqlite
+        .prepare("SELECT * FROM quiz_attempts WHERE id=?")
+        .get(started.attempt.id),
+      before,
+    );
+    assert.equal(
+      (await student.detail({ id: quiz.id })).attempt.result.score,
+      10,
+    );
+    assert.equal((await student.file({ id: "unhide-image" })).status, 200);
+    await assert.rejects(
+      teacher.unhide({ id: quiz.id, revision: 3 }),
+      (e) => e.status === 409,
+    );
+    // A body saved with hidden status is synchronized when republished.
+    await teacher.save({
+      id: quiz.id,
+      revision: 3,
+      quiz: { ...input, status: "hidden" },
+    });
+    await teacher.unhide({ id: quiz.id, revision: 4 });
+    const other = makeQuizService(
+      db,
+      { ...studentUser, uid: "unhide-other" },
+      () => now,
+    );
+    assert.equal(
+      (await other.detail({ id: quiz.id })).quiz.status,
+      "published",
+    );
+    await assert.rejects(other.start({ id: quiz.id }), (e) => e.status === 403);
+    assert.equal(
+      (await other.start({ id: quiz.id, accessCode: "012345" })).quiz.status,
+      "published",
+    );
+    const draft = (
+      await teacher.save({ quiz: { ...fixture(), status: "draft" } })
+    ).quiz;
+    await assert.rejects(
+      teacher.unhide({ id: draft.id, revision: draft.revision }),
+      (e) => e.status === 409,
+    );
+    await teacher.deleteQuiz({ id: quiz.id, revision: 5 });
+    await assert.rejects(
+      teacher.unhide({ id: quiz.id, revision: 5 }),
+      (e) => e.status === 404,
+    );
+  } finally {
+    sqlite.close();
+  }
+});
+
 test("manual authoring supports PDF without answer rows and inline essay questions, and rejects mixed modes/invalid submissions", () => {
   assert.equal(validateQuiz(essayFixture()).questions[0].type, "essay");
   assert.equal(validateQuiz(essayFixture("document")).questions.length, 0);
