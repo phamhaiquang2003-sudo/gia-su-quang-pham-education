@@ -75,14 +75,13 @@ node functions/scripts/start-local-admin.js
 
 Chỉ thêm `role: admin` bằng Firestore Console chưa đủ quyền quản trị. Khóa Service Account được đọc ở tiến trình Node.js trên máy, không được đưa vào frontend.
 
-Trang quản trị công khai cho phép giáo viên thêm từng tài khoản, thêm hàng loạt, xem danh sách và xóa tài khoản. Các nút khóa/mở khóa và cấp lại mật khẩu hoạt động trong công cụ local.
+Trang quản trị công khai cho phép giáo viên thêm từng tài khoản, xem danh sách và xóa tài khoản. Các nút khóa/mở khóa và cấp lại mật khẩu hoạt động trong công cụ local.
 
 ## 5. Cấp tài khoản học sinh
 
 Mở `quan-tri.html` trên website và đăng nhập bằng tài khoản quản trị đã được cấp quyền. Không cần mở tệp `.bat` để thêm tài khoản.
 
 - **Thêm tài khoản:** nhập username, mật khẩu ban đầu, họ tên. Role luôn là học sinh. Ghi lại thông tin để gửi riêng cho học sinh.
-- **Thêm hàng loạt:** mỗi dòng CSV gồm `username,password,displayName`, không có dòng tiêu đề; tối đa 50 dòng. Mật khẩu được giữ nguyên, không tự cắt khoảng trắng. Cột có dấu phẩy phải đặt trong ngoặc kép.
 - **Danh sách:** tải 50 hồ sơ mỗi trang; có nút tải thêm. Quản trị viên được hiển thị nhưng không thể bị sửa/xóa từ trang học sinh.
 - **Khóa (công cụ local):** đổi trạng thái Firestore ngay để thu hồi quyền, khóa Auth và thu hồi refresh token.
 - **Mở khóa (công cụ local):** mở Auth rồi kích hoạt hồ sơ.

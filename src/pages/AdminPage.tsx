@@ -38,10 +38,9 @@ import {
   type CreationResult,
 } from "@/lib/accounts";
 import { getFirebase } from "@/lib/firebase";
-import { parseStudentCsv } from "@/lib/student-csv";
 import { useAccount } from "@/lib/use-account";
 
-type Tab = "quizzes" | "add" | "bulk" | "list";
+type Tab = "quizzes" | "add" | "list";
 type Action = "disable" | "enable" | "resetPassword" | "delete";
 
 export default function AdminPage() {
@@ -51,7 +50,6 @@ export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [bulk, setBulk] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [results, setResults] = useState<CreationResult[]>([]);
@@ -70,7 +68,6 @@ export default function AdminPage() {
     if (!session.loading && !session.profile) {
       setStudents([]);
       setPassword("");
-      setBulk("");
       setNewPassword("");
       setSelected(null);
     }
@@ -126,24 +123,6 @@ export default function AdminPage() {
         setUsername("");
         setDisplayName("");
       }
-    } catch (error) {
-      setMessage(accountError(error));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function addBulk(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (busy) return;
-    setMessage("");
-    setResults([]);
-    try {
-      const input = parseStudentCsv(bulk);
-      setBusy(true);
-      const response = await createStudents(input);
-      setResults(response);
-      setBulk("");
     } catch (error) {
       setMessage(accountError(error));
     } finally {
@@ -217,8 +196,8 @@ export default function AdminPage() {
             {localAdminEnabled
               ? "Quản trị trên máy tính · Firebase Spark. Tài khoản và hồ sơ được lưu trực tiếp trên Firebase."
               : studentDeletionEnabled
-                ? "Bạn có thể thêm tài khoản, thêm hàng loạt và xóa tài khoản ngay trên website. Xóa tài khoản sẽ xóa cả đăng nhập Firebase và hồ sơ học sinh. Firebase Spark và Cloudflare Workers dùng gói miễn phí."
-                : "Firebase Spark: bạn có thể thêm tài khoản và thêm hàng loạt ngay trên website. Để khóa, mở khóa, cấp lại mật khẩu hoặc xóa tài khoản, mở quan-tri-mien-phi.bat trên máy tính."}
+                ? "Bạn có thể thêm và xóa tài khoản ngay trên website. Xóa tài khoản sẽ xóa cả đăng nhập Firebase và hồ sơ học sinh. Firebase Spark và Cloudflare Workers dùng gói miễn phí."
+                : "Firebase Spark: bạn có thể thêm tài khoản ngay trên website. Để khóa, mở khóa, cấp lại mật khẩu hoặc xóa tài khoản, mở quan-tri-mien-phi.bat trên máy tính."}
           </p>
           <div
             className="mb-6 flex flex-wrap gap-2"
@@ -229,7 +208,6 @@ export default function AdminPage() {
               [
                 ["quizzes", "Bài tập", FileText],
                 ["add", "Thêm tài khoản", Plus],
-                ["bulk", "Thêm hàng loạt", Users],
                 ["list", "Danh sách tài khoản", Users],
               ] as const
             ).map(([value, label, Icon]) => (
@@ -241,7 +219,7 @@ export default function AdminPage() {
                 aria-controls={`panel-${value}`}
                 tabIndex={tab === value ? 0 : -1}
                 onKeyDown={(event) => {
-                  const values: Tab[] = ["quizzes", "add", "bulk", "list"];
+                  const values: Tab[] = ["quizzes", "add", "list"];
                   const position = values.indexOf(value);
                   const next =
                     event.key === "ArrowRight"
@@ -364,37 +342,6 @@ export default function AdminPage() {
                   </p>
                   <button className="account-button w-full" disabled={busy}>
                     {busy ? "Đang tạo tài khoản…" : "Thêm vào Firebase"}
-                  </button>
-                </form>
-              </>
-            )}
-            {tab === "bulk" && (
-              <>
-                <h2 className="mb-5 text-lg font-semibold">Thêm hàng loạt</h2>
-                <form onSubmit={addBulk}>
-                  <label className="account-label" htmlFor="bulk-students">
-                    Mỗi dòng: tên đăng nhập,mật khẩu,họ tên
-                  </label>
-                  <textarea
-                    id="bulk-students"
-                    className="account-input min-h-56 resize-y font-mono"
-                    value={bulk}
-                    onChange={(event) => setBulk(event.target.value)}
-                    placeholder={
-                      "hocsinh01,Matkhau-rieng-01,Nguyễn Văn A\nhocsinh02,Matkhau-rieng-02,Trần Thị B"
-                    }
-                    required
-                    disabled={busy}
-                  />
-                  <p className="my-4 text-sm leading-relaxed text-slate-600">
-                    Tối đa 50 tài khoản mỗi lần; mật khẩu từ 8–128 ký tự. Nếu
-                    một cột có dấu phẩy, đặt cột đó trong dấu ngoặc kép. Tên
-                    trùng sẽ được báo riêng.
-                  </p>
-                  <button className="account-button w-full" disabled={busy}>
-                    {busy
-                      ? "Đang xử lý danh sách…"
-                      : "Thêm tất cả vào Firebase"}
                   </button>
                 </form>
               </>
