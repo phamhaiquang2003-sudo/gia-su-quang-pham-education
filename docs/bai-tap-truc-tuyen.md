@@ -5,8 +5,8 @@
 1. Đăng nhập tài khoản quản trị, mở `quan-tri.html` → **Bài tập**.
 2. Điền tên đề, môn học, danh mục, hướng dẫn và thời gian từ **1–360 phút**.
 3. Chọn cách đưa đề lên:
-   - **Soạn từng câu trực tiếp:** nhập nội dung hoặc dán ảnh chụp cả câu hỏi và các lựa chọn. Có ảnh thì không cần gõ lại nội dung câu; các lựa chọn còn trống tự ghi “Xem … trong ảnh”.
-   - **PDF / Word / ảnh + phiếu trả lời:** tải tệp đề, thêm câu theo thứ tự trong tệp. Nội dung câu có thể để trống; các lựa chọn/ý có thể ghi A/B/C/D hoặc Ý a/b/c/d.
+   - **Soạn từng câu trực tiếp:** nhập nội dung hoặc dán ảnh chụp cả câu hỏi và các lựa chọn. Khi lựa chọn A/B/C/D hoặc các ý Đúng/Sai đã nằm trong ảnh câu hỏi, được để trống nội dung các lựa chọn/ý, chỉ tích đáp án đúng để chấm.
+   - **PDF / Word / ảnh + phiếu trả lời:** tải tệp đề, thêm câu theo thứ tự trong tệp. Nội dung câu và nội dung lựa chọn/ý được để trống khi đã có trong tệp đề; vẫn chọn đáp án đúng cho hệ thống chấm.
 4. Mỗi câu có dạng **A/B/C/D**, **Đúng/Sai (4 ý)** hoặc **trả lời ngắn**. Nhập đáp án đúng, điểm trọng số và lời giải nếu có.
 5. Bấm **Xem trước**, **Lưu nháp** hoặc **Xuất bản đề**. Đề xuất bản xuất hiện trong kho của môn đã chọn.
 6. Bấm **Mở bài để làm thử** để thử bằng tài khoản quản trị. Trong **Danh sách đề → Kết quả học sinh**, lượt này được ghi là **Làm thử**.

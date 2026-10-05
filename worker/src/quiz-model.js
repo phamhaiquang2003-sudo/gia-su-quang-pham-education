@@ -104,7 +104,12 @@ export function validateQuiz(input) {
       return {
         ...common,
         choices: q.choices.map((c, i) =>
-          text(c, 2000, `Lựa chọn ${i + 1}`, !choiceImageIds[i]),
+          text(
+            c,
+            2000,
+            `Lựa chọn ${i + 1}`,
+            input.mode === "inline" && !imageId && !choiceImageIds[i],
+          ),
         ),
         choiceImageIds,
         answer: q.answer,
@@ -127,7 +132,12 @@ export function validateQuiz(input) {
       return {
         ...common,
         statements: q.statements.map((s, i) =>
-          text(s, 2000, "Nội dung ý", !statementImageIds[i]),
+          text(
+            s,
+            2000,
+            "Nội dung ý",
+            input.mode === "inline" && !imageId && !statementImageIds[i],
+          ),
         ),
         statementImageIds,
         answer: q.answer,

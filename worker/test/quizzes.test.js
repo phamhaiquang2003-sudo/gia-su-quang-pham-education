@@ -1437,6 +1437,65 @@ test("image-only questions save without retyping; solution images count as attac
   assert.equal(fileIds(validateQuiz(large)).length, 200);
 });
 
+test("whole-question images and document quizzes allow blank choice/statement text while keeping answer keys and grading intact", () => {
+  const input = fixture();
+  input.questions[0].choices = ["", " ", "", ""];
+  input.questions[0].imageId = "whole-single";
+  input.questions[1].statements = ["", "", " ", ""];
+  input.questions[1].imageId = "whole-tf";
+  const quiz = validateQuiz(input);
+  assert.deepEqual(quiz.questions[0].choices, ["", "", "", ""]);
+  assert.deepEqual(quiz.questions[1].statements, ["", "", "", ""]);
+  assert.deepEqual(publicQuiz(quiz).questions[0].choices, ["", "", "", ""]);
+  assert.equal(
+    grade(quiz, { single: "B", tf: [true, false, true, false], short: "0.5" })
+      .score,
+    10,
+  );
+  for (const index of [0, 1]) {
+    assert.throws(() =>
+      validateQuiz({
+        ...input,
+        questions: [{ ...input.questions[index], imageId: "" }],
+      }),
+    );
+    assert.throws(() =>
+      validateQuiz({
+        ...input,
+        questions: [{ ...input.questions[index], answer: undefined }],
+      }),
+    );
+  }
+  const document = validateQuiz({
+    ...input,
+    mode: "document",
+    documentIds: ["worksheet"],
+    questions: input.questions.map((q) => ({ ...q, imageId: "" })),
+  });
+  assert.deepEqual(document.questions[0].choices, ["", "", "", ""]);
+  assert.deepEqual(document.questions[1].statements, ["", "", "", ""]);
+  assert.equal(
+    grade(document, {
+      single: "B",
+      tf: [true, false, true, false],
+      short: "0.5",
+    }).score,
+    10,
+  );
+  assert.throws(() =>
+    validateQuiz({
+      ...input,
+      questions: [
+        {
+          ...input.questions[2],
+          imageId: "whole-short",
+          acceptedAnswers: [""],
+        },
+      ],
+    }),
+  );
+});
+
 test("individual choices and true/false statements allow text, an image, or both, with four correctly indexed image IDs", () => {
   const input = fixture();
   input.questions[0].choices = ["", "Two", "", "Four"];

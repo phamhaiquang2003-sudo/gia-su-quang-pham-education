@@ -44,26 +44,6 @@ import QuizManualGrader from "./QuizManualGrader";
 import { clipboardImage, prepareQuizImage } from "@/lib/quiz-images";
 type ImagePurpose = "question" | "explanation" | "choice" | "statement";
 
-function imageChoices(question: Question): Partial<Question> {
-  if (question.type === "single")
-    return {
-      choices: question.choices?.map((choice, i) =>
-        choice.trim() || question.choiceImageIds?.[i]
-          ? choice
-          : `Xem lựa chọn ${"ABCD"[i]} trong ảnh`,
-      ),
-    };
-  if (question.type === "truefalse")
-    return {
-      statements: question.statements?.map((statement, i) =>
-        statement.trim() || question.statementImageIds?.[i]
-          ? statement
-          : `Xem ý ${"abcd"[i]} trong ảnh`,
-      ),
-    };
-  return {};
-}
-
 const types: [QuestionType, string][] = [
   ["single", "Chọn A/B/C/D"],
   ["truefalse", "Đúng / Sai (4 ý)"],
@@ -203,7 +183,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                 }
                 return purpose === "explanation"
                   ? { ...item, explanationImageId: saved.id }
-                  : { ...item, imageId: saved.id, ...imageChoices(item) };
+                  : { ...item, imageId: saved.id };
               }),
             }
           : { ...current, documentIds: [...current.documentIds, saved.id] },
@@ -742,7 +722,6 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                               );
                               updateQuestion(q.id, {
                                 ...next,
-                                ...(q.imageId ? imageChoices(next) : {}),
                                 id: q.id,
                                 prompt: q.prompt,
                                 imageId: q.imageId,
@@ -835,7 +814,11 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                                 <input
                                   aria-label={`Lựa chọn ${"ABCD"[i]} câu ${index + 1}`}
                                   className="account-input"
-                                  required={!q.choiceImageIds?.[i]}
+                                  required={
+                                    quiz.mode === "inline" &&
+                                    !q.imageId &&
+                                    !q.choiceImageIds?.[i]
+                                  }
                                   maxLength={2000}
                                   value={choice}
                                   placeholder={`Nội dung lựa chọn ${"ABCD"[i]}`}
@@ -890,7 +873,11 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                                   Ý {"abcd"[i]}
                                   <input
                                     className="account-input"
-                                    required={!q.statementImageIds?.[i]}
+                                    required={
+                                      quiz.mode === "inline" &&
+                                      !q.imageId &&
+                                      !q.statementImageIds?.[i]
+                                    }
                                     maxLength={2000}
                                     value={s}
                                     onPaste={(event) =>
