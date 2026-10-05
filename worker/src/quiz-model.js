@@ -25,6 +25,22 @@ function partImages(value, label) {
     fail(`${label} cần 4 mã ảnh hợp lệ.`);
   return value;
 }
+function scheduleTime(value, label) {
+  if (value === undefined || value === null || value === "") return null;
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value <= 0 ||
+    value > 253402300799999
+  )
+    fail(`${label} không hợp lệ.`);
+  return value;
+}
+export function quizAvailability(quiz, now) {
+  if (quiz.closesAt && now >= quiz.closesAt) return "closed";
+  if (quiz.opensAt && now < quiz.opensAt) return "upcoming";
+  return "open";
+}
 
 export function validateQuiz(input) {
   if (!input || typeof input !== "object") fail("Thiếu thông tin đề.");
@@ -33,6 +49,10 @@ export function validateQuiz(input) {
     fail("Cách chấm điểm không hợp lệ.");
   const wholeSubmission = gradingMode === "manual" && input.mode === "document";
   const title = text(input.title, 160, "Tên đề", true);
+  const opensAt = scheduleTime(input.opensAt, "Giờ mở đề"),
+    closesAt = scheduleTime(input.closesAt, "Giờ đóng đề");
+  if (opensAt && closesAt && closesAt <= opensAt)
+    fail("Giờ đóng đề phải sau giờ mở đề.");
   const accessCode = input.accessCode === undefined ? "" : input.accessCode;
   if (
     typeof accessCode !== "string" ||
@@ -176,6 +196,8 @@ export function validateQuiz(input) {
     title,
     gradingMode,
     accessCode,
+    opensAt,
+    closesAt,
     subject: input.subject,
     category: text(input.category || "", 100, "Danh mục"),
     status: input.status,

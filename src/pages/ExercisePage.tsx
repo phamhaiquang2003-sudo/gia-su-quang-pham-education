@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ChevronDown,
@@ -23,6 +23,7 @@ import {
 import { useAccount } from "@/lib/use-account";
 import { quizApi, quizHref, type QuizSummary } from "@/lib/quizzes";
 import QuizPlayer from "@/components/QuizPlayer";
+import QuizScheduleInfo from "@/components/QuizScheduleInfo";
 
 export default function ExercisePage() {
   const session = useAccount();
@@ -38,6 +39,8 @@ export default function ExercisePage() {
   const [loadingQuizzes, setLoadingQuizzes] = useState(false);
   const [quizError, setQuizError] = useState("");
   const [reload, setReload] = useState(0);
+  const [catalogueNow, setCatalogueNow] = useState(0);
+  const catalogueClock = useRef({ server: 0, local: 0 });
   const quizId = new URLSearchParams(window.location.search).get("de");
   const filtered = Boolean(search.trim() || categories.length);
   const visible = quizzes
@@ -62,9 +65,19 @@ export default function ExercisePage() {
     let cancelled = false;
     setLoadingQuizzes(true);
     setQuizError("");
-    quizApi<{ quizzes: QuizSummary[] }>("list", { subject: subject.id })
+    quizApi<{ quizzes: QuizSummary[]; serverNow?: number }>("list", {
+      subject: subject.id,
+    })
       .then((data) => {
-        if (!cancelled) setQuizzes(data.quizzes);
+        if (!cancelled) {
+          const timestamp = data.serverNow ?? Date.now();
+          catalogueClock.current = {
+            server: timestamp,
+            local: performance.now(),
+          };
+          setCatalogueNow(timestamp);
+          setQuizzes(data.quizzes);
+        }
       })
       .catch((e) => {
         if (!cancelled) setQuizError(e.message);
@@ -76,6 +89,19 @@ export default function ExercisePage() {
       cancelled = true;
     };
   }, [session.profile?.uid, subject.id, quizId, reload]);
+  useEffect(() => {
+    if (quizId || !quizzes.some((quiz) => quiz.opensAt || quiz.closesAt)) return;
+    const interval = setInterval(
+      () =>
+        setCatalogueNow(
+          catalogueClock.current.server +
+            performance.now() -
+            catalogueClock.current.local,
+        ),
+      1000,
+    );
+    return () => clearInterval(interval);
+  }, [quizzes, quizId]);
 
   useEffect(() => {
     document.title = `${subject.label} · Bài tập · PHQ Education`;
@@ -423,6 +449,11 @@ export default function ExercisePage() {
                         Cần mật khẩu đề
                       </p>
                     )}
+                    <QuizScheduleInfo
+                      quiz={q}
+                      now={catalogueNow}
+                      className="mb-4 text-amber-100"
+                    />
                     <a
                       className="mt-auto rounded-xl border border-sky-300/30 bg-sky-300/10 px-4 py-3 text-center text-sm font-semibold hover:bg-sky-300/20"
                       href={quizHref(q)}

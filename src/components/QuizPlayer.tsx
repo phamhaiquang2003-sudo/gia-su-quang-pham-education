@@ -25,6 +25,8 @@ import QuizResultView from "./QuizResultView";
 import QuizAccessCodeInput from "./QuizAccessCodeInput";
 import QuizEssayAnswer from "./QuizEssayAnswer";
 import QuizManualReview from "./QuizManualReview";
+import QuizScheduleInfo from "./QuizScheduleInfo";
+import { quizAvailability, formatQuizTime } from "@/lib/quiz-schedule";
 import { prepareQuizImage } from "@/lib/quiz-images";
 
 export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
@@ -48,6 +50,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
   const [mobileTab, setMobileTab] = useState<"document" | "answers">("answers");
   const [reload, setReload] = useState(0);
   const [nextAttemptNumber, setNextAttemptNumber] = useState(1);
+  const [waitingNow, setWaitingNow] = useState(0);
   const current = useRef({
     answers: {} as Answers,
     flagged: [] as string[],
@@ -120,6 +123,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
         setNextAttemptNumber(data.nextAttemptNumber || 1);
         setActive(data.quiz.questions[0]?.id || "");
         clock.current = data.serverNow - performance.now();
+        setWaitingNow(data.serverNow);
         attemptRef.current = data.attempt;
         setAttempt(data.attempt);
         let recovered = false;
@@ -195,6 +199,13 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
   }, [id, cacheKey, reload]);
+  useEffect(() => {
+    if (loading || attempt || !quiz || (!quiz.opensAt && !quiz.closesAt)) return;
+    const tick = () => setWaitingNow(serverNow());
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [loading, attempt?.id, quiz?.opensAt, quiz?.closesAt]);
 
   function enqueue<T>(job: () => Promise<T>) {
     const next = queue.current.then(job, job);
@@ -464,7 +475,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
     return () => window.removeEventListener("beforeunload", warn);
   }, []);
   async function start() {
-    if (starting) return;
+    if (starting || (quiz && quizAvailability(quiz, serverNow()) !== "open")) return;
     setStarting(true);
     setError("");
     try {
@@ -490,6 +501,8 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
         try {
           const data = await quizApi<QuizState>("detail", { id });
           setQuiz(data.quiz);
+          clock.current = data.serverNow - performance.now();
+          setWaitingNow(data.serverNow);
         } catch {
           /* Keep the original start error. */
         }
@@ -513,6 +526,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
   const unansweredCount = (quiz?.questions.length || 0) - answeredCount;
   const wholeSubmission =
     quiz?.gradingMode === "manual" && quiz.mode === "document";
+  const availability = quiz ? quizAvailability(quiz, waitingNow) : "open";
   const seconds = Math.ceil(remaining / 1000);
   const timer = `${Math.floor(seconds / 60)
     .toString()
@@ -649,6 +663,11 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
                 Điểm thang 10
               </span>
             </div>
+            <QuizScheduleInfo
+              quiz={quiz}
+              now={waitingNow}
+              className="mb-6 rounded-xl border border-amber-200/25 bg-amber-200/5 p-4 text-amber-100"
+            />
             {quiz.instructions && (
               <p className="mb-6 whitespace-pre-wrap text-sm leading-relaxed text-slate-200">
                 {quiz.instructions}
@@ -669,8 +688,10 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
             </p>
             {nextAttemptNumber > 1 && (
               <p className="mb-6 rounded-xl border border-emerald-300/30 bg-emerald-300/10 p-4 text-sm text-emerald-200">
-                Giáo viên đã cho phép bạn làm lại — lượt {nextAttemptNumber}.
-                Lượt mới có đáp án trống và đầy đủ thời gian làm bài.
+                Giáo viên đã cho phép bạn làm lại — lượt {nextAttemptNumber}.{" "}
+                {quiz.closesAt
+                  ? "Lượt mới có đáp án trống; thời hạn vẫn chịu giới hạn giờ đóng đề."
+                  : "Lượt mới có đáp án trống và đầy đủ thời gian làm bài."}
               </p>
             )}
             <form
@@ -683,7 +704,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
                 <label className="mb-5 block text-sm font-semibold">
                   Mật khẩu đề
                   <QuizAccessCodeInput
-                    disabled={starting}
+                    disabled={starting || availability !== "open"}
                     value={accessCode}
                     onChange={setAccessCode}
                   />
@@ -691,10 +712,16 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
               )}
               <button
                 type="submit"
-                disabled={starting}
+                disabled={starting || availability !== "open"}
                 className="w-full rounded-xl bg-amber-300 px-5 py-4 font-bold text-slate-950 disabled:opacity-50"
               >
-                {starting ? "Đang bắt đầu…" : "Bắt đầu làm bài"}
+                {starting
+                  ? "Đang bắt đầu…"
+                  : availability === "upcoming"
+                    ? "Chưa đến giờ mở đề"
+                    : availability === "closed"
+                      ? "Đề đã đóng"
+                      : "Bắt đầu làm bài"}
               </button>
             </form>
           </section>
@@ -757,6 +784,11 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
               <p role="status" className="text-xs text-slate-300">
                 {uploading ? "Đang xử lý ảnh bài làm…" : saveStatus}
               </p>
+              {quiz.closesAt && (
+                <p className="text-xs text-amber-100">
+                  Đóng đề: {formatQuizTime(quiz.closesAt)} (giờ Việt Nam)
+                </p>
+              )}
               {!wholeSubmission && (
                 <button
                   className="flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2 text-sm lg:hidden"

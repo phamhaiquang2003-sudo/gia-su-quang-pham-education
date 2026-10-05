@@ -41,6 +41,8 @@ import QuizQuestions from "./QuizQuestions";
 import QuizResultView from "./QuizResultView";
 import QuizImageInput from "./QuizImageInput";
 import QuizManualGrader from "./QuizManualGrader";
+import QuizScheduleInfo from "./QuizScheduleInfo";
+import { scheduleInputValue, scheduleTimestamp } from "@/lib/quiz-schedule";
 import { clipboardImage, prepareQuizImage } from "@/lib/quiz-images";
 type ImagePurpose = "question" | "explanation" | "choice" | "statement";
 
@@ -242,7 +244,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
     const name = attempt.displayName || attempt.username || "tài khoản này";
     if (
       !window.confirm(
-        `Cho phép ${name} làm lại đề này?\n\nLượt cũ và điểm được giữ trong lịch sử. Nếu đang làm, lượt cũ sẽ được kết thúc và chấm theo đáp án đã lưu. Lượt mới bắt đầu với đáp án trống và đủ thời gian khi học sinh bấm “Bắt đầu làm bài”.`,
+        `Cho phép ${name} làm lại đề này?\n\nLượt cũ và điểm được giữ trong lịch sử. Nếu đang làm, lượt cũ sẽ được kết thúc và chấm theo đáp án đã lưu. Lượt mới bắt đầu với đáp án trống khi học sinh bấm “Bắt đầu làm bài”, theo thời gian làm bài và lịch mở / đóng đề hiện tại.`,
       )
     )
       return;
@@ -522,6 +524,56 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                   sinh vào làm không cần mật khẩu đề.
                 </span>
               </label>
+              <div className="mt-5 rounded-xl border border-slate-200 p-4">
+                <h4 className="mb-3 text-sm font-semibold">
+                  Giới hạn giờ mở / đóng đề (tùy chọn)
+                </h4>
+                <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+                  <label className="account-label min-w-0">
+                    Giờ mở đề (tùy chọn)
+                    <input
+                      className="account-input min-w-0"
+                      type="datetime-local"
+                      max="9999-12-31T23:59"
+                      step={60}
+                      aria-label="Giờ mở đề (tùy chọn)"
+                      value={scheduleInputValue(quiz.opensAt)}
+                      onChange={(e) =>
+                        update({ opensAt: scheduleTimestamp(e.target.value) })
+                      }
+                    />
+                  </label>
+                  <label className="account-label min-w-0">
+                    Giờ đóng đề (tùy chọn)
+                    <input
+                      className="account-input min-w-0"
+                      type="datetime-local"
+                      max="9999-12-31T23:59"
+                      step={60}
+                      aria-label="Giờ đóng đề (tùy chọn)"
+                      value={scheduleInputValue(quiz.closesAt)}
+                      onChange={(e) =>
+                        update({ closesAt: scheduleTimestamp(e.target.value) })
+                      }
+                    />
+                  </label>
+                </div>
+                <p className="mt-3 text-xs leading-relaxed text-slate-500">
+                  Giờ Việt Nam (UTC+7). Để trống cả hai ô để không giới hạn lịch.
+                  Có thể chỉ đặt giờ mở hoặc giờ đóng. Lượt làm kết thúc khi hết
+                  thời gian riêng hoặc đến giờ đóng, tùy mốc nào sớm hơn. Sửa
+                  lịch chỉ áp dụng cho lượt bắt đầu sau khi lưu.
+                </p>
+                {(quiz.opensAt || quiz.closesAt) && (
+                  <button
+                    type="button"
+                    className="account-button-secondary mt-3 text-xs"
+                    onClick={() => update({ opensAt: null, closesAt: null })}
+                  >
+                    Bỏ giới hạn giờ
+                  </button>
+                )}
+              </div>
               {!manual && (
                 <label className="mt-5 flex items-start gap-3 text-sm">
                   <input
@@ -1143,6 +1195,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                       Có mật khẩu đề
                     </p>
                   )}
+                  <QuizScheduleInfo quiz={item} className="mt-2 text-slate-500" />
                 </div>
                 <span
                   className={`h-fit rounded-full px-3 py-1 text-xs ${item.status === "published" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}

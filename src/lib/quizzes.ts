@@ -30,6 +30,8 @@ export interface Quiz {
   mode: "inline" | "document";
   gradingMode?: "auto" | "manual";
   durationMinutes: number;
+  opensAt?: number | null;
+  closesAt?: number | null;
   instructions: string;
   accessCode?: string;
   requiresAccessCode?: boolean;
@@ -47,6 +49,8 @@ export interface QuizSummary {
   revision: number;
   questionCount: number;
   durationMinutes: number;
+  opensAt?: number | null;
+  closesAt?: number | null;
   requiresAccessCode?: boolean;
   createdAt: number;
   gradingMode?: "auto" | "manual";
@@ -262,6 +266,8 @@ export function newQuiz(): Quiz {
     status: "draft",
     mode: "inline",
     durationMinutes: 45,
+    opensAt: null,
+    closesAt: null,
     instructions: "",
     accessCode: "",
     revealAnswers: true,

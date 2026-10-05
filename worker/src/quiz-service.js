@@ -13,6 +13,7 @@ import {
   validateResponses,
   grade,
   publicResult,
+  quizAvailability,
 } from "./quiz-model.js";
 
 const conflict = () => {
@@ -37,6 +38,8 @@ const summary = (row) => ({
   durationMinutes: row.duration_minutes,
   requiresAccessCode: Boolean(row.requires_access_code),
   gradingMode: row.grading_mode || "auto",
+  opensAt: row.opens_at ?? null,
+  closesAt: row.closes_at ?? null,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -163,17 +166,17 @@ export function makeQuizService(db, user, now = () => Date.now()) {
     async list(data) {
       const rows = await db
         .prepare(
-          "SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at,json_extract(body,'$.gradingMode') AS grading_mode,CASE WHEN COALESCE(json_extract(body,'$.accessCode'),'')<>'' THEN 1 ELSE 0 END AS requires_access_code FROM quizzes WHERE status='published' AND subject=? ORDER BY created_at DESC LIMIT 200",
+          "SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at,json_extract(body,'$.opensAt') AS opens_at,json_extract(body,'$.closesAt') AS closes_at,json_extract(body,'$.gradingMode') AS grading_mode,CASE WHEN COALESCE(json_extract(body,'$.accessCode'),'')<>'' THEN 1 ELSE 0 END AS requires_access_code FROM quizzes WHERE status='published' AND subject=? ORDER BY created_at DESC LIMIT 200",
         )
         .bind(data.subject)
         .all();
-      return { quizzes: rows.results.map(summary) };
+      return { quizzes: rows.results.map(summary), serverNow: now() };
     },
     async listAdmin() {
       admin();
       const rows = await db
         .prepare(
-          "SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at,json_extract(body,'$.gradingMode') AS grading_mode,CASE WHEN COALESCE(json_extract(body,'$.accessCode'),'')<>'' THEN 1 ELSE 0 END AS requires_access_code FROM quizzes ORDER BY created_at DESC LIMIT 200",
+          "SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at,json_extract(body,'$.opensAt') AS opens_at,json_extract(body,'$.closesAt') AS closes_at,json_extract(body,'$.gradingMode') AS grading_mode,CASE WHEN COALESCE(json_extract(body,'$.accessCode'),'')<>'' THEN 1 ELSE 0 END AS requires_access_code FROM quizzes ORDER BY created_at DESC LIMIT 200",
         )
         .all();
       return { quizzes: rows.results.map(summary) };
@@ -284,6 +287,8 @@ export function makeQuizService(db, user, now = () => Date.now()) {
           ...summary(await quizRow(id)),
           requiresAccessCode: Boolean(quiz.accessCode),
           gradingMode: quiz.gradingMode,
+          opensAt: quiz.opensAt,
+          closesAt: quiz.closesAt,
         },
       };
     },
@@ -322,6 +327,8 @@ export function makeQuizService(db, user, now = () => Date.now()) {
           ...summary(updated),
           requiresAccessCode: Boolean(body.accessCode),
           gradingMode: body.gradingMode || "auto",
+          opensAt: body.opensAt ?? null,
+          closesAt: body.closesAt ?? null,
         },
       };
     },
@@ -415,7 +422,11 @@ export function makeQuizService(db, user, now = () => Date.now()) {
         ? JSON.parse(attempt.snapshot)
         : { ...JSON.parse(row.body), id: row.id, revision: row.revision };
       const visible = publicQuiz(quiz);
-      if (!attempt && quiz.accessCode) {
+      if (
+        !attempt &&
+        (quiz.accessCode ||
+          (!user.admin && quizAvailability(quiz, now()) !== "open"))
+      ) {
         visible.questions = [];
         visible.documentIds = [];
         visible.instructions = "";
@@ -457,6 +468,18 @@ export function makeQuizService(db, user, now = () => Date.now()) {
           403,
         );
       const { accessCode, ...body } = JSON.parse(row.body);
+      const checkWindow = (timestamp) => {
+        const availability = quizAvailability(body, timestamp);
+        if (availability !== "open")
+          throw new ServiceError(
+            "permission-denied",
+            availability === "upcoming"
+              ? "Đề chưa đến giờ mở. Vui lòng quay lại đúng lịch."
+              : "Đề đã đóng. Bạn không thể bắt đầu lượt làm mới.",
+            403,
+          );
+      };
+      checkWindow(now());
       if (accessCode) {
         const failures = await db
           .prepare(
@@ -509,8 +532,12 @@ export function makeQuizService(db, user, now = () => Date.now()) {
         revision: row.revision,
       };
       const id = crypto.randomUUID(),
-        startedAt = now(),
-        deadline = startedAt + quiz.durationMinutes * 60_000;
+        startedAt = now();
+      checkWindow(startedAt);
+      const deadline = Math.min(
+        startedAt + quiz.durationMinutes * 60_000,
+        quiz.closesAt || Infinity,
+      );
       const statements = [
         db
           .prepare(
@@ -854,7 +881,11 @@ export function makeQuizService(db, user, now = () => Date.now()) {
           .all();
         const access = candidates.results.some((row) => {
           const quiz = JSON.parse(row.body);
-          if (!row.is_attempt && quiz.accessCode) return false;
+          if (
+            !row.is_attempt &&
+            (quiz.accessCode || quizAvailability(quiz, now()) !== "open")
+          )
+            return false;
           const visible =
             row.reveal && quiz.revealAnswers ? quiz : publicQuiz(quiz);
           return fileIds(visible).includes(data.id);

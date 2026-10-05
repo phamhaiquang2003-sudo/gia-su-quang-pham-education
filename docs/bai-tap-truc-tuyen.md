@@ -30,6 +30,13 @@ PDF/Word (.doc, .docx)/PNG/JPG/WebP được tải trực tiếp, tối đa **1,
 - Có ảnh riêng thì nội dung chữ của lựa chọn/ý đó được để trống, hoặc dùng kết hợp chữ và ảnh. Vẫn chọn đáp án đúng / Đúng–Sai để chấm tự động.
 - Dán lại để thay ảnh, **Bỏ ảnh** chỉ gỡ ảnh của đúng lựa chọn đó. Ảnh hiển thị ở đúng lựa chọn trong **Xem trước** và khi học sinh làm bài; bản nháp, nhân bản câu và snapshot lượt làm đều giữ ảnh.
 
+### Giới hạn giờ mở / đóng đề (tùy chọn)
+
+- Trong **Thông tin đề**, đặt **Giờ mở đề** và **Giờ đóng đề** theo **giờ Việt Nam (UTC+7)**. Để trống cả hai ô để không giới hạn lịch; cũng có thể chỉ đặt một mốc. Bấm **Lưu nháp** hoặc **Xuất bản đề** để lưu. Nút **Bỏ giới hạn giờ** xóa cả hai mốc, sau đó cần lưu lại đề.
+- Trước giờ mở hoặc từ đúng giờ đóng trở đi, học sinh chưa có lượt làm không được bắt đầu và không được xem câu hỏi/tệp riêng của đề. Kho bài hiển thị lịch và trạng thái **Chưa đến giờ mở đề / Đang trong giờ làm bài / Đề đã đóng**. Giới hạn được kiểm tra trên máy chủ.
+- Khi bắt đầu, thời hạn lượt là mốc sớm hơn giữa **thời điểm bắt đầu + thời gian làm bài** và **giờ đóng đề**. Ví dụ đề 45 phút, đóng lúc 21:00, vào lúc 20:40 thì còn tối đa 20 phút. Hết hạn, hệ thống chỉ dùng nội dung đã lưu để chấm hoặc chuyển bài tự luận sang chờ gia sư chấm.
+- Lịch và thời hạn được cố định theo phiên bản của lượt đã bắt đầu. Sửa hoặc bỏ lịch áp dụng cho lượt mới; lịch sử và thời hạn của lượt đã bắt đầu được giữ. Sau giờ đóng vẫn xem được kết quả lượt đã nộp. Lượt làm lại cần nằm trong lịch mở hiện tại.
+
 ### Mật khẩu đề (tùy chọn)
 
 - Trong **Thông tin đề**, nhập **Mật khẩu đề (6 chữ số, tùy chọn)** bằng một mã do giáo viên tự chọn, ví dụ `038572`. Giữ nguyên cả số 0 ở đầu. Bấm **Lưu nháp** hoặc **Xuất bản đề** để lưu.
