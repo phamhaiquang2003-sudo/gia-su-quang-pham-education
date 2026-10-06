@@ -15,14 +15,6 @@ import { getProfileAvatar, quizApi } from "@/lib/quizzes";
 import { getSubject, subjectHref } from "@/lib/subjects";
 import { useAccount } from "@/lib/use-account";
 
-const progressColors: Record<string, string> = {
-  toan: "bg-sky-400",
-  "vat-ly": "bg-violet-400",
-  khtn: "bg-emerald-400",
-  "tsa-hsa-spt": "bg-amber-300",
-  "giai-tri": "bg-rose-400",
-};
-
 export default function ProfilePage() {
   const session = useAccount();
   const uid = session.profile?.uid;
@@ -263,68 +255,7 @@ export default function ProfilePage() {
             </article>
           ))}
         </section>
-        <div className="grid items-start gap-6 lg:grid-cols-2">
-          <section
-            className="exercise-panel p-6 sm:p-7"
-            aria-labelledby="profile-progress"
-          >
-            <h2 id="profile-progress" className="mb-6 text-lg font-semibold">
-              Tiến độ học tập
-            </h2>
-            {overview ? (
-              overview.progress.length ? (
-                <div className="space-y-6">
-                  {overview.progress.map((item) => {
-                    const subject = getSubject(item.subject);
-                    return (
-                      <div key={item.subject}>
-                        <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-                          <a
-                            href={subjectHref(subject.id)}
-                            className="font-medium hover:underline"
-                          >
-                            {subject.label}
-                          </a>
-                          <span className="text-slate-300">
-                            {item.percent}%
-                          </span>
-                        </div>
-                        <div
-                          role="progressbar"
-                          aria-label={`Tiến độ ${subject.label}`}
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                          aria-valuenow={item.percent}
-                          className="h-2 overflow-hidden rounded-full bg-white/10"
-                        >
-                          <div
-                            className={`h-full rounded-full ${progressColors[item.subject] || "bg-sky-400"}`}
-                            style={{ width: `${item.percent}%` }}
-                          />
-                        </div>
-                        <p className="mt-2 text-xs text-slate-300">
-                          {item.completed}/{item.total} bài đã hoàn thành
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-300">
-                  Chưa có bài tập được xuất bản.
-                </p>
-              )
-            ) : (
-              <p className="text-sm text-slate-300">
-                {loading ? "Đang tải tiến độ…" : "Chưa tải được tiến độ."}
-              </p>
-            )}
-            <p className="mt-6 border-t border-white/10 pt-4 text-xs leading-relaxed text-slate-400">
-              Tiến độ tính theo số đề đang xuất bản đã hoàn thành ít nhất một
-              lần. Thời gian làm bài tính từ lúc bắt đầu tới lúc nộp hoặc hết
-              giờ; chuỗi ngày dựa trên ngày bắt đầu làm bài theo giờ Việt Nam.
-            </p>
-          </section>
+        <div>
           <section
             className="exercise-panel p-6 sm:p-7"
             aria-labelledby="profile-history"
