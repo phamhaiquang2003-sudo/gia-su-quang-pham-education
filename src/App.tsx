@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { LoaderCircle, LockKeyhole, Menu, Pause, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { accountError, type AccountProfile } from "@/lib/accounts";
+import type { AccountProfile } from "@/lib/accounts";
+import AccountMenu, { AccountDetails } from "@/components/AccountMenu";
 import {
   getSubject,
   subjectHref,
@@ -47,8 +48,6 @@ export default function App({
   const [section, setSection] = useState<SubjectId>("toan");
   const selectedSubject = getSubject(section);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [logoutError, setLogoutError] = useState("");
   const greeting = profile ? `Xin chào, ${profile.displayName}` : "Đăng nhập";
   const desktopBreakpoint = profile ? "min-[1440px]:flex" : "lg:flex";
   const mobileBreakpoint = profile ? "min-[1440px]:hidden" : "lg:hidden";
@@ -58,19 +57,6 @@ export default function App({
     if (!profile) setAccountOpen(false);
   }, [profile]);
 
-  async function logout() {
-    if (!onLogout || loggingOut) return;
-    setLoggingOut(true);
-    setLogoutError("");
-    try {
-      await onLogout();
-    } catch (error) {
-      setLogoutError(accountError(error));
-    } finally {
-      setLoggingOut(false);
-    }
-  }
-
   function accountAction(hero = false) {
     const classes = hero
       ? "max-w-[calc(100vw-3rem)] whitespace-normal break-words"
@@ -78,15 +64,11 @@ export default function App({
     if (profile) {
       if (!hero) {
         return (
-          <Button
-            variant="glass"
-            size="glass"
-            className={classes}
-            onClick={() => void logout()}
-            disabled={loggingOut || !onLogout}
-          >
-            {loggingOut ? "Đang đăng xuất…" : "Đăng xuất"}
-          </Button>
+          <AccountMenu
+            profile={profile}
+            onLogout={onLogout}
+            className="max-sm:flex-1"
+          />
         );
       }
       return (
@@ -96,7 +78,6 @@ export default function App({
           className={classes}
           onClick={(event) => {
             accountTriggerRef.current = event.currentTarget;
-            setLogoutError("");
             setAccountOpen(true);
           }}
           aria-haspopup="dialog"
@@ -377,14 +358,6 @@ export default function App({
               </Button>
             </div>
           )}
-          {logoutError && !accountOpen && (
-            <p
-              role="alert"
-              className="mt-5 max-w-xl rounded-xl border border-white/20 bg-background/75 p-4 text-sm text-red-300 backdrop-blur-md"
-            >
-              {logoutError}
-            </p>
-          )}
         </main>
 
         <DialogContent
@@ -475,44 +448,14 @@ export default function App({
           )}
         </DialogContent>
       </Dialog>
-      <Dialog
-        open={accountOpen && Boolean(profile)}
-        onOpenChange={setAccountOpen}
-      >
-        <DialogContent
-          className="login-page"
-          onCloseAutoFocus={(event) => {
-            if (accountTriggerRef.current?.isConnected) {
-              event.preventDefault();
-              accountTriggerRef.current.focus();
-            }
-          }}
-        >
-          <DialogTitle className="break-words text-2xl">{greeting}</DialogTitle>
-          <DialogDescription className="break-words">
-            Bạn đang đăng nhập bằng tài khoản @{profile?.username}.
-          </DialogDescription>
-          {profile?.role === "admin" && (
-            <Button asChild variant="glass">
-              <a href={`${import.meta.env.BASE_URL}quan-tri.html`}>
-                Trang quản trị
-              </a>
-            </Button>
-          )}
-          {logoutError && (
-            <p role="alert" className="text-sm text-red-300">
-              {logoutError}
-            </p>
-          )}
-          <Button
-            variant="glass"
-            onClick={() => void logout()}
-            disabled={loggingOut || !onLogout}
-          >
-            {loggingOut ? "Đang đăng xuất…" : "Đăng xuất"}
-          </Button>
-        </DialogContent>
-      </Dialog>
+      {profile && (
+        <AccountDetails
+          profile={profile}
+          view={accountOpen ? "profile" : null}
+          onViewChange={(view) => setAccountOpen(Boolean(view))}
+          triggerRef={accountTriggerRef}
+        />
+      )}
     </>
   );
 }

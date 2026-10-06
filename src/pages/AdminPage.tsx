@@ -12,13 +12,13 @@ import {
   Eye,
   EyeOff,
   FileText,
-  LogOut,
   Plus,
   RefreshCw,
   Users,
 } from "lucide-react";
 import QuizAdmin from "@/components/QuizAdmin";
 import AccountGate from "@/components/AccountGate";
+import AccountMenu from "@/components/AccountMenu";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -180,17 +180,14 @@ export default function AdminPage() {
                 </p>
               </div>
             </div>
-            <button
-              className="account-button-secondary"
-              disabled={busy}
-              onClick={() =>
-                void session
-                  .logout()
-                  .catch((error) => setMessage(accountError(error)))
-              }
-            >
-              <LogOut className="size-4" /> Đăng xuất
-            </button>
+            {session.profile && (
+              <AccountMenu
+                profile={session.profile}
+                onLogout={() => session.logout()}
+                disabled={busy}
+                light
+              />
+            )}
           </header>
           <p className="mb-6 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-relaxed text-sky-900">
             {localAdminEnabled

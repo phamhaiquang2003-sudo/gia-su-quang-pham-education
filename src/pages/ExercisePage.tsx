@@ -5,7 +5,6 @@ import {
   FileText,
   LoaderCircle,
   LockKeyhole,
-  LogOut,
   RotateCcw,
   Search,
   SlidersHorizontal,
@@ -13,7 +12,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StarryBackground from "@/components/StarryBackground";
-import { accountError } from "@/lib/accounts";
 import {
   getSubject,
   subjectHref,
@@ -24,6 +22,7 @@ import { useAccount } from "@/lib/use-account";
 import { quizApi, quizHref, type QuizSummary } from "@/lib/quizzes";
 import QuizPlayer from "@/components/QuizPlayer";
 import QuizScheduleInfo from "@/components/QuizScheduleInfo";
+import AccountMenu from "@/components/AccountMenu";
 
 export default function ExercisePage() {
   const session = useAccount();
@@ -33,8 +32,6 @@ export default function ExercisePage() {
   const [search, setSearch] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   const [sort, setSort] = useState("newest");
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [logoutError, setLogoutError] = useState("");
   const [quizzes, setQuizzes] = useState<QuizSummary[]>([]);
   const [loadingQuizzes, setLoadingQuizzes] = useState(false);
   const [quizError, setQuizError] = useState("");
@@ -113,19 +110,6 @@ export default function ExercisePage() {
     setSort("newest");
   }
 
-  async function logout() {
-    if (loggingOut) return;
-    setLoggingOut(true);
-    setLogoutError("");
-    try {
-      await session.logout(import.meta.env.BASE_URL);
-    } catch (error) {
-      setLogoutError(accountError(error));
-    } finally {
-      setLoggingOut(false);
-    }
-  }
-
   if (session.loading || !session.profile) {
     return (
       <main className="exercise-page relative isolate flex min-h-svh items-center justify-center px-5 py-12">
@@ -188,7 +172,7 @@ export default function ExercisePage() {
   return (
     <main className="exercise-page relative isolate min-h-svh pb-12">
       <StarryBackground />
-      <header className="border-b border-white/15 bg-[#06132c]/65 backdrop-blur-md">
+      <header className="relative z-30 border-b border-white/15 bg-[#06132c]/65 backdrop-blur-md">
         <div className="mx-auto max-w-[1440px] px-4 sm:px-8">
           <div className="flex flex-wrap items-center justify-between gap-4 py-5">
             <a
@@ -210,24 +194,10 @@ export default function ExercisePage() {
                 </span>
               </div>
             </a>
-            <div className="flex min-w-0 flex-wrap items-center gap-3 sm:gap-5">
-              <p className="max-w-64 break-words text-sm text-slate-200">
-                Xin chào,{" "}
-                <span className="font-semibold text-white">
-                  {session.profile.displayName}
-                </span>
-              </p>
-              <Button
-                variant="glass"
-                size="glass"
-                onClick={() => void logout()}
-                disabled={loggingOut}
-                className="gap-2 px-4 text-sm"
-              >
-                <LogOut className="size-4" />
-                {loggingOut ? "Đang đăng xuất…" : "Đăng xuất"}
-              </Button>
-            </div>
+            <AccountMenu
+              profile={session.profile}
+              onLogout={() => session.logout(import.meta.env.BASE_URL)}
+            />
           </div>
           <nav
             aria-label="Điều hướng bài tập"
@@ -268,14 +238,6 @@ export default function ExercisePage() {
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-200 sm:text-base">
             {subject.description}
           </p>
-          {logoutError && (
-            <p
-              role="alert"
-              className="mt-4 rounded-xl border border-red-300/30 bg-red-950/50 p-4 text-sm text-red-200"
-            >
-              {logoutError}
-            </p>
-          )}
         </section>
 
         <div className="grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8">
