@@ -8,6 +8,7 @@
   "preview_urls": false,
   "vars": {
     "ALLOWED_ORIGIN": "https://phamhaiquang2003-sudo.github.io",
+    "ALLOWED_ORIGINS": "https://lumenpelagi.id.vn,https://www.lumenpelagi.id.vn",
   },
   "observability": { "enabled": false },
   "d1_databases": [

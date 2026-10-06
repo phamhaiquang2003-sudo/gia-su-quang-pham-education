@@ -134,6 +134,36 @@ test("partial failure retains locked profile and reservation; retry can finish a
   assert.deepEqual(f.calls, ["disable", "documents"]);
 });
 
+test("custom-domain CORS accepts only exact configured origins for account and quiz requests, retaining the original origin", async () => {
+  const handler = makeHandler();
+  const env = {
+    ALLOWED_ORIGIN: "https://phamhaiquang2003-sudo.github.io",
+    ALLOWED_ORIGINS: " https://lumenpelagi.id.vn, https://www.lumenpelagi.id.vn, ",
+  };
+  for (const path of ["/api/admin/manageStudent", "/api/quiz/profileOverview", "/api/quiz/start"]) {
+    for (const origin of [env.ALLOWED_ORIGIN, "https://lumenpelagi.id.vn", "https://www.lumenpelagi.id.vn"]) {
+      const preflight = await handler(new Request("https://worker.example" + path, {
+        method: "OPTIONS", headers: { Origin: origin, "Access-Control-Request-Method": "POST" },
+      }), env);
+      assert.equal(preflight.status, 204);
+      assert.equal(preflight.headers.get("Access-Control-Allow-Origin"), origin);
+      assert.equal(preflight.headers.get("Vary"), "Origin");
+      const anonymous = await handler(new Request("https://worker.example" + path, {
+        method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: "{}",
+      }), env);
+      assert.equal(anonymous.status, 401);
+      assert.equal(anonymous.headers.get("Access-Control-Allow-Origin"), origin);
+    }
+    for (const origin of ["http://lumenpelagi.id.vn", "https://lumenpelagi.id.vn.example", "https://sub.lumenpelagi.id.vn", "https://lumenpelagi.id.vn:444", "null", "https://another.example"]) {
+      const response = await handler(new Request("https://worker.example" + path, {
+        method: "OPTIONS", headers: { Origin: origin, "Access-Control-Request-Method": "POST" },
+      }), env);
+      assert.equal(response.status, 403);
+      assert.equal(response.headers.has("Access-Control-Allow-Origin"), false);
+    }
+  }
+});
+
 test("HTTP endpoint requires bearer identity, exact origin, JSON, small body, and returns sanitized failures", async () => {
   const f = fixture();
   const env = {
