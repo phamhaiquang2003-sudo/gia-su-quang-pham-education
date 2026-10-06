@@ -218,15 +218,15 @@ test("profile statistics use only own attempts, count retakes once in progress, 
     expiring = (await student.progress({ id: expiring.id, revision: expiring.revision, answers: golden })).attempt;
     now = expiring.deadlineAt + 1;
     const overview = await ownProfile.profileOverview({ uid: otherUser.uid });
-    assert.deepEqual(overview.stats, { studiedSubjects: 2, completedAttempts: 4, studyMilliseconds: 160000, streakDays: 3 });
+    assert.deepEqual(overview.stats, { studiedSubjects: 2, completedAttempts: 3, studyMilliseconds: 130000, streakDays: 2 });
     assert.deepEqual(overview.progress.find(row => row.subject === "toan"), { subject: "toan", total: 2, completed: 1, percent: 50 });
     assert.deepEqual(overview.progress.find(row => row.subject === "vat-ly"), { subject: "vat-ly", total: 1, completed: 1, percent: 100 });
-    assert.equal(overview.recent.length, 4);
+    assert.equal(overview.recent.length, 3);
     assert.equal(overview.recent.find(row => row.id === pending.id).status, "pending");
     assert.equal(overview.recent.find(row => row.id === pending.id).score, null);
     assert.equal(overview.recent.find(row => row.id === expiring.id).score, 10);
     assert.equal(overview.recent.find(row => row.id === expiring.id).submittedAt, expiring.deadlineAt);
-    assert.equal(overview.recent.find(row => row.id === first.id).isCurrent, false);
+    assert.equal(overview.recent.some(row => row.id === first.id), false);
     assert.equal(overview.recent.some(row => row.id === foreign.id), false);
     assert.equal(sqlite.prepare("SELECT submitted_at FROM quiz_attempts WHERE id=?").get(foreign.id).submitted_at, null);
     for (const row of overview.recent) for (const field of ["answers", "snapshot", "result", "acceptedAnswers", "user_uid"]) assert.equal(row[field], undefined);
@@ -707,12 +707,9 @@ test("private essay images autosave to their own question/attempt; submit waits 
       }),
       (e) => e.status === 403,
     );
-    assert.equal((await student.file({ id: fileId })).status, 200);
-    assert.equal(
-      (await teacher.results({ id })).attempts.find((old) => old.id === a.id)
-        .result.score,
-      9,
-    );
+    await assert.rejects(student.file({ id: fileId }), e => e.status === 404);
+    assert.equal((await teacher.results({ id })).attempts.some(old => old.id === a.id), false);
+    assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_attempts WHERE id=?").get(a.id).n, 0);
     await teacher.deleteQuiz({ id, revision: saved.quiz.revision });
     assert.equal(
       sqlite.prepare("SELECT COUNT(*) AS n FROM submission_file_links").get().n,
@@ -859,12 +856,12 @@ test("student uploads and removals are atomic across concurrent edits; WebP sign
     sqlite.close();
   }
 });
-function database() {
+function database(beforeMigration = "") {
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec("PRAGMA foreign_keys=ON;");
   const migrations = new URL("../migrations/", import.meta.url);
   for (const file of readdirSync(migrations)
-    .filter((file) => file.endsWith(".sql"))
+    .filter((file) => file.endsWith(".sql") && (!beforeMigration || file < beforeMigration))
     .sort())
     sqlite.exec(readFileSync(new URL(file, migrations), "utf8"));
   const db = {
@@ -1248,7 +1245,62 @@ test("retake migration preserves existing attempts, answers, results and attachm
   }
 });
 
-test("only the teacher can release a student's current attempt; history survives and retakes start blank with a fresh deadline and snapshot", async () => {
+test("retake cleanup migration deletes released results and exclusive attachments, retains current/shared files, and preserves next attempt numbers", async () => {
+  const { db, sqlite } = database("0006");
+  try {
+    const teacher = makeQuizService(db, adminUser);
+    const quiz = (await teacher.save({ quiz: fixture() })).quiz;
+    const insert = sqlite.prepare("INSERT INTO quiz_attempts(id,quiz_id,user_uid,display_name,username,user_role,snapshot,answers,result,started_at,deadline_at,submitted_at,attempt_number,is_current) VALUES(?,?,?,'Student','student','student',?,'{\"single\":\"B\"}',?,100,60100,200,?,?)");
+    const result = JSON.stringify(grade(fixture(), { single: "B" }));
+    insert.run("released-one", quiz.id, "released", JSON.stringify(fixture()), result, 1, 0);
+    insert.run("released-three", quiz.id, "released", JSON.stringify(fixture()), result, 3, 0);
+    insert.run("current", quiz.id, "active", JSON.stringify(fixture()), result, 2, 1);
+    const before = sqlite.prepare("SELECT * FROM quiz_attempts WHERE id='current'").get();
+    for (const id of ["exclusive-snapshot", "exclusive-submission", "shared-published", "shared-current"]) {
+      sqlite.prepare("INSERT INTO quiz_files(id,owner_uid,name,mime,data,created_at) VALUES(?,'teacher',?,'image/png',?,100)").run(id, id, submissionPng);
+    }
+    sqlite.exec("INSERT INTO attempt_file_links VALUES('released-one','exclusive-snapshot'),('released-three','shared-published'),('released-three','shared-current'),('current','shared-current'); INSERT INTO submission_file_links VALUES('released-one','essay','exclusive-submission');");
+    sqlite.prepare("INSERT INTO quiz_file_links VALUES(?,'shared-published')").run(quiz.id);
+    sqlite.exec("BEGIN");
+    sqlite.exec(readFileSync(new URL("../migrations/0006_delete_retake_results.sql", import.meta.url), "utf8"));
+    sqlite.exec("COMMIT");
+    assert.deepEqual(sqlite.prepare("SELECT * FROM quiz_attempts").all(), [before]);
+    assert.deepEqual(sqlite.prepare("SELECT id FROM quiz_files ORDER BY id").all().map(row => row.id), ["shared-current", "shared-published"]);
+    assert.equal((await makeQuizService(db, { ...studentUser, uid: "released" }).detail({ id: quiz.id })).nextAttemptNumber, 4);
+    assert.equal((await makeQuizService(db, { ...studentUser, uid: "released" }).start({ id: quiz.id })).attempt.attemptNumber, 4);
+    assert.deepEqual(sqlite.prepare("PRAGMA foreign_key_check").all(), []);
+    await teacher.deleteQuiz({ id: quiz.id, revision: quiz.revision });
+    assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_attempt_counters").get().n, 0);
+  } finally { sqlite.close(); }
+});
+
+test("retake deletion rejects a concurrent autosave without deleting data or files; retry atomically removes the attempt and keeps shared question images", async () => {
+  const { db, sqlite } = database();
+  try {
+    const teacher = makeQuizService(db, adminUser), student = makeQuizService(db, studentUser);
+    const uploaded = await teacher.upload(teacherUpload(submissionPng, "image/png", "shared.png"));
+    const quiz = (await teacher.save({ quiz: { ...essayFixture(), questions: essayFixture().questions.map(q => ({ ...q, imageId: uploaded.file.id })) } })).quiz;
+    let attempt = (await student.start({ id: quiz.id })).attempt;
+    attempt = (await student.submissionUpload(workUpload(attempt, "essay-one"))).attempt;
+    const privateImage = attempt.answers["essay-one"].imageIds[0];
+    let raced = false;
+    const concurrentTeacher = makeQuizService({ ...db, async batch(statements) {
+      if (!raced) { raced = true; sqlite.prepare("UPDATE quiz_attempts SET revision=revision+1 WHERE id=?").run(attempt.id); }
+      return db.batch(statements);
+    } }, adminUser);
+    await assert.rejects(concurrentTeacher.allowRetake({ id: attempt.id }), e => e.status === 409);
+    assert.ok(sqlite.prepare("SELECT id FROM quiz_attempts WHERE id=?").get(attempt.id));
+    assert.equal((await student.file({ id: privateImage })).status, 200);
+    await teacher.allowRetake({ id: attempt.id });
+    assert.equal(sqlite.prepare("SELECT id FROM quiz_attempts WHERE id=?").get(attempt.id), undefined);
+    await assert.rejects(student.file({ id: privateImage }), e => e.status === 404);
+    assert.equal((await teacher.file({ id: uploaded.file.id })).status, 200);
+    assert.deepEqual((await student.start({ id: quiz.id })).attempt.answers, {});
+    assert.deepEqual(sqlite.prepare("PRAGMA foreign_key_check").all(), []);
+  } finally { sqlite.close(); }
+});
+
+test("only the teacher can delete a student's current attempt for a retake; other students survive and numbering, blank answers and fresh snapshots are preserved", async () => {
   const { db, sqlite } = database();
   let now = 1_000_000;
   try {
@@ -1308,7 +1360,7 @@ test("only the teacher can release a student's current attempt; history survives
         answers: { single: "A" },
         flagged: [],
       }),
-      (e) => e.status === 409,
+      (e) => e.status === 404,
     );
     await assert.rejects(
       student.submit({
@@ -1317,14 +1369,11 @@ test("only the teacher can release a student's current attempt; history survives
         answers: {},
         flagged: [],
       }),
-      (e) => e.status === 409,
+      (e) => e.status === 404,
     );
     const history = await teacher.results({ id: quiz.id });
-    const old = history.attempts.find((a) => a.id === first.attempt.id);
-    assert.equal(old.isCurrent, false);
-    assert.equal(old.result.score, submitted.attempt.result.score);
-    assert.equal(old.result.details[0].expected, "B");
-    assert.deepEqual(old.flagged, ["tf"]);
+    assert.equal(history.attempts.some(a => a.id === first.attempt.id), false);
+    assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_attempts WHERE id=?").get(first.attempt.id).n, 0);
     const secondSubmitted = await student.submit({
       id: second.attempt.id,
       revision: 0,
@@ -1332,12 +1381,18 @@ test("only the teacher can release a student's current attempt; history survives
       flagged: [],
     });
     assert.equal(secondSubmitted.attempt.result.details[0].expected, "A");
+    await teacher.allowRetake({ id: second.attempt.id });
+    const third = await student.start({ id: quiz.id });
+    assert.equal(third.attempt.attemptNumber, 3);
+    assert.deepEqual(third.attempt.answers, {});
+    await teacher.allowRetake({ id: second.attempt.id });
+    assert.equal((await student.start({ id: quiz.id })).attempt.id, third.attempt.id);
   } finally {
     sqlite.close();
   }
 });
 
-test("granting a retake closes an in-progress attempt using only saved answers; repeated grants do not grant unlimited retries", async () => {
+test("granting a retake deletes an in-progress attempt and saved answers; repeated grants do not grant unlimited retries", async () => {
   const { db, sqlite } = database();
   let now = 1_000_000;
   try {
@@ -1355,9 +1410,8 @@ test("granting a retake closes an in-progress attempt using only saved answers; 
     await teacher.allowRetake({ id: first.attempt.id });
     await teacher.allowRetake({ id: first.attempt.id });
     const history = await teacher.results({ id: quiz.id });
-    assert.equal(history.attempts.length, 1);
-    assert.equal(history.attempts[0].result.score, 2.5);
-    assert.equal(history.attempts[0].submittedAt, now);
+    assert.equal(history.attempts.length, 0);
+    assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_attempts").get().n, 0);
     const second = await student.start({ id: quiz.id });
     assert.equal(second.attempt.attemptNumber, 2);
     assert.equal(
@@ -1399,9 +1453,9 @@ test("permanent deletion removes all attempts and exclusive old/current files, p
     };
     const { quiz } = await teacher.save({ quiz: input });
     const first = await student.start({ id: quiz.id });
-    await teacher.allowRetake({ id: first.attempt.id });
     const current = { ...input, documentIds: [shared, newFile] };
     await teacher.save({ id: quiz.id, revision: 1, quiz: current });
+    await teacher.allowRetake({ id: first.attempt.id });
     const second = await student.start({ id: quiz.id });
     const { quiz: keeper } = await teacher.save({
       quiz: { ...fixture(), mode: "document", documentIds: [shared] },

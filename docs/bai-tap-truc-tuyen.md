@@ -54,7 +54,7 @@ PDF/Word (.doc, .docx)/PNG/JPG/WebP được tải trực tiếp, tối đa **1,
 4. Học sinh bắt đầu lượt làm, nhập bài giải hoặc tải nhiều ảnh bài viết tay từ máy tính/điện thoại. Có thể dán ảnh vào vùng trả lời. Mỗi lượt tối đa **20 ảnh PNG/JPG/WebP**, mỗi ảnh dưới **1,8 MB**; ảnh lớn tự nén. Ảnh được lưu trên máy chủ ngay khi tải thành công, có thể gỡ trước khi nộp. Văn bản tự lưu/khôi phục như bài trắc nghiệm.
 5. Sau khi nộp hoặc hết giờ, bài được khóa với trạng thái **Đã nộp bài · Chờ gia sư chấm**, chưa hiển thị điểm. Hệ thống không tự chấm bài tự luận.
 6. Giáo viên mở **Danh sách đề → Kết quả học sinh → Xem bài và chấm điểm**, xem ảnh/nội dung, nhập **Điểm (thang 10)** và **Nhận xét của gia sư**, bấm **Lưu điểm và nhận xét**. Có thể chỉnh điểm sau đó.
-7. Học sinh mở lại đề hoặc bấm **Cập nhật điểm và nhận xét** để xem điểm và nhận xét. Gia sư có thể cấp lượt làm lại; bài cũ và điểm được giữ trong lịch sử, lượt mới trống và dùng đề hiện tại.
+7. Học sinh mở lại đề hoặc bấm **Cập nhật điểm và nhận xét** để xem điểm và nhận xét. Gia sư có thể cấp lượt làm lại; lượt cũ, đáp án, điểm và ảnh bài nộp được xóa, lượt mới trống và dùng đề hiện tại. Số lượt tiếp tục tăng dù kết quả cũ đã xóa.
 
 Ảnh bài nộp chỉ học sinh sở hữu lượt làm và quản trị được đọc. Xóa vĩnh viễn đề xóa cả ảnh bài nộp và lịch sử của đề đó. Các ảnh đề dùng chung vẫn được giữ.
 
@@ -106,4 +106,4 @@ npx wrangler d1 migrations apply phq-education-exercises --remote
 npm run deploy
 ```
 
-Frontend triển khai qua GitHub Actions khi push `main`. Migration ở `worker/migrations/`: `0001_quizzes.sql` tạo kho, `0002_quiz_retakes.sql` giữ lịch sử và cho phép cấp thêm lượt, `0003_quiz_access_codes.sql` giới hạn số lần nhập sai mật khẩu theo tài khoản/đề. Áp dụng migration trước khi triển khai Worker mới. Kiểm thử dùng SQLite thật để xác minh truy vấn, snapshot, quyền truy cập, chấm điểm, hạn nộp và tính lặp an toàn. D1, Worker và Firebase đều chịu hạn mức gói miễn phí tương ứng.
+Frontend triển khai qua GitHub Actions khi push `main`. Migration ở `worker/migrations/`: `0001_quizzes.sql` tạo kho, `0002_quiz_retakes.sql` cho phép cấp thêm lượt, `0003_quiz_access_codes.sql` giới hạn số lần nhập sai mật khẩu theo tài khoản/đề; `0006_delete_retake_results.sql` xóa các lượt đã cấp làm lại trước đây và giữ bộ đếm số lượt. Áp dụng migration trước khi triển khai Worker mới. Kiểm thử dùng SQLite thật để xác minh truy vấn, snapshot, quyền truy cập, chấm điểm, hạn nộp và tính lặp an toàn. D1, Worker và Firebase đều chịu hạn mức gói miễn phí tương ứng.

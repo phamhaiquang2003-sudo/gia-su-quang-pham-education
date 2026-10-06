@@ -244,7 +244,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
     const name = attempt.displayName || attempt.username || "tài khoản này";
     if (
       !window.confirm(
-        `Cho phép ${name} làm lại đề này?\n\nLượt cũ và điểm được giữ trong lịch sử. Nếu đang làm, lượt cũ sẽ được kết thúc và chấm theo đáp án đã lưu. Lượt mới bắt đầu với đáp án trống khi học sinh bấm “Bắt đầu làm bài”, theo thời gian làm bài và lịch mở / đóng đề hiện tại.`,
+        `Cho phép ${name} làm lại đề này?\n\nLượt cũ, đáp án, điểm và ảnh bài nộp sẽ được xóa. Lượt mới bắt đầu với đáp án trống khi học sinh bấm “Bắt đầu làm bài”, theo thời gian làm bài và lịch mở / đóng đề hiện tại.`,
       )
     )
       return;
@@ -257,7 +257,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
       setAttempts(data.attempts);
       setSelected(null);
       setMessage(
-        `Đã cho phép ${name} làm lại. Học sinh tải lại trang đề rồi bấm “Bắt đầu làm bài”. Lượt cũ vẫn được giữ.`,
+        `Đã xóa lượt cũ và cho phép ${name} làm lại. Học sinh tải lại trang đề rồi bấm “Bắt đầu làm bài”.`,
       );
     });
   }
@@ -1306,7 +1306,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
             <div>
               <h3 className="font-semibold">Kết quả: {resultQuiz.title}</h3>
               <p className="mt-1 text-xs text-slate-500">
-                Tối đa 200 lượt gần nhất · Giữ lịch sử các lượt làm lại
+                Tối đa 200 lượt gần nhất · Cấp lượt làm lại sẽ xóa kết quả cũ
               </p>
             </div>
             <button
