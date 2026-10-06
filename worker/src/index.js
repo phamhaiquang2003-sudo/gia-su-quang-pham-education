@@ -23,14 +23,7 @@ export function makeHandler({
     };
     const respond = (data, status = 200) =>
       new Response(JSON.stringify(data), { status, headers });
-    const allowedOrigins = new Set([
-      env.ALLOWED_ORIGIN,
-      ...(env.ALLOWED_ORIGINS || "")
-        .split(",")
-        .map((value) => value.trim())
-        .filter(Boolean),
-    ]);
-    if (origin && !allowedOrigins.has(origin))
+    if (origin && origin !== env.ALLOWED_ORIGIN)
       return respond(
         {
           error: {
