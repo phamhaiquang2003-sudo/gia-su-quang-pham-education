@@ -86,6 +86,7 @@ Mở `quan-tri.html` trên website và đăng nhập bằng tài khoản quản 
 - **Khóa (công cụ local):** đổi trạng thái Firestore ngay để thu hồi quyền, khóa Auth và thu hồi refresh token.
 - **Mở khóa (công cụ local):** mở Auth rồi kích hoạt hồ sơ.
 - **Cấp lại mật khẩu (công cụ local):** cập nhật Auth và thu hồi refresh token. ID token hiện có có thể còn hợp lệ đến khi hết hạn; nếu cần chặn truy cập ngay, khóa tài khoản trước.
+- **Tự đổi mật khẩu:** mở menu tên tài khoản → **Tài khoản** → **Đổi mật khẩu**, nhập mật khẩu hiện tại và mật khẩu mới (8–128 ký tự), bấm **Lưu mật khẩu mới**. Firebase xác nhận mật khẩu hiện tại rồi cập nhật mật khẩu của chính người đang đăng nhập. Sau khi thành công, dùng mật khẩu mới ở lần đăng nhập tiếp theo. Biểu mẫu không lưu mật khẩu trong Firestore, localStorage hay sessionStorage; tên hiển thị và tên đăng nhập nằm trong phần **Thông tin tài khoản**.
 - **Xóa (online hoặc công cụ local):** khóa hồ sơ, xóa tài khoản Auth, hồ sơ và giữ chỗ tên đăng nhập. Trên website bấm **Xóa tài khoản → Xác nhận**, không cần mở `.bat`. Giai đoạn này chưa có bài làm; khi thêm bài làm cần quyết định chính sách giữ lịch sử trước khi mở rộng thao tác xóa.
 
 Kết quả tạo hàng loạt được báo riêng từng dòng. Firebase có thể giới hạn tốc độ tạo tài khoản; chia danh sách thành nhóm nhỏ và thử lại sau nếu gặp giới hạn. Nếu cấp hồ sơ bị từ chối, hệ thống cố gắng xóa tài khoản Auth vừa tạo. Khi kết nối mất khiến kết quả chưa xác định, tải lại danh sách trước; chỉ dọn tài khoản Auth chưa có hồ sơ qua Console/công cụ local khi đã kiểm tra rõ.

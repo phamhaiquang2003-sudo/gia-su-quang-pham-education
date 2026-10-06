@@ -2,10 +2,13 @@ import { FirebaseError } from "firebase/app";
 import {
   browserLocalPersistence,
   browserSessionPersistence,
+  EmailAuthProvider,
   getIdTokenResult,
+  reauthenticateWithCredential,
   setPersistence,
   signInWithEmailAndPassword,
   signOut,
+  updatePassword,
   type User,
 } from "firebase/auth";
 import { doc, getDoc, type Timestamp } from "firebase/firestore";
@@ -104,6 +107,13 @@ export function accountError(error: unknown): string {
         return "Tên đăng nhập hoặc mật khẩu không đúng.";
       case "auth/user-disabled":
         return "Tài khoản đã bị khóa. Vui lòng liên hệ giáo viên.";
+      case "auth/weak-password":
+      case "auth/password-does-not-meet-requirements":
+        return "Mật khẩu mới chưa đáp ứng yêu cầu bảo mật. Hãy chọn mật khẩu mạnh hơn.";
+      case "auth/requires-recent-login":
+      case "auth/user-token-expired":
+      case "auth/invalid-user-token":
+        return "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại rồi thử lại.";
       case "auth/too-many-requests":
       case "functions/resource-exhausted":
         return "Có quá nhiều yêu cầu. Vui lòng thử lại sau.";
@@ -180,6 +190,37 @@ export function accountDestination(profile: AccountProfile) {
   return profile.role === "admin"
     ? `${import.meta.env.BASE_URL}quan-tri.html`
     : import.meta.env.BASE_URL;
+}
+
+export async function changeOwnPassword(
+  uid: string,
+  currentPassword: string,
+  newPassword: string,
+) {
+  const { auth } = getFirebase();
+  const user = auth.currentUser;
+  if (!user || user.uid !== uid || !user.email)
+    throw new Error("Phiên đăng nhập đã thay đổi. Vui lòng đăng nhập lại.");
+  if (!currentPassword)
+    throw new Error("Hãy nhập mật khẩu hiện tại.");
+  if (newPassword.length < 8 || newPassword.length > 128)
+    throw new Error("Mật khẩu mới cần từ 8 đến 128 ký tự.");
+  try {
+    await reauthenticateWithCredential(
+      user,
+      EmailAuthProvider.credential(user.email, currentPassword),
+    );
+  } catch (error) {
+    if (
+      error instanceof FirebaseError &&
+      ["auth/invalid-credential", "auth/wrong-password"].includes(error.code)
+    )
+      throw new Error("Mật khẩu hiện tại không đúng.");
+    throw error;
+  }
+  if (auth.currentUser?.uid !== user.uid)
+    throw new Error("Phiên đăng nhập đã thay đổi. Vui lòng đăng nhập lại.");
+  await updatePassword(user, newPassword);
 }
 
 export async function createStudents(students: NewStudent[]) {

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { ChevronDown, LogOut, Settings, UserRound } from "lucide-react";
 import { accountError, type AccountProfile } from "@/lib/accounts";
+import AccountSettings from "./AccountSettings";
 import {
   Dialog,
   DialogContent,
@@ -47,40 +48,30 @@ export function AccountDetails({
             ? "Thông tin tài khoản đăng nhập của bạn."
             : "Thông tin cá nhân do giáo viên cấp trong hệ thống PHQ Education."}
         </DialogDescription>
-        <dl className="mt-6 space-y-4 text-sm">
-          {(view === "account"
-            ? [
-                ["Tên đăng nhập", `@${profile.username}`],
-                ["Vai trò", roleLabel(profile)],
-                [
-                  "Trạng thái",
-                  profile.status === "active" ? "Đang hoạt động" : "Đã khóa",
-                ],
-              ]
-            : [
-                ["Họ và tên", profile.displayName],
-                ["Vai trò", roleLabel(profile)],
-                ...(profile.createdAt?.toDate
-                  ? [[
+        {view === "account" ? (
+          <AccountSettings key={profile.uid} profile={profile} light={light} />
+        ) : (
+          <dl className="mt-6 space-y-4 text-sm">
+            {[
+              ["Họ và tên", profile.displayName],
+              ["Vai trò", roleLabel(profile)],
+              ...(profile.createdAt?.toDate
+                ? [
+                    [
                       "Ngày cấp tài khoản",
                       profile.createdAt.toDate().toLocaleDateString("vi-VN", {
                         timeZone: "Asia/Ho_Chi_Minh",
                       }),
-                    ]]
-                  : []),
-              ]
-          ).map(([label, value]) => (
-            <div key={label} className="rounded-xl border border-current/15 p-4">
-              <dt className="mb-1 text-xs opacity-70">{label}</dt>
-              <dd className="break-words font-semibold">{value}</dd>
-            </div>
-          ))}
-        </dl>
-        {view === "account" && (
-          <p className="mt-5 text-sm leading-relaxed opacity-75">
-            Cần chỉnh sửa thông tin hoặc cấp lại mật khẩu? Liên hệ giáo viên
-            quản lý tài khoản.
-          </p>
+                    ],
+                  ]
+                : []),
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl border border-current/15 p-4">
+                <dt className="mb-1 text-xs opacity-70">{label}</dt>
+                <dd className="break-words font-semibold">{value}</dd>
+              </div>
+            ))}
+          </dl>
         )}
         {profile.role === "admin" && (
           <a
