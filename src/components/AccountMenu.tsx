@@ -199,7 +199,7 @@ export default function AccountMenu({
             focusItem(event.key === "ArrowUp");
           }
         }}
-        className={`flex max-w-full items-center gap-2.5 rounded-2xl px-2 py-1.5 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sky-300 disabled:opacity-60 ${light ? "text-[#002b42] hover:bg-slate-200/60" : "text-white hover:bg-white/10"}`}
+        className={`flex min-h-11 max-w-full cursor-pointer items-center gap-2.5 rounded-full px-6 py-2.5 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sky-300 disabled:opacity-60 ${light ? "border border-slate-200 bg-white text-[#002b42] hover:bg-slate-100" : "liquid-glass text-white hover:bg-white/10"}`}
       >
         <span className="min-w-0 max-w-48">
           <span className="block truncate text-sm font-semibold sm:text-base">
