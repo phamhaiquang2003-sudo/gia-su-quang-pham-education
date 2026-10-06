@@ -2,7 +2,7 @@
 
 Mở menu tên tài khoản → **Hồ sơ cá nhân** để truy cập `ho-so.html`. Trang yêu cầu đăng nhập, dùng nền đêm sao và hiển thị dữ liệu của chính tài khoản đang sử dụng.
 
-- Thẻ thông tin hiển thị họ tên, vai trò và tên đăng nhập. **Tải ảnh đại diện** nhận PNG/JPG/WebP, tự cắt giữa ảnh thành hình vuông 256×256 và nén JPEG trước khi lưu. Ảnh lưu trên Cloudflare D1 Free và được giữ khi mở bằng thiết bị khác.
+- Thẻ thông tin hiển thị họ tên, vai trò, tên đăng nhập và ảnh đại diện đã lưu hoặc chữ cái đầu của tên. Trang hồ sơ không có nút thay đổi ảnh đại diện.
 - **Số môn đã học** là số môn có lượt làm bài. **Số bài đã làm** là số lượt đã nộp, gồm cả lượt làm lại và tự luận chờ chấm.
 - **Thời gian làm bài** cộng thời gian từ lúc bắt đầu đến lúc nộp hoặc hết giờ; không phải thời gian theo dõi hoạt động trên trình duyệt.
 - **Chuỗi ngày học** đếm những ngày bắt đầu làm bài liên tiếp theo giờ Việt Nam, với ngày gần nhất là hôm nay hoặc hôm qua.
