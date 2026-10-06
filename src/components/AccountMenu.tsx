@@ -223,7 +223,7 @@ export default function AccountMenu({
             id={menuId}
             role="menu"
             aria-label="Menu tài khoản"
-            className="rounded-2xl border border-slate-200 bg-white p-2 text-[#002b42] shadow-xl"
+            className={`rounded-2xl p-2 shadow-xl ${light ? "border border-slate-200/50 bg-white/10 text-[#002b42] backdrop-blur-sm" : "liquid-glass text-white text-shadow-sm"}`}
             onKeyDown={(event) => {
               if (event.key === "Tab") {
                 setOpen(false);
@@ -258,30 +258,33 @@ export default function AccountMenu({
                 type="button"
                 role="menuitem"
                 tabIndex={-1}
-                className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm hover:bg-slate-100 focus:bg-slate-100 focus:outline-none"
+                className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm focus:outline-none ${light ? "hover:bg-slate-200/30 focus:bg-slate-200/30" : "hover:bg-white/10 focus:bg-white/10"}`}
                 onClick={() => {
                   setOpen(false);
                   setView(target);
                 }}
               >
-                <Icon aria-hidden="true" className="size-4 text-slate-500" />
+                <Icon
+                  aria-hidden="true"
+                  className={`size-4 ${light ? "text-slate-500" : "text-white/75"}`}
+                />
                 {label}
               </button>
             ))}
-            <div className="my-1 border-t border-slate-100" />
+            <div className={`my-1 border-t ${light ? "border-slate-200/50" : "border-white/15"}`} />
             <button
               type="button"
               role="menuitem"
               tabIndex={-1}
               disabled={unavailable || !onLogout}
               onClick={() => void logout()}
-              className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-red-700 hover:bg-red-50 focus:bg-red-50 focus:outline-none disabled:opacity-50"
+              className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm focus:outline-none disabled:opacity-50 ${light ? "text-red-700 hover:bg-red-100/30 focus:bg-red-100/30" : "text-red-300 hover:bg-red-300/10 focus:bg-red-300/10"}`}
             >
               <LogOut aria-hidden="true" className="size-4" />
               {loggingOut ? "Đang đăng xuất…" : "Đăng xuất"}
             </button>
             {error && (
-              <p role="alert" className="px-3 py-2 text-xs leading-relaxed text-red-700">
+              <p role="alert" className={`px-3 py-2 text-xs leading-relaxed ${light ? "text-red-700" : "text-red-200"}`}>
                 {error}
               </p>
             )}
