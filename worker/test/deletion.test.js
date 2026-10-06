@@ -134,6 +134,37 @@ test("partial failure retains locked profile and reservation; retry can finish a
   assert.deepEqual(f.calls, ["disable", "documents"]);
 });
 
+test("production Vercel and GitHub CORS accept exact origins while rejecting preview URLs, cancelled domains and anonymous requests", async () => {
+  const handler = makeHandler();
+  const env = {
+    ALLOWED_ORIGIN: "https://lumenpelagi.vercel.app",
+    ALLOWED_ORIGINS: " https://phamhaiquang2003-sudo.github.io, ",
+  };
+  const paths = ["/api/admin/manageStudent", "/api/quiz/start", "/api/quiz/profileOverview"];
+  for (const path of paths) {
+    for (const origin of [env.ALLOWED_ORIGIN, "https://phamhaiquang2003-sudo.github.io"]) {
+      const response = await handler(new Request("https://worker.example" + path, {
+        method: "OPTIONS", headers: { Origin: origin, "Access-Control-Request-Method": "POST" },
+      }), env);
+      assert.equal(response.status, 204);
+      assert.equal(response.headers.get("Access-Control-Allow-Origin"), origin);
+      assert.equal(response.headers.get("Vary"), "Origin");
+      const anonymous = await handler(new Request("https://worker.example" + path, {
+        method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: "{}",
+      }), env);
+      assert.equal(anonymous.status, 401);
+      assert.equal(anonymous.headers.get("Access-Control-Allow-Origin"), origin);
+    }
+    for (const origin of ["https://other.vercel.app", "https://lumenpelagi-preview.vercel.app", "https://lumenpelagi.id.vn", "https://www.lumenpelagi.id.vn", "https://lumenpelagi.vercel.app.example", "http://lumenpelagi.vercel.app", "https://lumenpelagi.vercel.app:444", "null"]) {
+      const response = await handler(new Request("https://worker.example" + path, {
+        method: "OPTIONS", headers: { Origin: origin, "Access-Control-Request-Method": "POST" },
+      }), env);
+      assert.equal(response.status, 403);
+      assert.equal(response.headers.has("Access-Control-Allow-Origin"), false);
+    }
+  }
+});
+
 test("HTTP endpoint requires bearer identity, exact origin, JSON, small body, and returns sanitized failures", async () => {
   const f = fixture();
   const env = {

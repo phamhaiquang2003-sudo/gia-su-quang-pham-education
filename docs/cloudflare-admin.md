@@ -8,7 +8,7 @@ Trang `quan-tri.html` có thể xóa đầy đủ tài khoản đăng nhập Fir
 - API: `https://phq-education-admin.lumenpelagi-phq.workers.dev/api/admin/manageStudent`.
 - Frontend dùng `src/lib/admin-config.ts`; `VITE_ADMIN_API_URL` có thể ghi đè địa chỉ dịch vụ khi build hoặc kiểm thử.
 - Endpoint quản lý tài khoản chỉ chấp nhận thao tác `delete`. Khóa/mở khóa và cấp lại mật khẩu vẫn dùng công cụ local. Worker cũng phục vụ `/api/quiz/*` cho bài tập trực tuyến; xem [hướng dẫn bài tập](bai-tap-truc-tuyen.md).
-- Origin cho phép: `https://phamhaiquang2003-sudo.github.io`, cấu hình tại `worker/wrangler.jsonc`. Khi đổi tên miền website, cần đổi origin và triển khai lại Worker.
+- Origin cho phép tại `worker/wrangler.jsonc`: `ALLOWED_ORIGIN` là `https://lumenpelagi.vercel.app`; `ALLOWED_ORIGINS` bổ sung `https://phamhaiquang2003-sudo.github.io`. Worker kiểm tra khớp chính xác và trả CORS cho origin tương ứng. Các URL preview Vercel không được cấp quyền tự động.
 
 ## Quyền và xử lý lỗi
 

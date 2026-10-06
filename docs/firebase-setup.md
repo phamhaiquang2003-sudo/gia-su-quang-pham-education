@@ -40,7 +40,7 @@ Sau khi cập nhật variable, vào Actions → Build and deploy PHQ Education �
 ## 2. Authentication
 
 - Bật Email/Password.
-- Authorized domains: `phamhaiquang2003-sudo.github.io`; thêm `localhost`, `127.0.0.1` cho phát triển nếu cần.
+- Authorized domains: `lumenpelagi.vercel.app`, `phamhaiquang2003-sudo.github.io`; thêm `localhost`, `127.0.0.1` cho phát triển nếu cần.
 - Học sinh `hs001` được tạo với email nội bộ `hs001@phq-education.firebaseapp.com`, nhưng chỉ cần nhập `hs001` trên website. Định danh này không phải hộp thư nhận thư khôi phục. Giáo viên cấp lại mật khẩu qua trang quản trị.
 - Tên đăng nhập: 3–32 ký tự chữ thường không dấu, chữ số, `_`, `-`; ký tự đầu là chữ hoặc số.
 - Mật khẩu: 8–128 ký tự; nếu Firebase có chính sách mạnh hơn, mật khẩu phải đáp ứng chính sách đó.

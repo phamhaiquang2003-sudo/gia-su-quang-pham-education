@@ -7,7 +7,8 @@
   "workers_dev": true,
   "preview_urls": false,
   "vars": {
-    "ALLOWED_ORIGIN": "https://phamhaiquang2003-sudo.github.io",
+    "ALLOWED_ORIGIN": "https://lumenpelagi.vercel.app",
+    "ALLOWED_ORIGINS": "https://phamhaiquang2003-sudo.github.io",
   },
   "observability": { "enabled": false },
   "d1_databases": [

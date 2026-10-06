@@ -2,7 +2,9 @@
 
 Website **PHQ Education / LumenPelagi®**: hero video, giao diện kính, đăng nhập học sinh, quản trị tài khoản bằng Firebase và bài tập trực tuyến chấm tự động.
 
-**Website:** https://phamhaiquang2003-sudo.github.io/gia-su-quang-pham-education/
+**Website:** https://lumenpelagi.vercel.app/
+
+Triển khai Vercel và kết nối dịch vụ: [docs/vercel.md](docs/vercel.md).
 
 ![Giao diện Velorah trên máy tính](docs/preview-desktop.png)
 
