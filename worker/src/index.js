@@ -2,6 +2,7 @@ import { makeDeletionService } from "./deletion-service.js";
 import { ServiceError } from "./errors.js";
 import { makeFirebase, verifyToken } from "./firebase.js";
 import { requireQuizUser } from "./quiz-auth.js";
+import { makeProfileService } from "./profile-service.js";
 import {
   makeQuizService,
   readLimitedBody,
@@ -107,7 +108,14 @@ export function makeHandler({
             "manualGrade",
           ].includes(quizOperation),
         );
-        const service = makeQuizService(env.QUIZ_DB, user);
+        const profileOperations = [
+          "profileOverview",
+          "profileAvatar",
+          "profileAvatarUpload",
+        ];
+        const service = profileOperations.includes(quizOperation)
+          ? makeProfileService(env.QUIZ_DB, user)
+          : makeQuizService(env.QUIZ_DB, user);
         const operations = [
           "list",
           "listAdmin",
@@ -127,11 +135,16 @@ export function makeHandler({
           "submissionUpload",
           "removeSubmissionFile",
           "manualGrade",
+          ...profileOperations,
         ];
         if (!operations.includes(quizOperation))
           throw new ServiceError("not-found", "Không tìm thấy chức năng.", 404);
         let data = {};
-        if (!["upload", "submissionUpload"].includes(quizOperation)) {
+        if (
+          !["upload", "submissionUpload", "profileAvatarUpload"].includes(
+            quizOperation,
+          )
+        ) {
           if (
             request.headers
               .get("Content-Type")
@@ -159,7 +172,9 @@ export function makeHandler({
             );
         }
         const result = await service[quizOperation](
-          ["upload", "submissionUpload"].includes(quizOperation)
+          ["upload", "submissionUpload", "profileAvatarUpload"].includes(
+            quizOperation,
+          )
             ? request
             : data,
         );

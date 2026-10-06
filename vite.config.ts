@@ -34,6 +34,7 @@ export default defineConfig(({ mode }) => {
           admin: fileURLToPath(new URL("./quan-tri.html", import.meta.url)),
           student: fileURLToPath(new URL("./hoc-sinh.html", import.meta.url)),
           exercises: fileURLToPath(new URL("./bai-tap.html", import.meta.url)),
+          profile: fileURLToPath(new URL("./ho-so.html", import.meta.url)),
         },
       },
     },

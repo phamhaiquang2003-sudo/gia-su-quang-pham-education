@@ -159,6 +159,14 @@ export async function quizApi<T>(
 ): Promise<T> {
   return (await request(operation, data)).json();
 }
+export async function getProfileAvatar() {
+  return (await request("profileAvatar", {})).blob();
+}
+export async function uploadProfileAvatar(file: File) {
+  return (await request("profileAvatarUpload", {}, file)).json() as Promise<{
+    avatarUpdatedAt: number;
+  }>;
+}
 export async function uploadQuizFile(file: File) {
   if (file.size > 1_800_000)
     throw new Error(

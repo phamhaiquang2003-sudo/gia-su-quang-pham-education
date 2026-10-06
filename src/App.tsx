@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { LoaderCircle, LockKeyhole, Menu, Pause, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AccountProfile } from "@/lib/accounts";
-import AccountMenu, { AccountDetails } from "@/components/AccountMenu";
+import AccountMenu from "@/components/AccountMenu";
 import {
   getSubject,
   subjectHref,
@@ -41,21 +41,15 @@ export default function App({
   const mobileDialogRef = useRef(false);
   const sectionTriggerRef = useRef<HTMLButtonElement | null>(null);
   const loginLinkRef = useRef<HTMLAnchorElement | null>(null);
-  const accountTriggerRef = useRef<HTMLButtonElement | null>(null);
   const manualPlaybackRef = useRef(false);
   const [playing, setPlaying] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
   const [section, setSection] = useState<SubjectId>("toan");
   const selectedSubject = getSubject(section);
-  const [accountOpen, setAccountOpen] = useState(false);
   const greeting = profile ? `Xin chào, ${profile.displayName}` : "Đăng nhập";
   const desktopBreakpoint = profile ? "min-[1440px]:flex" : "lg:flex";
   const mobileBreakpoint = profile ? "min-[1440px]:hidden" : "lg:hidden";
   const requiresLogin = !profile;
-
-  useEffect(() => {
-    if (!profile) setAccountOpen(false);
-  }, [profile]);
 
   function accountAction(hero = false) {
     const classes = hero
@@ -73,16 +67,12 @@ export default function App({
       }
       return (
         <Button
+          asChild
           variant="glass"
           size={hero ? "hero" : "glass"}
           className={classes}
-          onClick={(event) => {
-            accountTriggerRef.current = event.currentTarget;
-            setAccountOpen(true);
-          }}
-          aria-haspopup="dialog"
         >
-          {greeting}
+          <a href={`${import.meta.env.BASE_URL}ho-so.html`}>{greeting}</a>
         </Button>
       );
     }
@@ -448,14 +438,6 @@ export default function App({
           )}
         </DialogContent>
       </Dialog>
-      {profile && (
-        <AccountDetails
-          profile={profile}
-          view={accountOpen ? "profile" : null}
-          onViewChange={(view) => setAccountOpen(Boolean(view))}
-          triggerRef={accountTriggerRef}
-        />
-      )}
     </>
   );
 }

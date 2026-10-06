@@ -914,7 +914,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
   };
 }
 
-async function readUpload(request, imageOnly = false) {
+export async function readUpload(request, imageOnly = false) {
   const mime = request.headers.get("Content-Type")?.split(";")[0];
   const allowed = imageOnly
     ? ["image/png", "image/jpeg", "image/webp"]

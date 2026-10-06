@@ -13,6 +13,7 @@ import {
   fileIds,
 } from "../src/quiz-model.js";
 import { requireQuizUser } from "../src/quiz-auth.js";
+import { makeProfileService, studyStreak } from "../src/profile-service.js";
 import { DOC_MIME, DOCX_MIME } from "../src/word-files.js";
 
 const wordWorksheet = Buffer.from(
@@ -146,6 +147,107 @@ test("Word format checks accept legacy DOC signatures, reject unrelated/truncate
 
 // Run the real SQL against SQLite, including atomic batches and preconditions.
 const submissionPng = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1]);
+
+test("profile avatar is private to the authenticated account, persists/replaces one row, and rejects invalid formats and oversized uploads", async () => {
+  const { db, sqlite } = database();
+  let now = 1000;
+  try {
+    const student = makeProfileService(db, studentUser, () => now);
+    const other = makeProfileService(db, { ...studentUser, uid: "other-profile" }, () => now);
+    const teacher = makeProfileService(db, adminUser, () => now);
+    const empty = await student.profileOverview({ uid: "other-profile" });
+    assert.deepEqual(empty.stats, { studiedSubjects: 0, completedAttempts: 0, studyMilliseconds: 0, streakDays: 0 });
+    assert.deepEqual(empty.recent, []);
+    assert.equal(empty.hasAvatar, false);
+    await assert.rejects(student.profileAvatar(), error => error.status === 404);
+    await student.profileAvatarUpload(teacherUpload(submissionPng, "image/png", "avatar.png"));
+    const photo = await student.profileAvatar({ uid: "other-profile" });
+    assert.equal(photo.headers.get("Content-Type"), "image/png");
+    assert.equal(photo.headers.get("Cache-Control"), "no-store");
+    assert.equal(photo.headers.get("X-Content-Type-Options"), "nosniff");
+    assert.deepEqual(new Uint8Array(await photo.arrayBuffer()), submissionPng);
+    await assert.rejects(other.profileAvatar({ uid: studentUser.uid }), error => error.status === 404);
+    await assert.rejects(teacher.profileAvatar({ uid: studentUser.uid }), error => error.status === 404);
+    now = 2000;
+    const webp = new Uint8Array([82,73,70,70,255,255,255,128,87,69,66,80,1]);
+    await student.profileAvatarUpload(teacherUpload(webp, "image/webp", "avatar.webp"));
+    await other.profileAvatarUpload(teacherUpload(submissionPng, "image/png", "avatar.png"));
+    assert.deepEqual(new Uint8Array(await (await student.profileAvatar()).arrayBuffer()), webp);
+    assert.equal((await student.profileOverview()).avatarUpdatedAt, 2000);
+    assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM student_profiles").get().n, 2);
+    assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_files").get().n, 0);
+    const tooLarge = new Uint8Array(350001); tooLarge.set(submissionPng);
+    await assert.rejects(student.profileAvatarUpload(teacherUpload(tooLarge, "image/png")), error => error.status === 413);
+    await assert.rejects(student.profileAvatarUpload(teacherUpload("<svg></svg>", "image/svg+xml")));
+    await assert.rejects(student.profileAvatarUpload(teacherUpload(submissionPng, "image/jpeg")));
+    assert.deepEqual(new Uint8Array(await (await student.profileAvatar()).arrayBuffer()), webp);
+  } finally { sqlite.close(); }
+});
+
+test("profile statistics use only own attempts, count retakes once in progress, hide pending scores, preserve hidden-quiz history, and finish only own expired attempts", async () => {
+  const { db, sqlite } = database();
+  const day = 86400000;
+  let now = Date.UTC(2026, 9, 4, 2);
+  try {
+    const teacher = makeQuizService(db, adminUser, () => now);
+    const student = makeQuizService(db, studentUser, () => now);
+    const otherUser = { ...studentUser, uid: "other-history" };
+    const other = makeQuizService(db, otherUser, () => now);
+    const ownProfile = makeProfileService(db, studentUser, () => now);
+    const maths = (await teacher.save({ quiz: fixture() })).quiz;
+    const unusedMaths = (await teacher.save({ quiz: { ...fixture(), title: "Other student's quiz" } })).quiz;
+    const physics = (await teacher.save({ quiz: { ...fixture(), subject: "vat-ly" } })).quiz;
+    const manualInput = { ...essayFixture(), subject: "vat-ly" };
+    const manual = (await teacher.save({ quiz: manualInput })).quiz;
+    const golden = { single: "B", tf: [true, false, true, false], short: "0.5" };
+    let first = (await student.start({ id: maths.id })).attempt;
+    now += 30000;
+    await student.submit({ id: first.id, revision: first.revision, answers: golden });
+    await teacher.allowRetake({ id: first.id });
+    now = Date.UTC(2026, 9, 5, 2);
+    const second = (await student.start({ id: maths.id })).attempt;
+    now += 20000;
+    await student.submit({ id: second.id, revision: second.revision, answers: golden });
+    now = Date.UTC(2026, 9, 6, 2);
+    const pending = (await student.start({ id: manual.id })).attempt;
+    now += 50000;
+    await student.submit({ id: pending.id, revision: pending.revision, answers: {} });
+    await teacher.hide({ id: manual.id });
+    const foreign = (await other.start({ id: unusedMaths.id })).attempt;
+    let expiring = (await student.start({ id: physics.id })).attempt;
+    expiring = (await student.progress({ id: expiring.id, revision: expiring.revision, answers: golden })).attempt;
+    now = expiring.deadlineAt + 1;
+    const overview = await ownProfile.profileOverview({ uid: otherUser.uid });
+    assert.deepEqual(overview.stats, { studiedSubjects: 2, completedAttempts: 4, studyMilliseconds: 160000, streakDays: 3 });
+    assert.deepEqual(overview.progress.find(row => row.subject === "toan"), { subject: "toan", total: 2, completed: 1, percent: 50 });
+    assert.deepEqual(overview.progress.find(row => row.subject === "vat-ly"), { subject: "vat-ly", total: 1, completed: 1, percent: 100 });
+    assert.equal(overview.recent.length, 4);
+    assert.equal(overview.recent.find(row => row.id === pending.id).status, "pending");
+    assert.equal(overview.recent.find(row => row.id === pending.id).score, null);
+    assert.equal(overview.recent.find(row => row.id === expiring.id).score, 10);
+    assert.equal(overview.recent.find(row => row.id === expiring.id).submittedAt, expiring.deadlineAt);
+    assert.equal(overview.recent.find(row => row.id === first.id).isCurrent, false);
+    assert.equal(overview.recent.some(row => row.id === foreign.id), false);
+    assert.equal(sqlite.prepare("SELECT submitted_at FROM quiz_attempts WHERE id=?").get(foreign.id).submitted_at, null);
+    for (const row of overview.recent) for (const field of ["answers", "snapshot", "result", "acceptedAnswers", "user_uid"]) assert.equal(row[field], undefined);
+    const teacherProfile = await makeProfileService(db, adminUser, () => now).profileOverview({ uid: studentUser.uid });
+    assert.equal(teacherProfile.stats.completedAttempts, 0);
+    assert.deepEqual(teacherProfile.recent, []);
+    await teacher.manualGrade({ id: pending.id, revision: (await student.detail({ id: manual.id })).attempt.revision, score: 8.5, feedback: "Good" });
+    assert.equal((await ownProfile.profileOverview()).recent.find(row => row.id === pending.id).score, 8.5);
+  } finally { sqlite.close(); }
+});
+
+test("study streak uses Vietnam midnight, allows yesterday as the last active day, and breaks at gaps", () => {
+  const day = 86400000, midnight = Date.UTC(2026, 9, 5, 17);
+  const today = Math.floor((midnight + 25200000) / day);
+  assert.equal(studyStreak([today, today - 1, today - 2], midnight), 3);
+  assert.equal(studyStreak([today - 1, today - 2], midnight), 2);
+  assert.equal(studyStreak([today - 2], midnight), 0);
+  assert.equal(studyStreak([today, today - 2], midnight), 1);
+  assert.equal(studyStreak([today - 1, today - 2], midnight - 1), 2);
+  assert.equal(studyStreak([], midnight), 0);
+});
 function workUpload(
   attempt,
   questionId,

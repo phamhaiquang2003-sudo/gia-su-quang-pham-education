@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 
-type AccountView = "profile" | "account" | null;
+type AccountView = "account" | null;
 const roleLabel = (profile: AccountProfile) =>
   profile.role === "admin" ? "Quản trị viên" : "Học sinh";
 
@@ -41,37 +41,13 @@ export function AccountDetails({
         }}
       >
         <DialogTitle className="pr-8 text-2xl font-semibold">
-          {view === "account" ? "Tài khoản" : "Hồ sơ cá nhân"}
+          Tài khoản
         </DialogTitle>
         <DialogDescription>
-          {view === "account"
-            ? "Thông tin tài khoản đăng nhập của bạn."
-            : "Thông tin cá nhân do giáo viên cấp trong hệ thống PHQ Education."}
+          Thông tin tài khoản đăng nhập của bạn.
         </DialogDescription>
-        {view === "account" ? (
+        {view === "account" && (
           <AccountSettings key={profile.uid} profile={profile} light={light} />
-        ) : (
-          <dl className="mt-6 space-y-4 text-sm">
-            {[
-              ["Họ và tên", profile.displayName],
-              ["Vai trò", roleLabel(profile)],
-              ...(profile.createdAt?.toDate
-                ? [
-                    [
-                      "Ngày cấp tài khoản",
-                      profile.createdAt.toDate().toLocaleDateString("vi-VN", {
-                        timeZone: "Asia/Ho_Chi_Minh",
-                      }),
-                    ],
-                  ]
-                : []),
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-xl border border-current/15 p-4">
-                <dt className="mb-1 text-xs opacity-70">{label}</dt>
-                <dd className="break-words font-semibold">{value}</dd>
-              </div>
-            ))}
-          </dl>
         )}
         {profile.role === "admin" && (
           <a
@@ -122,7 +98,7 @@ export default function AccountMenu({
   function focusItem(last = false) {
     setOpen(true);
     requestAnimationFrame(() => {
-      const items = menuRef.current?.querySelectorAll<HTMLButtonElement>(
+      const items = menuRef.current?.querySelectorAll<HTMLElement>(
         "[role=menuitem]:not(:disabled)",
       );
       items?.[last ? items.length - 1 : 0]?.focus();
@@ -224,45 +200,68 @@ export default function AccountMenu({
                 return;
               event.preventDefault();
               const items = Array.from(
-                event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                event.currentTarget.querySelectorAll<HTMLElement>(
                   "[role=menuitem]:not(:disabled)",
                 ),
               );
               const index = items.indexOf(
-                document.activeElement as HTMLButtonElement,
+                document.activeElement as HTMLElement,
               );
               const next =
                 event.key === "Home"
                   ? 0
                   : event.key === "End"
                     ? items.length - 1
-                    : (index + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+                    : (index +
+                        (event.key === "ArrowDown" ? 1 : -1) +
+                        items.length) %
+                      items.length;
               items[next]?.focus();
             }}
           >
-            {([
-              ["profile", "Hồ sơ cá nhân", UserRound],
-              ["account", "Tài khoản", Settings],
-            ] as const).map(([target, label, Icon]) => (
-              <button
-                key={target}
-                type="button"
-                role="menuitem"
-                tabIndex={-1}
-                className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm focus:outline-none ${light ? "hover:bg-slate-200/30 focus:bg-slate-200/30" : "hover:bg-white/10 focus:bg-white/10"}`}
-                onClick={() => {
-                  setOpen(false);
-                  setView(target);
-                }}
-              >
-                <Icon
-                  aria-hidden="true"
-                  className={`size-4 ${light ? "text-slate-500" : "text-white/75"}`}
-                />
-                {label}
-              </button>
-            ))}
-            <div className={`my-1 border-t ${light ? "border-slate-200/50" : "border-white/15"}`} />
+            {(
+              [
+                ["profile", "Hồ sơ cá nhân", UserRound],
+                ["account", "Tài khoản", Settings],
+              ] as const
+            ).map(([target, label, Icon]) =>
+              target === "profile" ? (
+                <a
+                  key={target}
+                  href={`${import.meta.env.BASE_URL}ho-so.html`}
+                  role="menuitem"
+                  tabIndex={-1}
+                  className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm focus:outline-none ${light ? "hover:bg-slate-200/30 focus:bg-slate-200/30" : "hover:bg-white/10 focus:bg-white/10"}`}
+                >
+                  <Icon
+                    aria-hidden="true"
+                    className={`size-4 ${light ? "text-slate-500" : "text-white/75"}`}
+                  />
+                  {label}
+                </a>
+              ) : (
+                <button
+                  key={target}
+                  type="button"
+                  role="menuitem"
+                  tabIndex={-1}
+                  className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm focus:outline-none ${light ? "hover:bg-slate-200/30 focus:bg-slate-200/30" : "hover:bg-white/10 focus:bg-white/10"}`}
+                  onClick={() => {
+                    setOpen(false);
+                    setView(target);
+                  }}
+                >
+                  <Icon
+                    aria-hidden="true"
+                    className={`size-4 ${light ? "text-slate-500" : "text-white/75"}`}
+                  />
+                  {label}
+                </button>
+              ),
+            )}
+            <div
+              className={`my-1 border-t ${light ? "border-slate-200/50" : "border-white/15"}`}
+            />
             <button
               type="button"
               role="menuitem"
@@ -275,7 +274,10 @@ export default function AccountMenu({
               {loggingOut ? "Đang đăng xuất…" : "Đăng xuất"}
             </button>
             {error && (
-              <p role="alert" className={`px-3 py-2 text-xs leading-relaxed ${light ? "text-red-700" : "text-red-200"}`}>
+              <p
+                role="alert"
+                className={`px-3 py-2 text-xs leading-relaxed ${light ? "text-red-700" : "text-red-200"}`}
+              >
                 {error}
               </p>
             )}
