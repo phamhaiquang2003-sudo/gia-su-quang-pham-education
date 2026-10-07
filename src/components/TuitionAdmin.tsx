@@ -500,7 +500,7 @@ export default function TuitionAdmin({
             {loading ? "Đang tải thống kê…" : "Chưa tải được thống kê."}
           </p>
         ) : (
-          <div className="max-w-full overflow-x-auto rounded-xl border border-slate-200">
+          <div className="relative max-w-full overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-[540px] text-left text-sm">
               <caption className="sr-only">
                 Tổng số buổi và học phí của từng học sinh trong tháng{" "}
@@ -580,7 +580,7 @@ export default function TuitionAdmin({
           </p>
         ) : (
           overview && (
-            <div className="max-w-full overflow-x-auto rounded-xl border border-slate-200">
+          <div className="relative max-w-full overflow-x-auto rounded-xl border border-slate-200">
               <table className="w-full min-w-[660px] text-left text-sm">
                 <caption className="sr-only">
                   Ngày học và học phí từng buổi tháng {tuitionMonthLabel(month)}
