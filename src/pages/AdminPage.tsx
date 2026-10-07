@@ -9,6 +9,7 @@ import {
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
 import {
+  CalendarDays,
   Eye,
   EyeOff,
   FileText,
@@ -17,6 +18,7 @@ import {
   Users,
 } from "lucide-react";
 import QuizAdmin from "@/components/QuizAdmin";
+import TuitionAdmin from "@/components/TuitionAdmin";
 import AccountGate from "@/components/AccountGate";
 import AccountMenu from "@/components/AccountMenu";
 import { Button } from "@/components/ui/button";
@@ -40,7 +42,7 @@ import {
 import { getFirebase } from "@/lib/firebase";
 import { useAccount } from "@/lib/use-account";
 
-type Tab = "quizzes" | "add" | "list";
+type Tab = "quizzes" | "tuition" | "add" | "list";
 type Action = "disable" | "enable" | "resetPassword" | "delete";
 
 export default function AdminPage() {
@@ -176,7 +178,8 @@ export default function AdminPage() {
                   PHQ Education — Quản trị
                 </h1>
                 <p className="mt-1 text-sm text-slate-600">
-                  Bài tập và tài khoản học sinh · {session.profile?.displayName}
+                  Bài tập, buổi học và tài khoản ·{" "}
+                  {session.profile?.displayName}
                 </p>
               </div>
             </div>
@@ -204,6 +207,7 @@ export default function AdminPage() {
             {(
               [
                 ["quizzes", "Bài tập", FileText],
+                ["tuition", "Thống kê buổi học", CalendarDays],
                 ["add", "Thêm tài khoản", Plus],
                 ["list", "Danh sách tài khoản", Users],
               ] as const
@@ -216,7 +220,7 @@ export default function AdminPage() {
                 aria-controls={`panel-${value}`}
                 tabIndex={tab === value ? 0 : -1}
                 onKeyDown={(event) => {
-                  const values: Tab[] = ["quizzes", "add", "list"];
+                  const values: Tab[] = ["quizzes", "tuition", "add", "list"];
                   const position = values.indexOf(value);
                   const next =
                     event.key === "ArrowRight"
@@ -242,7 +246,8 @@ export default function AdminPage() {
                   setTab(value);
                   setMessage("");
                   setResults([]);
-                  if (value === "list") void loadStudents();
+                  if (value === "list" || value === "tuition")
+                    void loadStudents();
                 }}
               >
                 <Icon className="size-4" />
@@ -259,6 +264,18 @@ export default function AdminPage() {
           >
             {tab === "quizzes" && session.profile && (
               <QuizAdmin uid={session.profile.uid} />
+            )}
+            {tab === "tuition" && session.profile && (
+              <TuitionAdmin
+                key={session.profile.uid}
+                uid={session.profile.uid}
+                students={students}
+                loadingStudents={loadingList}
+                hasMoreStudents={hasMore}
+                onLoadMoreStudents={() => void loadStudents(true)}
+                onRefreshStudents={() => void loadStudents()}
+                onBusyChange={setBusy}
+              />
             )}
             {tab === "add" && (
               <>

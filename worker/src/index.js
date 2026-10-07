@@ -3,11 +3,14 @@ import { ServiceError } from "./errors.js";
 import { makeFirebase, verifyToken } from "./firebase.js";
 import { requireQuizUser } from "./quiz-auth.js";
 import { makeProfileService } from "./profile-service.js";
+import { makeTuitionService } from "./tuition-service.js";
 import {
   makeQuizService,
   readLimitedBody,
   finalizeExpired,
 } from "./quiz-service.js";
+
+const tuitionOperations = ["tuitionMonth", "tuitionSave", "tuitionDelete"];
 
 export function makeHandler({
   makeFirebaseClient = makeFirebase,
@@ -113,6 +116,7 @@ export function makeHandler({
             "results",
             "upload",
             "manualGrade",
+            ...tuitionOperations,
           ].includes(quizOperation),
         );
         const profileOperations = [
@@ -120,9 +124,11 @@ export function makeHandler({
           "profileAvatar",
           "profileAvatarUpload",
         ];
-        const service = profileOperations.includes(quizOperation)
-          ? makeProfileService(env.QUIZ_DB, user)
-          : makeQuizService(env.QUIZ_DB, user);
+        const service = tuitionOperations.includes(quizOperation)
+          ? makeTuitionService(env.QUIZ_DB, user, firebase)
+          : profileOperations.includes(quizOperation)
+            ? makeProfileService(env.QUIZ_DB, user)
+            : makeQuizService(env.QUIZ_DB, user);
         const operations = [
           "list",
           "listAdmin",
@@ -143,6 +149,7 @@ export function makeHandler({
           "removeSubmissionFile",
           "manualGrade",
           ...profileOperations,
+          ...tuitionOperations,
         ];
         if (!operations.includes(quizOperation))
           throw new ServiceError("not-found", "Không tìm thấy chức năng.", 404);

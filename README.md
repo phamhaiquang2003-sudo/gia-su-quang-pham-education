@@ -39,6 +39,7 @@ npm run preview    # Xem bản production trên máy
 - `src/pages/ExercisePage.tsx`: kho bài tập theo từng môn, tìm kiếm, danh mục, sắp xếp và mở trang làm bài.
 - `src/components/QuizAdmin.tsx`: soạn đề, PDF/ảnh, đáp án, thời gian, xuất bản và kết quả học sinh.
 - `src/components/QuizPlayer.tsx`: làm bài, tự lưu, đếm ngược, đánh dấu, điều hướng và nộp bài.
+- `src/components/TuitionAdmin.tsx`: ghi buổi học, mức phí từng học sinh, thống kê theo tháng và QR ngân hàng.
 - `worker/src/quiz-*.js`: xác thực, lưu đề/tệp trong D1 và chấm điểm phía máy chủ.
 - `src/lib/subjects.ts`: các mục học tập và đường dẫn `bai-tap.html?mon=...`.
 - `public/nen-dem-sao.html`: bản nền đêm sao từ tệp người dùng cung cấp; hiển thị phía sau trang bài tập.
@@ -55,6 +56,8 @@ Các nút **Đăng nhập** dẫn đến [`dang-nhap.html`](https://phamhaiquang
 Trong `quan-tri.html` → **Bài tập**, giáo viên tạo đề bằng PDF/ảnh + phiếu trả lời hoặc soạn từng câu; hỗ trợ A/B/C/D, Đúng/Sai và trả lời ngắn. Có đặt thời gian, xem trước, lưu nháp, xuất bản, ẩn đề và xem kết quả. Đề xuất bản xuất hiện trong kho môn học; học sinh trả lời trực tiếp với đồng hồ, dấu cờ, bảng số câu và chấm tự động. Dữ liệu nằm trong Cloudflare D1 Free; Firebase tiếp tục dùng Spark. Xem [hướng dẫn tạo đề và quy tắc làm bài](docs/bai-tap-truc-tuyen.md).
 
 ## Firebase và quản trị học sinh
+
+Trong trang quản trị, mục **Thống kê buổi học** ghi ngày học và phí từng buổi, lưu mức phí mặc định cho mỗi học sinh, tổng hợp số buổi/tổng học phí theo tháng và hiển thị QR MB Bank của giáo viên. Dữ liệu được lưu trên Cloudflare D1; xem [hướng dẫn ghi buổi học và học phí](docs/buoi-hoc-hoc-phi.md).
 
 Mục **Liên hệ gia sư** trên cả menu máy tính và điện thoại mở Zalo của Phạm Hải Quang tại **https://zalo.me/0365900419**, không yêu cầu đăng nhập.
 
