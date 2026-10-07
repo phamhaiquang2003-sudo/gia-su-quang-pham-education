@@ -57,7 +57,7 @@ Trong `quan-tri.html` → **Bài tập**, giáo viên tạo đề bằng PDF/ả
 
 ## Firebase và quản trị học sinh
 
-Trong trang quản trị, mục **Thống kê buổi học** ghi ngày học và phí từng buổi, lưu mức phí mặc định cho mỗi học sinh, tổng hợp số buổi/tổng học phí theo tháng và hiển thị QR MB Bank của giáo viên. Dữ liệu được lưu trên Cloudflare D1; xem [hướng dẫn ghi buổi học và học phí](docs/buoi-hoc-hoc-phi.md).
+Trong trang quản trị, mục **Thống kê buổi học** ghi ngày học và phí từng buổi, lưu mức phí mặc định cho mỗi học sinh, tổng hợp số buổi/tổng học phí theo tháng và xuất PDF riêng cho từng em kèm QR MB Bank của giáo viên. Dữ liệu được lưu trên Cloudflare D1; xem [hướng dẫn ghi buổi học, học phí và xuất PDF](docs/buoi-hoc-hoc-phi.md).
 
 Mục **Liên hệ gia sư** trên cả menu máy tính và điện thoại mở Zalo của Phạm Hải Quang tại **https://zalo.me/0365900419**, không yêu cầu đăng nhập.
 

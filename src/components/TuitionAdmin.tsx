@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   CalendarDays,
+  Download,
   Pencil,
   RefreshCw,
   Trash2,
@@ -12,11 +13,13 @@ import { accountError } from "@/lib/accounts";
 import { quizApi, QuizApiError } from "@/lib/quizzes";
 import {
   tuitionDate,
+  tuitionBank,
   tuitionMoney,
   tuitionMonthLabel,
   vietnamToday,
   type TuitionLesson,
   type TuitionMonth,
+  type TuitionReport,
 } from "@/lib/tuition";
 
 interface Props {
@@ -52,6 +55,7 @@ export default function TuitionAdmin({
   const [editing, setEditing] = useState<TuitionLesson | null>(null);
   const [draftId, setDraftId] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState("");
   const busyRef = useRef(false);
   const mutation = useRef<{ signature: string; token: string } | null>(null);
   const [error, setError] = useState("");
@@ -221,6 +225,29 @@ export default function TuitionAdmin({
       }
       setError(accountError(failure));
     } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  }
+
+  async function exportPdf(studentUid: string) {
+    if (busyRef.current || loading || !overview) return;
+    busyRef.current = true;
+    setBusy(true);
+    setExporting(studentUid);
+    setError("");
+    setMessage("");
+    try {
+      const [report, { downloadTuitionPdf }] = await Promise.all([
+        quizApi<TuitionReport>("tuitionReport", { month, studentUid }),
+        import("@/lib/tuition-pdf"),
+      ]);
+      const name = await downloadTuitionPdf(report);
+      setMessage(`Đã tạo ${name}. Bạn có thể gửi file PDF cho học sinh.`);
+    } catch (failure) {
+      setError(accountError(failure));
+    } finally {
+      setExporting("");
       busyRef.current = false;
       setBusy(false);
     }
@@ -442,7 +469,11 @@ export default function TuitionAdmin({
                   (!accounts.length && !editing)
                 }
               >
-                {busy ? "Đang lưu…" : editing ? "Lưu thay đổi" : "Lưu buổi học"}
+                {busy && !exporting
+                  ? "Đang lưu…"
+                  : editing
+                    ? "Lưu thay đổi"
+                    : "Lưu buổi học"}
               </button>
               {editing && (
                 <button
@@ -465,21 +496,21 @@ export default function TuitionAdmin({
             QR ngân hàng của giáo viên
           </h3>
           <p className="mt-2 text-sm font-semibold text-sky-900">
-            MB Bank · VietQR
+            {tuitionBank.name} · VietQR
           </p>
           <img
-            src={`${import.meta.env.BASE_URL}qr-mb-pham-hai-quang.png`}
+            src={`${import.meta.env.BASE_URL}${tuitionBank.qrPath}`}
             alt="Mã QR chuyển khoản MB Bank của Phạm Hải Quang"
             width={560}
             height={560}
             className="mx-auto my-4 w-full max-w-64 rounded-xl border border-slate-200 bg-white"
           />
-          <p className="text-sm font-semibold">PHAM HAI QUANG</p>
+          <p className="text-sm font-semibold">{tuitionBank.accountName}</p>
           <p className="mt-1 break-all text-lg font-bold tracking-wider text-sky-950">
-            0365900419
+            {tuitionBank.accountNumber}
           </p>
           <a
-            href={`${import.meta.env.BASE_URL}qr-mb-pham-hai-quang.png`}
+            href={`${import.meta.env.BASE_URL}${tuitionBank.qrPath}`}
             download="QR-MB-Pham-Hai-Quang.png"
             className="account-button-secondary mt-4"
           >
@@ -488,9 +519,24 @@ export default function TuitionAdmin({
         </section>
       </div>
       <section aria-labelledby="tuition-summary-title" aria-busy={loading}>
-        <h3 id="tuition-summary-title" className="mb-4 font-semibold">
-          Tổng hợp học phí tháng {tuitionMonthLabel(month)}
-        </h3>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h3 id="tuition-summary-title" className="font-semibold">
+            Tổng hợp học phí tháng {tuitionMonthLabel(month)}
+          </h3>
+          {filterStudent && (
+            <button
+              type="button"
+              className="account-button-secondary"
+              disabled={busy || loading || !overview}
+              onClick={() => void exportPdf(filterStudent)}
+            >
+              <Download className="size-4" />
+              {exporting === filterStudent
+                ? "Đang tạo PDF…"
+                : "Xuất PDF cho học sinh"}
+            </button>
+          )}
+        </div>
         {overview && !summaries.length ? (
           <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
             Chưa có buổi học trong tháng này.
@@ -536,14 +582,28 @@ export default function TuitionAdmin({
                       {tuitionMoney(row.totalFee)}
                     </td>
                     <td className="p-3 text-right">
-                      <button
-                        type="button"
-                        disabled={busy}
-                        className="text-xs font-medium text-sky-800 underline"
-                        onClick={() => setFilterStudent(row.studentUid)}
-                      >
-                        Xem các buổi
-                      </button>
+                      <div className="flex flex-wrap items-center justify-end gap-3">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          className="text-xs font-medium text-sky-800 underline"
+                          onClick={() => setFilterStudent(row.studentUid)}
+                        >
+                          Xem các buổi
+                        </button>
+                        <button
+                          type="button"
+                          className="account-button-secondary whitespace-nowrap !px-3 !py-2 text-xs"
+                          aria-label={`Xuất PDF học phí của ${nameOf(row)}`}
+                          disabled={busy || loading}
+                          onClick={() => void exportPdf(row.studentUid)}
+                        >
+                          <Download className="size-3.5" />
+                          {exporting === row.studentUid
+                            ? "Đang tạo PDF…"
+                            : "Xuất PDF"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -580,7 +640,7 @@ export default function TuitionAdmin({
           </p>
         ) : (
           overview && (
-          <div className="relative max-w-full overflow-x-auto rounded-xl border border-slate-200">
+            <div className="relative max-w-full overflow-x-auto rounded-xl border border-slate-200">
               <table className="w-full min-w-[660px] text-left text-sm">
                 <caption className="sr-only">
                   Ngày học và học phí từng buổi tháng {tuitionMonthLabel(month)}

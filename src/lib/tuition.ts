@@ -25,6 +25,22 @@ export interface TuitionMonth {
   truncated: boolean;
 }
 
+export interface TuitionReport {
+  month: string;
+  generatedAt: number;
+  teacher: { displayName: string };
+  student: { uid: string; displayName: string; username: string };
+  lessons: { date: string; fee: number }[];
+  totals: { lessonCount: number; totalFee: number };
+}
+
+export const tuitionBank = {
+  name: "MB Bank",
+  accountName: "PHAM HAI QUANG",
+  accountNumber: "0365900419",
+  qrPath: "qr-mb-pham-hai-quang.png",
+} as const;
+
 export const tuitionMoney = (amount: number) =>
   new Intl.NumberFormat("vi-VN", {
     style: "currency",

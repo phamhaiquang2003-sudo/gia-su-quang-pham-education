@@ -19,6 +19,19 @@ Ngày hiển thị theo `dd/mm/yyyy`, tháng theo `mm/yyyy`. Ngày mặc định
 - Với danh sách nhiều tài khoản, bấm **Tải thêm học sinh** để tiếp tục tải các tài khoản khác.
 - Tổng học phí là tổng phí của các buổi đã ghi, không phải trạng thái xác nhận chuyển khoản. Buổi học do giáo viên nhập, không suy ra từ thời gian làm bài trực tuyến.
 
+## Xuất PDF gửi học sinh
+
+Chọn tháng, sau đó bấm **Xuất PDF** ở dòng của học sinh trong bảng tổng hợp. Hoặc chọn em trong **Lọc học sinh** và bấm **Xuất PDF cho học sinh** bên cạnh tiêu đề tổng hợp.
+
+File `Hoc-phi-[ten-dang-nhap]-[nam-thang].pdf` tải trực tiếp về máy, có:
+
+- Họ tên học sinh, tên đăng nhập, giáo viên và tháng thống kê.
+- Ngày học và số tiền của từng buổi, sắp xếp từ ngày đầu tháng đến cuối tháng.
+- Tổng số buổi và tổng học phí của riêng em đó trong tháng.
+- Thông tin chuyển khoản MB Bank và mã QR của giáo viên.
+
+PDF khổ A4, nhúng phông chữ tiếng Việt và ảnh QR, mở được mà không cần mạng. Báo cáo lấy dữ liệu mới nhất từ máy chủ, bao gồm toàn bộ buổi của học sinh trong tháng; danh sách dài tự chia trang. Bạn gửi file đã tải qua Zalo hoặc phương thức liên lạc đang dùng.
+
 ## QR ngân hàng
 
 Hiển thị mã VietQR chuyển khoản **MB Bank**, tài khoản **0365900419**, chủ tài khoản **PHAM HAI QUANG**, theo thông tin người dùng cung cấp. Bấm **Tải mã QR** để lưu ảnh gửi cho học sinh/phụ huynh. QR không cố định số tiền; người chuyển khoản nhập số tiền theo thống kê tháng.
@@ -27,7 +40,9 @@ Hiển thị mã VietQR chuyển khoản **MB Bank**, tài khoản **0365900419*
 
 ## Lưu trữ và quyền truy cập
 
-Dữ liệu buổi học và mức phí mặc định nằm trong Cloudflare D1 Free, với migration `0007_tuition_lessons.sql`. API `tuitionMonth`, `tuitionSave`, `tuitionDelete` kiểm tra ID token, hồ sơ hoạt động và quyền admin trên máy chủ; dữ liệu thuộc quản trị viên đã ghi nhận. Học sinh không được đọc/sửa thống kê qua các API này.
+Dữ liệu buổi học và mức phí mặc định nằm trong Cloudflare D1 Free, với migration `0007_tuition_lessons.sql`. API `tuitionMonth`, `tuitionReport`, `tuitionSave`, `tuitionDelete` kiểm tra ID token, hồ sơ hoạt động và quyền admin trên máy chủ; dữ liệu thuộc quản trị viên đã ghi nhận. Học sinh không được đọc/sửa thống kê qua các API này. PDF được tạo trên trình duyệt quản trị từ báo cáo của một học sinh, không gửi dữ liệu sang dịch vụ tạo PDF bên ngoài.
+
+Phông chữ Noto Sans trong `public/fonts/` dùng cho PDF, theo giấy phép SIL Open Font License đi kèm `OFL-NotoSans.txt`.
 
 Phí lưu là số nguyên VND từ 0 đến 1.000.000.000 đồng/buổi. Mỗi buổi có phiên bản để tránh ghi đè khi mở nhiều tab; gửi lại cùng yêu cầu lưu không tạo thêm buổi trùng. Lịch sử giữ tên và UID học sinh tại thời điểm ghi nhận, kể cả khi tài khoản đã bị xóa. Chi tiết hiển thị tối đa 1000 buổi mỗi lần tải; tổng tiền và số buổi vẫn tính đầy đủ, có thể lọc học sinh để xem các buổi của riêng em đó.
 

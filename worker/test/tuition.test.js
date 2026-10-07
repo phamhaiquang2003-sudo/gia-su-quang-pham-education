@@ -398,6 +398,101 @@ test("tuition detail limits keep complete totals and filtering still retrieves o
     assert.equal(student.lessons[0].id, "older");
     assert.equal(student.truncated, false);
     assert.deepEqual(student.totals, all.totals);
+    const report = await service.tuitionReport({
+      month: "2026-10",
+      studentUid: "student01",
+    });
+    assert.equal(report.lessons.length, 1002);
+    assert.deepEqual(report.totals, { lessonCount: 1002, totalFee: 250500000 });
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("student PDF report uses all own monthly lessons in date order and trusted identity, retaining reports for removed accounts", async () => {
+  const { db, sqlite } = database();
+  try {
+    const firebase = directory();
+    const service = makeTuitionService(
+      db,
+      { ...teacher, displayName: "Phạm Hải Quang" },
+      firebase,
+      () => 123456,
+    );
+    const other = makeTuitionService(
+      db,
+      { ...teacher, uid: "other-teacher" },
+      directory(),
+    );
+    await service.tuitionSave(
+      draft("late", { date: "2026-10-31", fee: 300000 }),
+    );
+    await service.tuitionSave(
+      draft("early", { date: "2026-10-01", fee: 250000 }),
+    );
+    await service.tuitionSave(
+      draft("previous", { date: "2026-09-30", fee: 900000 }),
+    );
+    await service.tuitionSave(
+      draft("next", { date: "2026-11-01", fee: 900000 }),
+    );
+    await service.tuitionSave(
+      draft("other-student", { studentUid: "student02", fee: 900000 }),
+    );
+    await other.tuitionSave(draft("other-teacher", { fee: 900000 }));
+    const report = await service.tuitionReport({
+      month: "2026-10",
+      studentUid: "student01",
+      teacherUid: "other-teacher",
+      displayName: "Forged",
+    });
+    assert.equal(report.generatedAt, 123456);
+    assert.deepEqual(report.teacher, { displayName: "Phạm Hải Quang" });
+    assert.deepEqual(report.student, {
+      uid: "student01",
+      displayName: "Học sinh 1",
+      username: "student01",
+    });
+    assert.deepEqual(report.lessons, [
+      { date: "2026-10-01", fee: 250000 },
+      { date: "2026-10-31", fee: 300000 },
+    ]);
+    assert.deepEqual(report.totals, { lessonCount: 2, totalFee: 550000 });
+    const empty = await service.tuitionReport({
+      month: "2027-01",
+      studentUid: "student01",
+    });
+    assert.deepEqual(empty.lessons, []);
+    assert.deepEqual(empty.totals, { lessonCount: 0, totalFee: 0 });
+    await assert.rejects(
+      service.tuitionReport({ month: "2026-10", studentUid: "bad/id" }),
+      (error) => error.code === "invalid-argument",
+    );
+    await assert.rejects(
+      service.tuitionReport({ month: "2026-13", studentUid: "student01" }),
+      (error) => error.code === "invalid-argument",
+    );
+    await assert.rejects(
+      service.tuitionReport({ month: "2026-10", studentUid: "missing" }),
+      (error) => error.status === 404,
+    );
+    const student = makeTuitionService(
+      db,
+      { uid: "student01", admin: false },
+      firebase,
+    );
+    await assert.rejects(
+      student.tuitionReport({ month: "2026-10", studentUid: "student01" }),
+      (error) => error.status === 403,
+    );
+    firebase.getProfile = async () => null;
+    const retained = await service.tuitionReport({
+      month: "2026-10",
+      studentUid: "student01",
+    });
+    assert.deepEqual(retained.student, report.student);
+    assert.deepEqual(retained.lessons, report.lessons);
+    assert.deepEqual(retained.totals, report.totals);
   } finally {
     sqlite.close();
   }
@@ -437,6 +532,7 @@ test("tuition HTTP endpoints require current admin identity and deny students, r
       });
     for (const [op, data] of [
       ["tuitionMonth", { month: "2026-10" }],
+      ["tuitionReport", { month: "2026-10", studentUid: "student01" }],
       ["tuitionSave", draft("http")],
       ["tuitionDelete", { id: "http", revision: 1 }],
     ]) {
@@ -492,6 +588,15 @@ test("tuition HTTP endpoints require current admin identity and deny students, r
       env.ALLOWED_ORIGIN,
     );
     assert.equal((await response.json()).totals.totalFee, 250000);
+    const pdfReport = await handler(
+      request("tuitionReport", { month: "2026-10", studentUid: "student01" }),
+      env,
+    );
+    assert.equal(pdfReport.status, 200);
+    assert.deepEqual((await pdfReport.json()).totals, {
+      lessonCount: 1,
+      totalFee: 250000,
+    });
     assert.equal(
       (
         await handler(

@@ -122,6 +122,55 @@ export function makeTuitionService(db, user, firebase, now = () => Date.now()) {
           rows.results.length,
       };
     },
+    async tuitionReport(data) {
+      admin();
+      const [from, to] = monthRange(data.month);
+      if (!validUid(data.studentUid)) invalid("Chọn học sinh để xuất PDF.");
+      const [rows, profile] = await Promise.all([
+        db
+          .prepare(
+            "SELECT * FROM tuition_lessons WHERE teacher_uid=? AND student_uid=? AND lesson_date>=? AND lesson_date<? ORDER BY lesson_date ASC,created_at ASC,id ASC",
+          )
+          .bind(user.uid, data.studentUid, from, to)
+          .all(),
+        firebase.getProfile(data.studentUid),
+      ]);
+      const latest = rows.results.at(-1);
+      const currentStudent = field(profile, "role") === "student";
+      if (!latest && !currentStudent)
+        throw new ServiceError(
+          "not-found",
+          "Không tìm thấy học sinh hoặc lịch sử buổi học.",
+          404,
+        );
+      return {
+        month: data.month,
+        generatedAt: now(),
+        teacher: {
+          displayName: user.displayName || user.username || "Giáo viên",
+        },
+        student: {
+          uid: data.studentUid,
+          displayName:
+            (currentStudent && field(profile, "displayName")) ||
+            latest?.display_name ||
+            field(profile, "username") ||
+            "Học sinh",
+          username:
+            (currentStudent && field(profile, "username")) ||
+            latest?.username ||
+            "",
+        },
+        lessons: rows.results.map((row) => ({
+          date: row.lesson_date,
+          fee: row.fee_vnd,
+        })),
+        totals: {
+          lessonCount: rows.results.length,
+          totalFee: rows.results.reduce((sum, row) => sum + row.fee_vnd, 0),
+        },
+      };
+    },
     async tuitionSave(data) {
       admin();
       if (!validUid(data.studentUid)) invalid("Chọn một học sinh hợp lệ.");

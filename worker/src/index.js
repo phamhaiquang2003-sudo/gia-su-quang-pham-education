@@ -10,7 +10,12 @@ import {
   finalizeExpired,
 } from "./quiz-service.js";
 
-const tuitionOperations = ["tuitionMonth", "tuitionSave", "tuitionDelete"];
+const tuitionOperations = [
+  "tuitionMonth",
+  "tuitionReport",
+  "tuitionSave",
+  "tuitionDelete",
+];
 
 export function makeHandler({
   makeFirebaseClient = makeFirebase,
