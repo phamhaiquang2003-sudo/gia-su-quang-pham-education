@@ -55,6 +55,8 @@ import {
   fixedQuizFormQuestions,
   prepareFixedQuizForm,
   hasQuestionContent,
+  customQuizQuestions,
+  restoreCustomQuizDraft,
   type FixedQuizFormId,
 } from "@/lib/quiz-forms";
 type ImagePurpose = "question" | "explanation" | "choice" | "statement";
@@ -83,7 +85,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
       ) {
         delete q.accessCode;
         delete q.requiresAccessCode;
-        return q;
+        return restoreCustomQuizDraft(q);
       }
     } catch {
       /* new draft */
@@ -334,7 +336,10 @@ export default function QuizAdmin({ uid }: { uid: string }) {
   }
   function changeFixedForm(id: FixedQuizFormId | "") {
     if (!id) {
-      update({ fixedForm: "" });
+      update({
+        fixedForm: "",
+        questions: fixedForm ? customQuizQuestions(quiz) : quiz.questions,
+      });
       return;
     }
     const next = prepareFixedQuizForm(quiz, id);

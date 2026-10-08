@@ -58,7 +58,7 @@ Trong **Thông tin đề**, chọn **Trắc nghiệm · Chấm tự động**. �
 - Với form 22/28 câu, đúng **1/2/3/4 ý** trong một câu Đúng/Sai được **0,1 / 0,25 / 0,5 / 1 điểm**; đúng 0 ý được 0 điểm.
 - Chọn form tự tạo đủ các câu theo thứ tự: trắc nghiệm → đúng/sai → trả lời ngắn. Nội dung, đáp án và ảnh đã soạn được giữ theo từng dạng câu nếu vừa cấu trúc; hệ thống hỏi trước khi bỏ câu có nội dung vượt số lượng của form.
 - Số câu, dạng câu, điểm và cách tính Đúng/Sai được khóa. Có thể soạn nội dung/đáp án/lời giải và đổi vị trí giữa các câu cùng dạng. Máy chủ kiểm tra lại cấu trúc khi lưu.
-- Chọn **Tự thiết kế** để mở lại thêm/xóa/nhân bản câu, đổi dạng, sửa điểm và cách tính Đúng/Sai; nội dung đang soạn được giữ.
+- Chọn **Tự thiết kế** để mở lại thêm/xóa/nhân bản câu, đổi dạng, sửa điểm và cách tính Đúng/Sai. Các câu trống tự sinh được dọn, chỉ giữ câu đã có nội dung/đáp án/lời giải; nếu chưa soạn gì thì bắt đầu với **1 câu trống**. Với đề đã có tệp đính kèm, các câu trả lời được giữ để khớp nội dung trong tệp.
 - Khi chuyển sang **Tự luận · Gia sư chấm thủ công**, mục form được ẩn và bỏ lựa chọn form cố định. Lượt học sinh đã bắt đầu giữ form và điểm của snapshot cũ; thay đổi form chỉ áp dụng cho lượt mới sau khi lưu.
 
 ### Giới hạn giờ mở / đóng đề (tùy chọn)
