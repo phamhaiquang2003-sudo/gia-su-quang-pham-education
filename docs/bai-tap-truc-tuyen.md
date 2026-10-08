@@ -4,9 +4,7 @@
 
 1. Đăng nhập tài khoản quản trị, mở `quan-tri.html` → **Bài tập**.
 2. Điền tên đề, môn học, danh mục, hướng dẫn và thời gian từ **1–360 phút**.
-3. Chọn cách đưa đề lên:
-   - **Soạn từng câu trực tiếp:** nhập nội dung hoặc dán ảnh chụp cả câu hỏi và các lựa chọn. Khi lựa chọn A/B/C/D hoặc các ý Đúng/Sai đã nằm trong ảnh câu hỏi, được để trống nội dung các lựa chọn/ý, chỉ tích đáp án đúng để chấm.
-   - **PDF / Word / ảnh + phiếu trả lời:** tải tệp đề, thêm câu theo thứ tự trong tệp. Nội dung câu và nội dung lựa chọn/ý được để trống khi đã có trong tệp đề; vẫn chọn đáp án đúng cho hệ thống chấm.
+3. Đề mới mặc định **soạn từng câu trực tiếp**: nhập nội dung hoặc dán ảnh chụp cả câu hỏi và các lựa chọn. Khi lựa chọn A/B/C/D hoặc các ý Đúng/Sai đã nằm trong ảnh câu hỏi, được để trống nội dung các lựa chọn/ý, chỉ tích đáp án đúng để chấm. Không cần chọn cách đưa đề lên.
 4. Mỗi câu có dạng **A/B/C/D**, **Đúng/Sai (4 ý)** hoặc **trả lời ngắn**. Nhập đáp án đúng, điểm trọng số và lời giải nếu có.
 5. Bấm **Xem trước**, **Lưu nháp** hoặc **Xuất bản đề**. Đề xuất bản xuất hiện trong kho của môn đã chọn.
 6. Bấm **Mở bài để làm thử** để thử bằng tài khoản quản trị. Trong **Danh sách đề → Kết quả học sinh**, lượt này được ghi là **Làm thử**.
@@ -28,7 +26,9 @@ Trong **Bài tập → Danh sách đề**, mỗi đề đã xuất bản có khu
 
 Nếu học sinh chưa đăng nhập, bấm **Đăng nhập ngay**, nhập tài khoản được cấp; đăng nhập xong sẽ quay lại đúng đề trong liên kết. Đăng nhập thông thường vẫn dùng trang đích mặc định. Liên kết có môn học và ID đề, không chứa đáp án. Học sinh bấm **Bắt đầu làm bài** trong lịch mở/đóng đã đặt.
 
-PDF/Word (.doc, .docx)/PNG/JPG/WebP được tải trực tiếp, tối đa **1,8 MB mỗi tệp**, 8 tệp đề và 608 tệp tổng cộng/đề (100 câu × 6 ảnh + 8 tệp đề). Mỗi câu có thể có ảnh câu hỏi, 4 ảnh lựa chọn/ý và ảnh lời giải. Mỗi đề tối đa 100 câu. Ảnh lớn được trình duyệt tự nén trước khi gửi; tệp tài liệu lớn cần giảm dung lượng trước khi tải. Với Word, học sinh bấm **Tải file Word** để mở trên máy; PDF và ảnh vẫn xem trực tiếp trong trang. Bản đang soạn được giữ trong tab trình duyệt; bấm **Lưu nháp** để lưu lên máy chủ.
+Mỗi câu có thể có ảnh câu hỏi, 4 ảnh lựa chọn/ý và ảnh lời giải, thêm bằng **Dán ảnh từ clipboard** hoặc **Ctrl + V**. Mỗi đề tối đa 100 câu. Ảnh lớn được trình duyệt tự nén trước khi gửi. Bản đang soạn được giữ trong tab trình duyệt; bấm **Lưu nháp** để lưu lên máy chủ.
+
+Khi chỉnh sửa đề cũ dạng tệp, phần **Tệp đề PDF / Word / ảnh** và phiếu trả lời theo thứ tự trong tệp vẫn có sẵn. Tệp tối đa **1,8 MB**, 8 tệp đề và 608 tệp tổng cộng/đề. Nội dung câu/lựa chọn/ý được để trống nếu đã có trong tệp. Với Word, học sinh bấm **Tải file Word** để mở trên máy; PDF và ảnh xem trực tiếp trong trang.
 
 ### Dán ảnh chụp màn hình, không cần lưu về máy
 
@@ -47,7 +47,7 @@ PDF/Word (.doc, .docx)/PNG/JPG/WebP được tải trực tiếp, tối đa **1,
 
 ### Form đề cố định (trắc nghiệm chấm tự động)
 
-Trong **Thông tin đề**, chọn **Trắc nghiệm · Chấm tự động**. Ô **Form đề cố định** xuất hiện bên cạnh **Cách đưa đề lên**, áp dụng được cho cả soạn trực tiếp và tệp đề + phiếu trả lời:
+Trong **Thông tin đề**, chọn **Trắc nghiệm · Chấm tự động** để hiện ô **Form đề cố định**. Chọn một trong ba form dưới đây:
 
 | Form   | Trắc nghiệm A/B/C/D | Đúng/Sai  | Trả lời ngắn | Tổng điểm |
 | ------ | ------------------- | --------- | ------------ | --------- |
@@ -71,14 +71,14 @@ Trong **Thông tin đề**, chọn **Trắc nghiệm · Chấm tự động**. �
 ### Bài tập tự luận — gia sư chấm thủ công
 
 1. Trong **Thông tin đề → Loại bài tập**, chọn **Tự luận · Gia sư chấm thủ công**.
-2. Chọn cách đưa đề lên:
-   - **Tệp đề PDF / Word / ảnh · Nộp bài chung:** tải PDF hoặc Word của đề, không cần khai báo từng câu hoặc đáp án. Học sinh có một vùng nộp bài chung cho cả đề.
-   - **Dán ảnh / soạn từng câu tự luận:** chụp và dán ảnh vào vùng **Ảnh câu hỏi** (Ctrl + V) hoặc nhập nội dung, thêm các câu nếu cần. Mỗi câu có vùng trả lời và ảnh bài làm riêng.
+2. Nhập nội dung hoặc chụp và dán ảnh vào vùng **Ảnh câu hỏi** (Ctrl + V), thêm các câu nếu cần. Mỗi câu có vùng trả lời và ảnh bài làm riêng. Đề tự luận mới cũng dùng giao diện soạn từng câu mặc định.
 3. Lưu nháp hoặc xuất bản; đặt lịch mở/đóng đề nếu cần.
 4. Học sinh bắt đầu lượt làm, nhập bài giải hoặc tải nhiều ảnh bài viết tay từ máy tính/điện thoại. Có thể dán ảnh vào vùng trả lời. Mỗi lượt tối đa **20 ảnh PNG/JPG/WebP**, mỗi ảnh dưới **1,8 MB**; ảnh lớn tự nén. Ảnh được lưu trên máy chủ ngay khi tải thành công, có thể gỡ trước khi nộp. Văn bản tự lưu/khôi phục như bài trắc nghiệm.
 5. Sau khi nộp hoặc hết giờ, bài được khóa với trạng thái **Đã nộp bài · Chờ gia sư chấm**, chưa hiển thị điểm. Hệ thống không tự chấm bài tự luận.
 6. Giáo viên mở **Danh sách đề → Kết quả học sinh → Xem bài và chấm điểm**, xem ảnh/nội dung, nhập **Điểm (thang 10)** và **Nhận xét của gia sư**, bấm **Lưu điểm và nhận xét**. Có thể chỉnh điểm sau đó.
 7. Học sinh mở lại đề hoặc bấm **Cập nhật điểm và nhận xét** để xem điểm và nhận xét. Gia sư có thể cấp lượt làm lại; lượt cũ, đáp án, điểm và ảnh bài nộp được xóa, lượt mới trống và dùng đề hiện tại. Số lượt tiếp tục tăng dù kết quả cũ đã xóa.
+
+Đề tự luận dạng tệp đã tạo trước đây dùng vùng nộp chung cho cả đề; có thể mở chỉnh sửa và quản lý tệp của các đề này.
 
 Ảnh bài nộp chỉ học sinh sở hữu lượt làm và quản trị được đọc. Xóa vĩnh viễn đề xóa cả ảnh bài nộp và lịch sử của đề đó. Các ảnh đề dùng chung vẫn được giữ.
 

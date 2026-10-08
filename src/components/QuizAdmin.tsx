@@ -521,32 +521,8 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                     </option>
                   </select>
                 </label>
-                <label className="account-label">
-                  Cách đưa đề lên
-                  <select
-                    className="account-input"
-                    value={quiz.mode}
-                    onChange={(e) =>
-                      changeFormat(
-                        quiz.gradingMode || "auto",
-                        e.target.value as Quiz["mode"],
-                      )
-                    }
-                  >
-                    <option value="inline">
-                      {manual
-                        ? "Dán ảnh / soạn từng câu tự luận"
-                        : "Soạn từng câu trực tiếp"}
-                    </option>
-                    <option value="document">
-                      {manual
-                        ? "Tệp đề PDF / Word / ảnh · Nộp bài chung"
-                        : "PDF / Word / ảnh + phiếu trả lời"}
-                    </option>
-                  </select>
-                </label>
                 {!manual && (
-                  <label className="account-label min-w-0">
+                  <label className="account-label min-w-0 sm:col-span-2">
                     Form đề cố định
                     <select
                       className="account-input min-w-0"
