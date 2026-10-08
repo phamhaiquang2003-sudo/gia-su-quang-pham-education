@@ -26,7 +26,7 @@ Mở **Bài tập → Danh sách đề**. Các đề được phân thành từn
 
 Trong **Bài tập → Danh sách đề**, mỗi đề đã xuất bản có khung **Liên kết gửi học sinh** và nút **Sao chép liên kết**. Khung này cũng xuất hiện trong trình soạn sau khi xuất bản hoặc mở chỉnh sửa đề đã xuất bản. Dán liên kết để gửi qua Zalo; học sinh mở thẳng trang của đề với nút **Bắt đầu làm bài**, không cần tìm trong kho.
 
-Nếu học sinh chưa đăng nhập, bấm **Đăng nhập ngay**, nhập tài khoản được cấp; đăng nhập xong sẽ quay lại đúng đề trong liên kết. Đăng nhập thông thường vẫn dùng trang đích mặc định. Liên kết có môn học và ID đề, không chứa mật khẩu đề hay đáp án; mã đề và lịch mở/đóng được kiểm tra khi học sinh vào làm bài.
+Nếu học sinh chưa đăng nhập, bấm **Đăng nhập ngay**, nhập tài khoản được cấp; đăng nhập xong sẽ quay lại đúng đề trong liên kết. Đăng nhập thông thường vẫn dùng trang đích mặc định. Liên kết có môn học và ID đề, không chứa đáp án. Học sinh bấm **Bắt đầu làm bài** trong lịch mở/đóng đã đặt.
 
 PDF/Word (.doc, .docx)/PNG/JPG/WebP được tải trực tiếp, tối đa **1,8 MB mỗi tệp**, 8 tệp đề và 608 tệp tổng cộng/đề (100 câu × 6 ảnh + 8 tệp đề). Mỗi câu có thể có ảnh câu hỏi, 4 ảnh lựa chọn/ý và ảnh lời giải. Mỗi đề tối đa 100 câu. Ảnh lớn được trình duyệt tự nén trước khi gửi; tệp tài liệu lớn cần giảm dung lượng trước khi tải. Với Word, học sinh bấm **Tải file Word** để mở trên máy; PDF và ảnh vẫn xem trực tiếp trong trang. Bản đang soạn được giữ trong tab trình duyệt; bấm **Lưu nháp** để lưu lên máy chủ.
 
@@ -52,20 +52,13 @@ PDF/Word (.doc, .docx)/PNG/JPG/WebP được tải trực tiếp, tối đa **1,
 - Khi bắt đầu, thời hạn lượt là mốc sớm hơn giữa **thời điểm bắt đầu + thời gian làm bài** và **giờ đóng đề**. Ví dụ đề 45 phút, đóng lúc 21:00, vào lúc 20:40 thì còn tối đa 20 phút. Hết hạn, hệ thống chỉ dùng nội dung đã lưu để chấm hoặc chuyển bài tự luận sang chờ gia sư chấm.
 - Lịch và thời hạn được cố định theo phiên bản của lượt đã bắt đầu. Sửa hoặc bỏ lịch áp dụng cho lượt mới; lịch sử và thời hạn của lượt đã bắt đầu được giữ. Sau giờ đóng vẫn xem được kết quả lượt đã nộp. Lượt làm lại cần nằm trong lịch mở hiện tại.
 
-### Mật khẩu đề (tùy chọn)
-
-- Trong **Thông tin đề**, nhập **Mật khẩu đề (6 chữ số, tùy chọn)** bằng một mã do giáo viên tự chọn, ví dụ `038572`. Giữ nguyên cả số 0 ở đầu. Bấm **Lưu nháp** hoặc **Xuất bản đề** để lưu.
-- Để trống ô này thì học sinh đã đăng nhập vào làm không cần mật khẩu đề. Xóa mã cũ rồi lưu để bỏ yêu cầu mật khẩu; nhập mã khác rồi lưu để đổi mã.
-- Với đề có mật khẩu, học sinh nhập đúng mã giáo viên cung cấp và bấm **Bắt đầu làm bài**. Trước đó, câu hỏi và tệp của riêng đề được giữ kín; nhập sai không tạo lượt làm hay chạy đồng hồ. Mã không được gửi trong dữ liệu học sinh.
-- Sau khi đã bắt đầu, tải lại trang vẫn tiếp tục đúng lượt mà không cần nhập lại mã. Đổi mã không ảnh hưởng lượt đang làm; lượt làm lại cần mã hiện tại. Tài khoản học sinh vẫn phải đăng nhập như trước.
-
 ### Bài tập tự luận — gia sư chấm thủ công
 
 1. Trong **Thông tin đề → Loại bài tập**, chọn **Tự luận · Gia sư chấm thủ công**.
 2. Chọn cách đưa đề lên:
    - **Tệp đề PDF / Word / ảnh · Nộp bài chung:** tải PDF hoặc Word của đề, không cần khai báo từng câu hoặc đáp án. Học sinh có một vùng nộp bài chung cho cả đề.
    - **Dán ảnh / soạn từng câu tự luận:** chụp và dán ảnh vào vùng **Ảnh câu hỏi** (Ctrl + V) hoặc nhập nội dung, thêm các câu nếu cần. Mỗi câu có vùng trả lời và ảnh bài làm riêng.
-3. Lưu nháp hoặc xuất bản. Có thể đặt mật khẩu 6 số như đề trắc nghiệm.
+3. Lưu nháp hoặc xuất bản; đặt lịch mở/đóng đề nếu cần.
 4. Học sinh bắt đầu lượt làm, nhập bài giải hoặc tải nhiều ảnh bài viết tay từ máy tính/điện thoại. Có thể dán ảnh vào vùng trả lời. Mỗi lượt tối đa **20 ảnh PNG/JPG/WebP**, mỗi ảnh dưới **1,8 MB**; ảnh lớn tự nén. Ảnh được lưu trên máy chủ ngay khi tải thành công, có thể gỡ trước khi nộp. Văn bản tự lưu/khôi phục như bài trắc nghiệm.
 5. Sau khi nộp hoặc hết giờ, bài được khóa với trạng thái **Đã nộp bài · Chờ gia sư chấm**, chưa hiển thị điểm. Hệ thống không tự chấm bài tự luận.
 6. Giáo viên mở **Danh sách đề → Kết quả học sinh → Xem bài và chấm điểm**, xem ảnh/nội dung, nhập **Điểm (thang 10)** và **Nhận xét của gia sư**, bấm **Lưu điểm và nhận xét**. Có thể chỉnh điểm sau đó.

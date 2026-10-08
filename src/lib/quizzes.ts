@@ -33,8 +33,6 @@ export interface Quiz {
   opensAt?: number | null;
   closesAt?: number | null;
   instructions: string;
-  accessCode?: string;
-  requiresAccessCode?: boolean;
   questionCount?: number;
   revealAnswers: boolean;
   documentIds: string[];
@@ -51,7 +49,6 @@ export interface QuizSummary {
   durationMinutes: number;
   opensAt?: number | null;
   closesAt?: number | null;
-  requiresAccessCode?: boolean;
   createdAt: number;
   gradingMode?: "auto" | "manual";
   updatedAt: number;
@@ -277,7 +274,6 @@ export function newQuiz(): Quiz {
     opensAt: null,
     closesAt: null,
     instructions: "",
-    accessCode: "",
     revealAnswers: true,
     documentIds: [],
     questions: [newQuestion()],

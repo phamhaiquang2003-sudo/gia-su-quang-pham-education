@@ -415,12 +415,6 @@ export default function ExercisePage() {
                         ? "Tự luận · Gia sư chấm"
                         : "Chấm tự động"}
                     </p>
-                    {q.requiresAccessCode && (
-                      <p className="mb-4 flex items-center gap-2 text-xs text-amber-200">
-                        <LockKeyhole className="size-3.5" aria-hidden="true" />
-                        Cần mật khẩu đề
-                      </p>
-                    )}
                     <QuizScheduleInfo
                       quiz={q}
                       now={catalogueNow}

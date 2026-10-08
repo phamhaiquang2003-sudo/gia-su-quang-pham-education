@@ -22,7 +22,6 @@ import StarryBackground from "./StarryBackground";
 import QuizQuestions from "./QuizQuestions";
 import QuizFile from "./QuizFile";
 import QuizResultView from "./QuizResultView";
-import QuizAccessCodeInput from "./QuizAccessCodeInput";
 import QuizEssayAnswer from "./QuizEssayAnswer";
 import QuizManualReview from "./QuizManualReview";
 import QuizScheduleInfo from "./QuizScheduleInfo";
@@ -41,7 +40,6 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
   const [starting, setStarting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const uploadRef = useRef(false);
-  const [accessCode, setAccessCode] = useState("");
   const [locked, setLocked] = useState(false);
   const [stale, setStale] = useState(false);
   const [saveStatus, setSaveStatus] = useState("Đã lưu trên máy chủ");
@@ -114,7 +112,6 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
     setUploading(false);
     setError("");
     staleRef.current = false;
-    setAccessCode("");
     setStale(false);
     quizApi<QuizState>("detail", { id })
       .then((data) => {
@@ -200,7 +197,8 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
     };
   }, [id, cacheKey, reload]);
   useEffect(() => {
-    if (loading || attempt || !quiz || (!quiz.opensAt && !quiz.closesAt)) return;
+    if (loading || attempt || !quiz || (!quiz.opensAt && !quiz.closesAt))
+      return;
     const tick = () => setWaitingNow(serverNow());
     tick();
     const interval = setInterval(tick, 1000);
@@ -475,13 +473,13 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
     return () => window.removeEventListener("beforeunload", warn);
   }, []);
   async function start() {
-    if (starting || (quiz && quizAvailability(quiz, serverNow()) !== "open")) return;
+    if (starting || (quiz && quizAvailability(quiz, serverNow()) !== "open"))
+      return;
     setStarting(true);
     setError("");
     try {
-      const data = await quizApi<QuizState>("start", { id, accessCode });
+      const data = await quizApi<QuizState>("start", { id });
       setQuiz(data.quiz);
-      setAccessCode("");
       setActive(data.quiz.questions[0]?.id || "");
       if (data.attempt) {
         apply({ attempt: data.attempt, serverNow: data.serverNow });
@@ -700,16 +698,6 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
                 void start();
               }}
             >
-              {quiz.requiresAccessCode && (
-                <label className="mb-5 block text-sm font-semibold">
-                  Mật khẩu đề
-                  <QuizAccessCodeInput
-                    disabled={starting || availability !== "open"}
-                    value={accessCode}
-                    onChange={setAccessCode}
-                  />
-                </label>
-              )}
               <button
                 type="submit"
                 disabled={starting || availability !== "open"}

@@ -10,6 +10,7 @@ import {
   validId,
   fileIds,
   publicQuiz,
+  withoutQuizAccessCode,
   validateResponses,
   grade,
   publicResult,
@@ -36,7 +37,6 @@ const summary = (row) => ({
   revision: row.revision,
   questionCount: row.question_count,
   durationMinutes: row.duration_minutes,
-  requiresAccessCode: Boolean(row.requires_access_code),
   gradingMode: row.grading_mode || "auto",
   opensAt: row.opens_at ?? null,
   closesAt: row.closes_at ?? null,
@@ -166,7 +166,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
     async list(data) {
       const rows = await db
         .prepare(
-          "SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at,json_extract(body,'$.opensAt') AS opens_at,json_extract(body,'$.closesAt') AS closes_at,json_extract(body,'$.gradingMode') AS grading_mode,CASE WHEN COALESCE(json_extract(body,'$.accessCode'),'')<>'' THEN 1 ELSE 0 END AS requires_access_code FROM quizzes WHERE status='published' AND subject=? ORDER BY created_at DESC LIMIT 200",
+          "SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at,json_extract(body,'$.opensAt') AS opens_at,json_extract(body,'$.closesAt') AS closes_at,json_extract(body,'$.gradingMode') AS grading_mode FROM quizzes WHERE status='published' AND subject=? ORDER BY created_at DESC LIMIT 200",
         )
         .bind(data.subject)
         .all();
@@ -176,7 +176,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       admin();
       const rows = await db
         .prepare(
-          "SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at,json_extract(body,'$.opensAt') AS opens_at,json_extract(body,'$.closesAt') AS closes_at,json_extract(body,'$.gradingMode') AS grading_mode,CASE WHEN COALESCE(json_extract(body,'$.accessCode'),'')<>'' THEN 1 ELSE 0 END AS requires_access_code FROM quizzes ORDER BY created_at DESC LIMIT 200",
+          "SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at,json_extract(body,'$.opensAt') AS opens_at,json_extract(body,'$.closesAt') AS closes_at,json_extract(body,'$.gradingMode') AS grading_mode FROM quizzes ORDER BY created_at DESC LIMIT 200",
         )
         .all();
       return { quizzes: rows.results.map(summary) };
@@ -186,7 +186,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       const row = await quizRow(data.id);
       return {
         quiz: {
-          ...JSON.parse(row.body),
+          ...withoutQuizAccessCode(JSON.parse(row.body)),
           status: row.status,
           id: row.id,
           revision: row.revision,
@@ -285,7 +285,6 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       return {
         quiz: {
           ...summary(await quizRow(id)),
-          requiresAccessCode: Boolean(quiz.accessCode),
           gradingMode: quiz.gradingMode,
           opensAt: quiz.opensAt,
           closesAt: quiz.closesAt,
@@ -325,7 +324,6 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       return {
         quiz: {
           ...summary(updated),
-          requiresAccessCode: Boolean(body.accessCode),
           gradingMode: body.gradingMode || "auto",
           opensAt: body.opensAt ?? null,
           closesAt: body.closesAt ?? null,
@@ -439,11 +437,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
         ? JSON.parse(attempt.snapshot)
         : { ...JSON.parse(row.body), id: row.id, revision: row.revision };
       const visible = publicQuiz(quiz);
-      if (
-        !attempt &&
-        (quiz.accessCode ||
-          (!user.admin && quizAvailability(quiz, now()) !== "open"))
-      ) {
+      if (!attempt && !user.admin && quizAvailability(quiz, now()) !== "open") {
         visible.questions = [];
         visible.documentIds = [];
         visible.instructions = "";
@@ -484,7 +478,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
           "Hãy xuất bản đề trước khi bắt đầu làm bài.",
           403,
         );
-      const { accessCode, ...body } = JSON.parse(row.body);
+      const body = withoutQuizAccessCode(JSON.parse(row.body));
       const checkWindow = (timestamp) => {
         const availability = quizAvailability(body, timestamp);
         if (availability !== "open")
@@ -497,54 +491,8 @@ export function makeQuizService(db, user, now = () => Date.now()) {
           );
       };
       checkWindow(now());
-      if (accessCode) {
-        const failures = await db
-          .prepare(
-            "SELECT * FROM quiz_access_failures WHERE quiz_id=? AND user_uid=?",
-          )
-          .bind(row.id, user.uid)
-          .first();
-        if (
-          failures?.quiz_revision === row.revision &&
-          failures.failures >= 5 &&
-          failures.retry_after > now()
-        )
-          throw new ServiceError(
-            "resource-exhausted",
-            "Bạn đã nhập sai nhiều lần. Vui lòng đợi 1 phút rồi thử lại.",
-            429,
-          );
-        if (data.accessCode !== accessCode) {
-          const timestamp = now();
-          await db
-            .prepare(
-              "INSERT INTO quiz_access_failures(quiz_id,user_uid,quiz_revision,failures,retry_after) VALUES(?,?,?,1,?) ON CONFLICT(quiz_id,user_uid) DO UPDATE SET quiz_revision=excluded.quiz_revision,failures=CASE WHEN quiz_access_failures.retry_after<=? OR quiz_access_failures.quiz_revision<>excluded.quiz_revision THEN 1 ELSE quiz_access_failures.failures+1 END,retry_after=CASE WHEN quiz_access_failures.retry_after<=? OR quiz_access_failures.quiz_revision<>excluded.quiz_revision THEN excluded.retry_after ELSE quiz_access_failures.retry_after END",
-            )
-            .bind(
-              row.id,
-              user.uid,
-              row.revision,
-              timestamp + 60_000,
-              timestamp,
-              timestamp,
-            )
-            .run();
-          throw new ServiceError(
-            "permission-denied",
-            "Mật khẩu đề không đúng. Hãy nhập mã 6 chữ số giáo viên cung cấp.",
-            403,
-          );
-        }
-        await db
-          .prepare(
-            "DELETE FROM quiz_access_failures WHERE quiz_id=? AND user_uid=?",
-          )
-          .bind(row.id, user.uid)
-          .run();
-      }
       const quiz = {
         ...body,
-        requiresAccessCode: Boolean(accessCode),
         id: row.id,
         revision: row.revision,
       };
@@ -900,10 +848,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
           .all();
         const access = candidates.results.some((row) => {
           const quiz = JSON.parse(row.body);
-          if (
-            !row.is_attempt &&
-            (quiz.accessCode || quizAvailability(quiz, now()) !== "open")
-          )
+          if (!row.is_attempt && quizAvailability(quiz, now()) !== "open")
             return false;
           const visible =
             row.reveal && quiz.revealAnswers ? quiz : publicQuiz(quiz);

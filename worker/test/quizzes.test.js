@@ -46,7 +46,6 @@ test("teacher Word uploads retain original bytes/name, are downloadable only thr
       ...essayFixture("document"),
       documentIds: [uploaded.file.id],
       status: "draft",
-      accessCode: "012345",
     };
     let saved = (await teacher.save({ quiz: source })).quiz;
     await assert.rejects(
@@ -60,11 +59,8 @@ test("teacher Word uploads retain original bytes/name, are downloadable only thr
         quiz: { ...source, status: "published" },
       })
     ).quiz;
-    await assert.rejects(
-      student.file({ id: uploaded.file.id }),
-      (e) => e.status === 403,
-    );
-    const started = await student.start({ id: saved.id, accessCode: "012345" });
+    assert.equal((await student.file({ id: uploaded.file.id })).status, 200);
+    const started = await student.start({ id: saved.id });
     const response = await student.file({ id: uploaded.file.id });
     assert.equal(response.headers.get("Content-Type"), DOCX_MIME);
     assert.equal(
@@ -304,13 +300,13 @@ test("quiz schedules are optional, validate absolute timestamps and require clos
     assert.throws(() => validateQuiz({ ...fixture(), opensAt: 1_000_000, closesAt }));
 });
 
-test("server schedule hides unopened content and files, checks exact boundaries before the code, and closes a late-starting attempt using saved answers", async () => {
+test("server schedule hides unopened content and files, checks exact boundaries, and closes a late-starting attempt using saved answers", async () => {
   const { db, sqlite } = database(); let now = 1_000_000;
   try {
     const teacher = makeQuizService(db, adminUser, () => now), student = makeQuizService(db, studentUser, () => now), other = makeQuizService(db, { ...studentUser, uid: "window-other" }, () => now);
     for (const id of ["window-pdf", "window-image"]) sqlite.prepare("INSERT INTO quiz_files(id,owner_uid,name,mime,data,created_at) VALUES(?,'teacher',?,'image/png',?,1)").run(id, id, submissionPng);
     const opensAt = now + 60_000, closesAt = opensAt + 30_000;
-    const input = { ...fixture(), opensAt, closesAt, accessCode: "012345", mode: "document", documentIds: ["window-pdf"] };
+    const input = { ...fixture(), opensAt, closesAt, mode: "document", documentIds: ["window-pdf"] };
     input.questions[0].imageId = "window-image";
     const { quiz } = await teacher.save({ quiz: input }), id = quiz.id;
     assert.equal(quiz.opensAt, opensAt); assert.equal(quiz.closesAt, closesAt);
@@ -319,19 +315,17 @@ test("server schedule hides unopened content and files, checks exact boundaries 
     assert.equal((await teacher.listAdmin()).quizzes[0].opensAt, opensAt);
     const detail = await student.detail({ id });
     assert.deepEqual(detail.quiz.questions, []); assert.deepEqual(detail.quiz.documentIds, []); assert.equal(detail.quiz.questionCount, 3);
-    await assert.rejects(student.start({ id, accessCode: "012345" }), e => e.status === 403 && e.message.includes("chưa đến giờ"));
+    await assert.rejects(student.start({ id }), e => e.status === 403 && e.message.includes("chưa đến giờ"));
     assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_attempts").get().n, 0);
-    assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_access_failures").get().n, 0);
     for (const file of ["window-pdf", "window-image"]) await assert.rejects(student.file({ id: file }), e => e.status === 403);
     assert.equal((await teacher.file({ id: "window-pdf" })).status, 200);
     now = opensAt;
-    await assert.rejects(student.start({ id }), e => e.status === 403 && e.message.includes("Mật khẩu"));
-    let a = (await student.start({ id, accessCode: "012345" })).attempt;
+    let a = (await student.start({ id })).attempt;
     assert.equal(a.startedAt, opensAt); assert.equal(a.deadlineAt, closesAt);
     assert.equal((await student.file({ id: "window-image" })).status, 200);
     a = (await student.progress({ id: a.id, revision: a.revision, answers: { single: "B", tf: [true,false,true,false], short: "0.5" }, flagged: ["single"] })).attempt;
     now = closesAt;
-    await assert.rejects(other.start({ id, accessCode: "012345" }), e => e.status === 403 && e.message.includes("đã đóng"));
+    await assert.rejects(other.start({ id }), e => e.status === 403 && e.message.includes("đã đóng"));
     await assert.rejects(other.file({ id: "window-pdf" }), e => e.status === 403);
     const ended = await student.submit({ id: a.id, revision: a.revision, answers: { single: "A" }, flagged: [] });
     assert.equal(ended.attempt.result.score, 10); assert.equal(ended.attempt.submittedAt, closesAt);
@@ -341,9 +335,9 @@ test("server schedule hides unopened content and files, checks exact boundaries 
     assert.equal((await student.file({ id: "window-pdf" })).status, 200);
     assert.deepEqual((await other.detail({ id })).quiz.questions, []);
     await teacher.allowRetake({ id: a.id });
-    await assert.rejects(student.start({ id, accessCode: "012345" }), e => e.status === 403);
+    await assert.rejects(student.start({ id }), e => e.status === 403);
     await teacher.save({ id, revision: 1, quiz: { ...input, opensAt: null, closesAt: null } });
-    const newAttempt = await student.start({ id, accessCode: "012345" });
+    const newAttempt = await student.start({ id });
     assert.equal(newAttempt.attempt.attemptNumber, 2);
     assert.equal(newAttempt.attempt.deadlineAt, now + 60_000);
     assert.deepEqual(newAttempt.attempt.answers, {});
@@ -417,7 +411,7 @@ test("unhide republishes only a current hidden quiz, preserving answer keys, fil
   try {
     const teacher = makeQuizService(db, adminUser, () => now),
       student = makeQuizService(db, studentUser, () => now);
-    const input = { ...fixture(), accessCode: "012345" };
+    const input = fixture();
     input.questions[0].imageId = "unhide-image";
     sqlite
       .prepare(
@@ -425,7 +419,7 @@ test("unhide republishes only a current hidden quiz, preserving answer keys, fil
       )
       .run(submissionPng);
     const { quiz } = await teacher.save({ quiz: input });
-    const started = await student.start({ id: quiz.id, accessCode: "012345" });
+    const started = await student.start({ id: quiz.id });
     await student.submit({
       id: started.attempt.id,
       revision: 0,
@@ -449,7 +443,6 @@ test("unhide republishes only a current hidden quiz, preserving answer keys, fil
     const restored = (await teacher.unhide({ id: quiz.id, revision: 2 })).quiz;
     assert.equal(restored.status, "published");
     assert.equal(restored.revision, 3);
-    assert.equal(restored.requiresAccessCode, true);
     assert.equal(restored.updatedAt, now);
     assert.equal(
       (await student.list({ subject: "toan" })).quizzes[0].id,
@@ -490,9 +483,8 @@ test("unhide republishes only a current hidden quiz, preserving answer keys, fil
       (await other.detail({ id: quiz.id })).quiz.status,
       "published",
     );
-    await assert.rejects(other.start({ id: quiz.id }), (e) => e.status === 403);
     assert.equal(
-      (await other.start({ id: quiz.id, accessCode: "012345" })).quiz.status,
+      (await other.start({ id: quiz.id })).quiz.status,
       "published",
     );
     const draft = (
@@ -548,7 +540,7 @@ test("private essay images autosave to their own question/attempt; submit waits 
         () => now,
       );
     const saved = await teacher.save({
-        quiz: { ...essayFixture(), accessCode: "012345" },
+        quiz: essayFixture(),
       }),
       id = saved.quiz.id;
     assert.equal(saved.quiz.gradingMode, "manual");
@@ -556,8 +548,7 @@ test("private essay images autosave to their own question/attempt; submit waits 
       (await student.list({ subject: "toan" })).quizzes[0].gradingMode,
       "manual",
     );
-    await assert.rejects(student.start({ id }), (e) => e.status === 403);
-    let { attempt: a } = await student.start({ id, accessCode: "012345" });
+    let { attempt: a } = await student.start({ id });
     await assert.rejects(student.submissionUpload(workUpload(a, "outside")));
     await assert.rejects(
       other.submissionUpload(workUpload(a, "essay-one")),
@@ -697,7 +688,7 @@ test("private essay images autosave to their own question/attempt; submit waits 
       "Đã cập nhật.",
     );
     await teacher.allowRetake({ id: a.id });
-    const retake = await student.start({ id, accessCode: "012345" });
+    const retake = await student.start({ id });
     assert.deepEqual(retake.attempt.answers, {});
     await assert.rejects(
       student.progress({
@@ -959,231 +950,100 @@ const studentUser = {
   username: "student",
 };
 
-test("optional quiz access codes require exactly six digits and preserve leading zeros", () => {
-  assert.equal(validateQuiz(fixture()).accessCode, "");
-  for (const accessCode of ["", "000000", "012345", "987654"]) {
-    const quiz = validateQuiz({ ...fixture(), accessCode });
-    assert.equal(quiz.accessCode, accessCode);
-    assert.equal(publicQuiz(quiz).accessCode, undefined);
-    assert.equal(publicQuiz(quiz).requiresAccessCode, Boolean(accessCode));
+test("retired quiz passwords from cached drafts are discarded on save and never returned to students", () => {
+  for (const accessCode of [undefined, "", "012345", "old-format", 123456]) {
+    const quiz = validateQuiz({ ...fixture(), accessCode, requiresAccessCode: true });
+    assert.equal(quiz.accessCode, undefined);
+    assert.equal(quiz.requiresAccessCode, undefined);
+    const visible = publicQuiz({ ...quiz, accessCode: "012345", requiresAccessCode: true });
+    assert.equal(visible.accessCode, undefined);
+    assert.equal(visible.requiresAccessCode, undefined);
+    assert.equal(visible.questions[0].answer, undefined);
   }
-  for (const accessCode of [
-    null,
-    123456,
-    "12345",
-    "1234567",
-    "12a456",
-    " 123456",
-    "123456 ",
-    "１２３４５６",
-  ])
-    assert.throws(() => validateQuiz({ ...fixture(), accessCode }));
 });
 
-test("quiz codes gate question content, PDFs and individual images before starting; correct code unlocks an own snapshot, resume and retakes follow current settings", async () => {
+test("legacy password-protected quizzes start without a code; files follow publication/schedule rules while solution images remain private", async () => {
   const { db, sqlite } = database();
   let now = 1_000_000;
   try {
-    const teacher = makeQuizService(db, adminUser, () => now),
-      student = makeQuizService(db, studentUser, () => now);
-    const input = {
-      ...fixture(),
-      accessCode: "012345",
-      mode: "document",
-      documentIds: ["code-pdf"],
-    };
-    input.questions[0].imageId = "code-stem";
-    input.questions[0].choiceImageIds = ["code-choice", "", "", ""];
-    input.questions[0].explanationImageId = "code-solution";
-    for (const id of ["code-pdf", "code-stem", "code-choice", "code-solution"])
-      sqlite
-        .prepare(
-          "INSERT INTO quiz_files(id,owner_uid,name,mime,data,created_at) VALUES(?,'teacher',?,'image/png',?,1)",
-        )
-        .run(id, id, new Uint8Array([137, 80, 78, 71]));
-    const { quiz } = await teacher.save({ quiz: input }),
-      id = quiz.id;
-    assert.equal(quiz.requiresAccessCode, true);
-    assert.equal((await teacher.adminDetail({ id })).quiz.accessCode, "012345");
+    const teacher = makeQuizService(db, adminUser, () => now), student = makeQuizService(db, studentUser, () => now);
+    const input = { ...fixture(), mode: "document", documentIds: ["legacy-pdf"] };
+    input.questions[0].imageId = "legacy-stem";
+    input.questions[0].explanationImageId = "legacy-solution";
+    for (const id of ["legacy-pdf", "legacy-stem", "legacy-solution"])
+      sqlite.prepare("INSERT INTO quiz_files(id,owner_uid,name,mime,data,created_at) VALUES(?,'teacher',?,'image/png',?,1)").run(id, id, submissionPng);
+    const { quiz } = await teacher.save({ quiz: input }), id = quiz.id;
+    sqlite.prepare("UPDATE quizzes SET body=json_set(body,'$.accessCode','012345','$.requiresAccessCode',json('true')) WHERE id=?").run(id);
+    const detail = await student.detail({ id });
+    assert.equal(detail.quiz.questions.length, 3);
+    assert.equal(detail.quiz.accessCode, undefined);
+    assert.equal(detail.quiz.requiresAccessCode, undefined);
+    assert.deepEqual(detail.quiz.documentIds, ["legacy-pdf"]);
+    assert.equal((await teacher.adminDetail({ id })).quiz.accessCode, undefined);
     for (const operation of ["list", "listAdmin"]) {
       const data = await teacher[operation]({ subject: "toan" });
-      assert.equal(data.quizzes[0].requiresAccessCode, true);
+      assert.equal(data.quizzes[0].requiresAccessCode, undefined);
       assert.ok(!JSON.stringify(data).includes("012345"));
     }
-    const detail = await student.detail({ id });
-    assert.equal(detail.quiz.requiresAccessCode, true);
-    assert.equal(detail.quiz.questionCount, 3);
-    assert.deepEqual(detail.quiz.questions, []);
-    assert.deepEqual(detail.quiz.documentIds, []);
-    assert.equal(detail.quiz.accessCode, undefined);
-    for (const file of fileIds(input))
-      await assert.rejects(student.file({ id: file }), (e) => e.status === 403);
-    for (const accessCode of [undefined, 12345, "12345", "111111"])
-      await assert.rejects(
-        student.start({ id, accessCode }),
-        (e) => e.status === 403,
-      );
-    assert.equal(
-      sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_attempts").get().n,
-      0,
-    );
-    now += 20_000;
-    const started = await student.start({ id, accessCode: "012345" });
-    assert.equal(started.attempt.startedAt, now);
-    assert.equal(started.attempt.deadlineAt, now + 60_000);
-    assert.equal(started.quiz.questions.length, 3);
-    assert.equal(started.quiz.accessCode, undefined);
-    const snapshot = JSON.parse(
-      sqlite.prepare("SELECT snapshot FROM quiz_attempts").get().snapshot,
-    );
-    assert.equal(snapshot.accessCode, undefined);
-    assert.ok(!JSON.stringify(snapshot).includes("012345"));
-    assert.equal(
-      sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_access_failures").get().n,
-      0,
-    );
-    for (const file of ["code-pdf", "code-stem", "code-choice"])
-      assert.equal((await student.file({ id: file })).status, 200);
-    await assert.rejects(
-      student.file({ id: "code-solution" }),
-      (e) => e.status === 403,
-    );
-    const other = makeQuizService(
-      db,
-      { ...studentUser, uid: "other" },
-      () => now,
-    );
-    await assert.rejects(
-      other.file({ id: "code-choice" }),
-      (e) => e.status === 403,
-    );
-    await teacher.save({
-      id,
-      revision: 1,
-      quiz: { ...input, accessCode: "654321" },
-    });
-    assert.equal((await student.start({ id })).attempt.id, started.attempt.id);
-    assert.equal((await student.detail({ id })).quiz.questions.length, 3);
-    const result = await student.submit({
-      id: started.attempt.id,
-      revision: 0,
-      answers: { single: "B", tf: [true, false, true, false], short: "0.5" },
-      flagged: [],
-    });
+    for (const file of ["legacy-pdf", "legacy-stem"]) assert.equal((await student.file({ id: file })).status, 200);
+    await assert.rejects(student.file({ id: "legacy-solution" }), e => e.status === 403);
+    const started = await student.start({ id });
+    const snapshot = JSON.parse(sqlite.prepare("SELECT snapshot FROM quiz_attempts").get().snapshot);
+    assert.equal(snapshot.accessCode, undefined); assert.equal(snapshot.requiresAccessCode, undefined);
+    // Older browsers may still send a stale code, but it cannot block resume.
+    assert.equal((await student.start({ id, accessCode: "wrong" })).attempt.id, started.attempt.id);
+    const result = await student.submit({ id: started.attempt.id, revision: 0, answers: { single: "B", tf: [true, false, true, false], short: "0.5" }, flagged: [] });
     assert.equal(result.attempt.result.score, 10);
-    assert.equal((await student.file({ id: "code-solution" })).status, 200);
+    assert.equal((await student.file({ id: "legacy-solution" })).status, 200);
     await teacher.allowRetake({ id: started.attempt.id });
-    assert.deepEqual((await student.detail({ id })).quiz.questions, []);
-    await assert.rejects(
-      student.start({ id, accessCode: "012345" }),
-      (e) => e.status === 403,
-    );
     now += 1_000;
-    const retake = await student.start({ id, accessCode: "654321" });
-    assert.equal(retake.attempt.attemptNumber, 2);
-    assert.deepEqual(retake.attempt.answers, {});
+    const retake = await student.start({ id });
+    assert.equal(retake.attempt.attemptNumber, 2); assert.deepEqual(retake.attempt.answers, {});
     assert.equal(retake.attempt.deadlineAt, now + 60_000);
-    await teacher.save({ id, revision: 2, quiz: { ...input, accessCode: "" } });
-    assert.equal((await other.detail({ id })).quiz.questions.length, 3);
-    assert.equal((await other.detail({ id })).quiz.requiresAccessCode, false);
-    assert.equal((await other.start({ id })).quiz.questions.length, 3);
-    // Bodies written before this feature have no accessCode field.
-    const legacy = await teacher.save({ quiz: fixture() });
-    sqlite
-      .prepare(
-        "UPDATE quizzes SET body=json_remove(body,'$.accessCode') WHERE id=?",
-      )
-      .run(legacy.quiz.id);
-    assert.equal(
-      (await student.list({ subject: "toan" })).quizzes.find(
-        (q) => q.id === legacy.quiz.id,
-      ).requiresAccessCode,
-      false,
-    );
-    assert.equal(
-      (await student.start({ id: legacy.quiz.id })).quiz.questions.length,
-      3,
-    );
-    await teacher.deleteQuiz({ id, revision: 3 });
+    await teacher.deleteQuiz({ id, revision: quiz.revision });
     assert.deepEqual(sqlite.prepare("PRAGMA foreign_key_check").all(), []);
-  } finally {
-    sqlite.close();
-  }
+  } finally { sqlite.close(); }
 });
 
-test("incorrect code checks are bounded per user and revision; cooldown and teacher code changes release the limit without creating attempts", async () => {
-  const { db, sqlite } = database();
-  let now = 1_000_000;
+test("password retirement migration removes only obsolete fields/cooldowns and preserves active answers, submitted grades, schedules, revisions and attachments", async () => {
+  const { db, sqlite } = database("0008");
+  const now = 1_000_000;
   try {
-    const teacher = makeQuizService(db, adminUser, () => now),
-      student = makeQuizService(db, studentUser, () => now);
-    const { quiz } = await teacher.save({
-        quiz: { ...fixture(), accessCode: "012345" },
-      }),
-      id = quiz.id;
-    for (let i = 0; i < 5; i++)
-      await assert.rejects(
-        student.start({ id, accessCode: "111111" }),
-        (e) => e.status === 403,
-      );
-    await assert.rejects(
-      student.start({ id, accessCode: "012345" }),
-      (e) => e.status === 429,
-    );
-    assert.equal(
-      sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_attempts").get().n,
-      0,
-    );
-    const other = makeQuizService(
-      db,
-      { ...studentUser, uid: "other" },
-      () => now,
-    );
-    assert.equal(
-      (await other.start({ id, accessCode: "012345" })).quiz.questions.length,
-      3,
-    );
-    now += 60_001;
-    await assert.rejects(
-      student.start({ id, accessCode: "111111" }),
-      (e) => e.status === 403,
-    );
-    assert.equal(
-      sqlite
-        .prepare(
-          "SELECT failures FROM quiz_access_failures WHERE user_uid='student'",
-        )
-        .get().failures,
-      1,
-    );
-    for (let i = 0; i < 4; i++)
-      await assert.rejects(
-        student.start({ id, accessCode: "111111" }),
-        (e) => e.status === 403,
-      );
-    await teacher.save({
-      id,
-      revision: 1,
-      quiz: { ...fixture(), accessCode: "654321" },
-    });
-    assert.equal(
-      (await student.start({ id, accessCode: "654321" })).quiz.questions.length,
-      3,
-    );
-    const third = makeQuizService(
-      db,
-      { ...studentUser, uid: "third" },
-      () => now,
-    );
-    await assert.rejects(third.start({ id }), (e) => e.status === 403);
-    await teacher.deleteQuiz({ id, revision: 2 });
-    assert.equal(
-      sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_access_failures").get().n,
-      0,
-    );
-  } finally {
-    sqlite.close();
-  }
+    const teacher = makeQuizService(db, adminUser, () => now), student = makeQuizService(db, studentUser, () => now);
+    const uploaded = await teacher.upload(teacherUpload(submissionPng, "image/png", "migration.png"));
+    const input = { ...fixture(), opensAt: now - 1000, closesAt: now + 60_000 };
+    input.questions[0].imageId = uploaded.file.id;
+    const { quiz } = await teacher.save({ quiz: input });
+    let active = (await student.start({ id: quiz.id })).attempt;
+    active = (await student.progress({ id: active.id, revision: active.revision, answers: { single: "B" }, flagged: ["short"] })).attempt;
+    const other = makeQuizService(db, { ...studentUser, uid: "submitted" }, () => now);
+    const submitted = (await other.start({ id: quiz.id })).attempt;
+    await other.submit({ id: submitted.id, revision: submitted.revision, answers: { single: "B", tf: [true, false, true, false], short: "0.5" }, flagged: [] });
+    const cleanQuiz = (await teacher.save({ quiz: { ...fixture(), status: "draft" } })).quiz;
+    sqlite.prepare("UPDATE quizzes SET body=json_set(body,'$.accessCode','012345','$.requiresAccessCode',json('true')) WHERE id=?").run(quiz.id);
+    sqlite.prepare("UPDATE quiz_attempts SET snapshot=json_set(snapshot,'$.requiresAccessCode',json('true')) WHERE quiz_id=?").run(quiz.id);
+    sqlite.prepare("INSERT INTO quiz_access_failures VALUES(?, 'blocked-student', 1, 5, ?)").run(quiz.id, now + 60_000);
+    const beforeQuiz = sqlite.prepare("SELECT * FROM quizzes ORDER BY id").all();
+    const beforeAttempts = sqlite.prepare("SELECT * FROM quiz_attempts ORDER BY id").all();
+    const beforeFiles = sqlite.prepare("SELECT * FROM quiz_files").all();
+    const beforeLinks = sqlite.prepare("SELECT * FROM attempt_file_links ORDER BY attempt_id").all();
+    sqlite.exec("BEGIN");
+    sqlite.exec(readFileSync(new URL("../migrations/0008_remove_quiz_access_codes.sql", import.meta.url), "utf8"));
+    sqlite.exec("COMMIT");
+    const strip = value => { const object = JSON.parse(value); delete object.accessCode; delete object.requiresAccessCode; return JSON.stringify(object); };
+    assert.deepEqual(sqlite.prepare("SELECT * FROM quizzes ORDER BY id").all().map(row => ({ ...row })), beforeQuiz.map(row => ({ ...row, body: strip(row.body) })));
+    assert.deepEqual(sqlite.prepare("SELECT * FROM quiz_attempts ORDER BY id").all().map(row => ({ ...row })), beforeAttempts.map(row => ({ ...row, snapshot: strip(row.snapshot) })));
+    assert.deepEqual(sqlite.prepare("SELECT * FROM quiz_files").all(), beforeFiles);
+    assert.deepEqual(sqlite.prepare("SELECT * FROM attempt_file_links ORDER BY attempt_id").all(), beforeLinks);
+    assert.equal(sqlite.prepare("SELECT name FROM sqlite_master WHERE name='quiz_access_failures'").get(), undefined);
+    assert.deepEqual((await student.detail({ id: quiz.id })).attempt.answers, { single: "B" });
+    assert.equal((await other.detail({ id: quiz.id })).attempt.result.score, 10);
+    assert.equal((await student.start({ id: quiz.id })).attempt.id, active.id);
+    const blocked = makeQuizService(db, { ...studentUser, uid: "blocked-student" }, () => now);
+    assert.equal((await blocked.start({ id: quiz.id })).quiz.questions.length, 3);
+    await assert.rejects(blocked.start({ id: cleanQuiz.id }), e => e.status === 403);
+    assert.deepEqual(sqlite.prepare("PRAGMA foreign_key_check").all(), []);
+  } finally { sqlite.close(); }
 });
 
 test("retake migration preserves existing attempts, answers, results and attachment links inside a transaction", () => {

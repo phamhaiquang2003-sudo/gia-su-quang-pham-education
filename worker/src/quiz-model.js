@@ -53,12 +53,6 @@ export function validateQuiz(input) {
     closesAt = scheduleTime(input.closesAt, "Giờ đóng đề");
   if (opensAt && closesAt && closesAt <= opensAt)
     fail("Giờ đóng đề phải sau giờ mở đề.");
-  const accessCode = input.accessCode === undefined ? "" : input.accessCode;
-  if (
-    typeof accessCode !== "string" ||
-    (accessCode !== "" && !/^[0-9]{6}$/.test(accessCode))
-  )
-    fail("Mật khẩu đề phải gồm đúng 6 chữ số, hoặc để trống.");
   if (!subjectIds.includes(input.subject)) fail("Môn học không hợp lệ.");
   if (!["draft", "published", "hidden"].includes(input.status))
     fail("Trạng thái đề không hợp lệ.");
@@ -195,7 +189,6 @@ export function validateQuiz(input) {
   return {
     title,
     gradingMode,
-    accessCode,
     opensAt,
     closesAt,
     subject: input.subject,
@@ -224,11 +217,15 @@ export function fileIds(quiz) {
   ];
 }
 
+// Discard retired fields from older stored quizzes and attempt snapshots.
+export function withoutQuizAccessCode(quiz) {
+  const { accessCode, requiresAccessCode, ...content } = quiz;
+  return content;
+}
+
 export function publicQuiz(quiz) {
-  const { accessCode, ...visible } = quiz;
   return {
-    ...visible,
-    requiresAccessCode: Boolean(accessCode) || quiz.requiresAccessCode === true,
+    ...withoutQuizAccessCode(quiz),
     questionCount: quiz.questions.length,
     questions: quiz.questions.map((q) => ({
       id: q.id,

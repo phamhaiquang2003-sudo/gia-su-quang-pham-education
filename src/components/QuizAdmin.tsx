@@ -71,8 +71,11 @@ export default function QuizAdmin({ uid }: { uid: string }) {
         Array.isArray(q.questions) &&
         (q.questions.length ||
           (q.gradingMode === "manual" && q.mode === "document"))
-      )
+      ) {
+        delete q.accessCode;
+        delete q.requiresAccessCode;
         return q;
+      }
     } catch {
       /* new draft */
     }
@@ -513,30 +516,6 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                   />
                 </label>
               </div>
-              <label className="account-label mt-5">
-                Mật khẩu đề (6 chữ số, tùy chọn)
-                <input
-                  className="account-input max-w-sm font-mono tracking-widest"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]{6}"
-                  maxLength={6}
-                  autoComplete="off"
-                  disabled={busy}
-                  value={quiz.accessCode || ""}
-                  onChange={(e) => update({ accessCode: e.target.value })}
-                  placeholder="Ví dụ: 038572"
-                  aria-label="Mật khẩu đề (6 chữ số, tùy chọn)"
-                  aria-describedby="quiz-access-code-help"
-                />
-                <span
-                  id="quiz-access-code-help"
-                  className="text-xs font-normal leading-relaxed text-slate-500"
-                >
-                  Tự chọn 6 chữ số rồi cung cấp cho học sinh. Để trống để học
-                  sinh vào làm không cần mật khẩu đề.
-                </span>
-              </label>
               <div className="mt-5 rounded-xl border border-slate-200 p-4">
                 <h4 className="mb-3 text-sm font-semibold">
                   Giới hạn giờ mở / đóng đề (tùy chọn)
@@ -1202,11 +1181,6 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                       : `${item.questionCount} câu`}{" "}
                     · {item.durationMinutes} phút
                   </p>
-                  {item.requiresAccessCode && (
-                    <p className="mt-2 text-xs font-semibold text-amber-700">
-                      Có mật khẩu đề
-                    </p>
-                  )}
                   <QuizScheduleInfo
                     quiz={item}
                     className="mt-2 text-slate-500"
