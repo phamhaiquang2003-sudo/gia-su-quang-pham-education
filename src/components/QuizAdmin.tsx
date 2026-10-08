@@ -42,6 +42,7 @@ import QuizResultView from "./QuizResultView";
 import QuizImageInput from "./QuizImageInput";
 import QuizManualGrader from "./QuizManualGrader";
 import QuizScheduleInfo from "./QuizScheduleInfo";
+import QuizShareLink from "./QuizShareLink";
 import { scheduleInputValue, scheduleTimestamp } from "@/lib/quiz-schedule";
 import { clipboardImage, prepareQuizImage } from "@/lib/quiz-images";
 type ImagePurpose = "question" | "explanation" | "choice" | "statement";
@@ -147,7 +148,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
       }));
       setMessage(
         status === "published"
-          ? "Đã xuất bản! Học sinh có thể mở bài trong kho môn học. Bạn cũng có thể bấm “Mở bài để làm thử”."
+          ? "Đã xuất bản! Sao chép liên kết gửi học sinh bên dưới để các em mở thẳng đề này."
           : "Đã lưu bản nháp lên máy chủ.",
       );
     });
@@ -377,6 +378,12 @@ export default function QuizAdmin({ uid }: { uid: string }) {
       {view === "edit" && (
         <form onSubmit={save} className="space-y-6">
           <fieldset disabled={busy} className="space-y-6">
+            {quiz.id && quiz.status === "published" && (
+              <QuizShareLink
+                quiz={{ id: quiz.id, subject: quiz.subject, title: quiz.title }}
+                disabled={busy}
+              />
+            )}
             <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-6">
               <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <h3 className="font-semibold">1. Thông tin đề</h3>
@@ -559,10 +566,10 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                   </label>
                 </div>
                 <p className="mt-3 text-xs leading-relaxed text-slate-500">
-                  Giờ Việt Nam (UTC+7). Để trống cả hai ô để không giới hạn lịch.
-                  Có thể chỉ đặt giờ mở hoặc giờ đóng. Lượt làm kết thúc khi hết
-                  thời gian riêng hoặc đến giờ đóng, tùy mốc nào sớm hơn. Sửa
-                  lịch chỉ áp dụng cho lượt bắt đầu sau khi lưu.
+                  Giờ Việt Nam (UTC+7). Để trống cả hai ô để không giới hạn
+                  lịch. Có thể chỉ đặt giờ mở hoặc giờ đóng. Lượt làm kết thúc
+                  khi hết thời gian riêng hoặc đến giờ đóng, tùy mốc nào sớm
+                  hơn. Sửa lịch chỉ áp dụng cho lượt bắt đầu sau khi lưu.
                 </p>
                 {(quiz.opensAt || quiz.closesAt) && (
                   <button
@@ -1195,7 +1202,10 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                       Có mật khẩu đề
                     </p>
                   )}
-                  <QuizScheduleInfo quiz={item} className="mt-2 text-slate-500" />
+                  <QuizScheduleInfo
+                    quiz={item}
+                    className="mt-2 text-slate-500"
+                  />
                 </div>
                 <span
                   className={`h-fit rounded-full px-3 py-1 text-xs ${item.status === "published" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}
@@ -1203,6 +1213,9 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                   {statusLabels[item.status]}
                 </span>
               </div>
+              {item.status === "published" && (
+                <QuizShareLink quiz={item} disabled={busy} />
+              )}
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   disabled={busy}

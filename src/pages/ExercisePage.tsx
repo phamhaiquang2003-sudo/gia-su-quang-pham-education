@@ -20,6 +20,7 @@ import {
 } from "@/lib/subjects";
 import { useAccount } from "@/lib/use-account";
 import { quizApi, quizHref, type QuizSummary } from "@/lib/quizzes";
+import { quizLoginHref } from "@/lib/quiz-login";
 import QuizPlayer from "@/components/QuizPlayer";
 import QuizScheduleInfo from "@/components/QuizScheduleInfo";
 import AccountMenu from "@/components/AccountMenu";
@@ -87,7 +88,8 @@ export default function ExercisePage() {
     };
   }, [session.profile?.uid, subject.id, quizId, reload]);
   useEffect(() => {
-    if (quizId || !quizzes.some((quiz) => quiz.opensAt || quiz.closesAt)) return;
+    if (quizId || !quizzes.some((quiz) => quiz.opensAt || quiz.closesAt))
+      return;
     const interval = setInterval(
       () =>
         setCatalogueNow(
@@ -150,7 +152,15 @@ export default function ExercisePage() {
               asChild
               className="mb-4 h-auto w-full rounded-xl bg-amber-300 py-3 text-slate-950 hover:bg-amber-200"
             >
-              <a href={`${import.meta.env.BASE_URL}dang-nhap.html`}>
+              <a
+                href={
+                  quizId
+                    ? quizLoginHref(
+                        quizHref({ id: quizId, subject: subject.id }),
+                      )
+                    : `${import.meta.env.BASE_URL}dang-nhap.html`
+                }
+              >
                 Đăng nhập ngay
               </a>
             </Button>

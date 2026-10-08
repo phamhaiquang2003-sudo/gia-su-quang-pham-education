@@ -13,6 +13,12 @@
 
 Trong **Danh sách đề**, bấm **Ẩn đề** để tạm gỡ đề khỏi kho. Với đề có trạng thái **Đã ẩn**, bấm **Bỏ ẩn** để đưa trở lại kho học sinh. Nội dung, tệp và lịch sử lượt làm/điểm được giữ nguyên.
 
+### Gửi liên kết trực tiếp đến một đề
+
+Trong **Bài tập → Danh sách đề**, mỗi đề đã xuất bản có khung **Liên kết gửi học sinh** và nút **Sao chép liên kết**. Khung này cũng xuất hiện trong trình soạn sau khi xuất bản hoặc mở chỉnh sửa đề đã xuất bản. Dán liên kết để gửi qua Zalo; học sinh mở thẳng trang của đề với nút **Bắt đầu làm bài**, không cần tìm trong kho.
+
+Nếu học sinh chưa đăng nhập, bấm **Đăng nhập ngay**, nhập tài khoản được cấp; đăng nhập xong sẽ quay lại đúng đề trong liên kết. Đăng nhập thông thường vẫn dùng trang đích mặc định. Liên kết có môn học và ID đề, không chứa mật khẩu đề hay đáp án; mã đề và lịch mở/đóng được kiểm tra khi học sinh vào làm bài.
+
 PDF/Word (.doc, .docx)/PNG/JPG/WebP được tải trực tiếp, tối đa **1,8 MB mỗi tệp**, 8 tệp đề và 608 tệp tổng cộng/đề (100 câu × 6 ảnh + 8 tệp đề). Mỗi câu có thể có ảnh câu hỏi, 4 ảnh lựa chọn/ý và ảnh lời giải. Mỗi đề tối đa 100 câu. Ảnh lớn được trình duyệt tự nén trước khi gửi; tệp tài liệu lớn cần giảm dung lượng trước khi tải. Với Word, học sinh bấm **Tải file Word** để mở trên máy; PDF và ảnh vẫn xem trực tiếp trong trang. Bản đang soạn được giữ trong tab trình duyệt; bấm **Lưu nháp** để lưu lên máy chủ.
 
 ### Dán ảnh chụp màn hình, không cần lưu về máy

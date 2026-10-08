@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import App from "@/App";
 import { accountDestination, accountError, loginAccount } from "@/lib/accounts";
+import { quizReturnDestination } from "@/lib/quiz-login";
 import { configurationMessage, firebaseConfigured } from "@/lib/firebase";
 import {
   Dialog,
@@ -75,7 +76,9 @@ export default function LoginPage() {
     try {
       const profile = await loginAccount(username, password, remember);
       setPassword("");
-      window.location.assign(accountDestination(profile));
+      window.location.assign(
+        quizReturnDestination() || accountDestination(profile),
+      );
     } catch (error) {
       setStatus(accountError(error));
     } finally {
