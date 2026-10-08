@@ -7,7 +7,6 @@
     "node": "22"
   },
   "scripts": {
-    "admin:local": "node scripts/start-local-admin.js",
     "test": "node --test test/*.test.js",
     "test:emulators": "node scripts/run-emulators.js",
     "bootstrap-admin": "node scripts/bootstrap-admin.js"

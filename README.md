@@ -15,11 +15,13 @@ Triển khai Vercel và kết nối dịch vụ: [docs/vercel.md](docs/vercel.md
 - Các component Button và Dialog từ shadcn/ui, tùy chỉnh trên Radix UI.
 - Instrument Serif và Inter (400/500) từ Google Fonts.
 
-## Chạy trên máy
+## Sử dụng website
+
+Mở **https://lumenpelagi.vercel.app/** để học tập và **https://lumenpelagi.vercel.app/quan-tri.html** để quản trị. Toàn bộ thao tác thường ngày chạy online, kể cả thêm, khóa/mở khóa, cấp lại mật khẩu và xóa tài khoản. Website hoạt động khi máy tính của giáo viên tắt.
+
+## Phát triển mã nguồn
 
 Cài Node.js 22.12 trở lên (khuyên dùng Node.js 24 LTS), sau đó:
-
-Trên máy Windows hiện tại, có thể nhấp đúp **`chay-giao-dien.bat`** để mở giao diện. Tệp này hỗ trợ Node.js portable đã được tải cho dự án, hoặc Node.js có trên PATH.
 
 ```sh
 npm install
@@ -61,11 +63,11 @@ Trong trang quản trị, mục **Thống kê buổi học** ghi ngày học và
 
 Mục **Liên hệ gia sư** trên cả menu máy tính và điện thoại mở Zalo của Phạm Hải Quang tại **https://zalo.me/0365900419**, không yêu cầu đăng nhập.
 
-Trang quản trị dựa theo mẫu: thêm từng tài khoản, xem danh sách, khóa/mở khóa, cấp lại mật khẩu và xóa học sinh. Mật khẩu thuộc Firebase Authentication; dữ liệu hồ sơ thuộc Firestore. **Dùng Firebase Spark miễn phí:** giáo viên thêm và xóa tài khoản ngay trên website công khai. Một phiên Auth riêng trong bộ nhớ giữ nguyên phiên giáo viên khi tạo; Firestore Rules kiểm tra quyền trước khi cấp hồ sơ. Chức năng xóa chạy trên **Cloudflare Workers miễn phí**, kiểm tra ID token, quyền quản trị và trạng thái tài khoản; xóa cả Auth, hồ sơ và giữ chỗ tên đăng nhập. Để khóa/mở khóa hoặc cấp lại mật khẩu, nhấp đúp `quan-tri-mien-phi.bat`. Website hoạt động khi bạn tắt máy. Xem [hướng dẫn dịch vụ Cloudflare](docs/cloudflare-admin.md).
+Trang quản trị cho phép thêm từng tài khoản, xem danh sách, khóa/mở khóa, cấp lại mật khẩu và xóa học sinh ngay trên website công khai. Mật khẩu thuộc Firebase Authentication; dữ liệu hồ sơ thuộc Firestore. **Dùng Firebase Spark miễn phí:** một phiên Auth riêng trong bộ nhớ giữ nguyên phiên giáo viên khi tạo; Firestore Rules kiểm tra quyền trước khi cấp hồ sơ. Các thao tác quản lý tài khoản chạy trên **Cloudflare Workers miễn phí**, kiểm tra ID token, quyền quản trị và trạng thái tài khoản. Xem [hướng dẫn dịch vụ Cloudflare](docs/cloudflare-admin.md).
 
 ![Trang quản trị được kiểm tra với Firebase Emulator](docs/preview-admin.png)
 
-**Hướng dẫn kích hoạt:** [docs/firebase-setup.md](docs/firebase-setup.md). Cấu hình Web của `phq-education` đã được tích hợp. Còn cần áp dụng Firestore Rules và tạo quản trị viên đầu tiên. Công cụ local dùng khóa Service Account lưu ngoài dự án; không cần triển khai Cloud Functions hay bật thanh toán. Cấu hình phát triển có thể được ghi đè bằng `VITE_FIREBASE_CONFIG`.
+**Hướng dẫn thiết lập:** [docs/firebase-setup.md](docs/firebase-setup.md). Cấu hình Web của `phq-education` đã được tích hợp; quyền Firestore và tài khoản quản trị đang hoạt động. Khóa Service Account cho quản lý tài khoản nằm trong Worker Secret; không cần triển khai Cloud Functions hay bật thanh toán. Cấu hình phát triển có thể được ghi đè bằng `VITE_FIREBASE_CONFIG`.
 
 Form đăng nhập nằm trong thẻ xanh navy bo góc, có hiệu ứng kính, chữ sáng và ô nhập trong suốt đồng bộ với trang chủ. Phía sau là giao diện trang chủ cùng video được làm mờ. Nút **Quay lại** ở góc trên trái đưa về trang chủ.
 

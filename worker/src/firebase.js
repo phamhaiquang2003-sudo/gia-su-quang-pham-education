@@ -118,6 +118,15 @@ export function makeFirebase(secret) {
         (response.status === 404 || data.error?.message === "USER_NOT_FOUND")
       )
         return null;
+      if (
+        ["INVALID_PASSWORD", "PASSWORD_DOES_NOT_MEET_REQUIREMENTS"].some(
+          (code) => data.error?.message?.startsWith(code),
+        )
+      )
+        throw new ServiceError(
+          "invalid-argument",
+          "Mật khẩu mới chưa đáp ứng chính sách Firebase. Hãy chọn mật khẩu mạnh hơn.",
+        );
       throw new ServiceError(
         "failed-precondition",
         "Thao tác chưa hoàn tất. Vui lòng tải lại danh sách rồi thử lại.",
@@ -127,6 +136,27 @@ export function makeFirebase(secret) {
     return data;
   }
   const name = (collection, id) => `${documentRoot}/${collection}/${id}`;
+  async function setProfileStatus(profile, status) {
+    const result = await request(
+      `https://firestore.googleapis.com/v1/${documentRoot}:commit`,
+      {
+        writes: [
+          {
+            update: {
+              name: profile.name,
+              fields: { status: { stringValue: status } },
+            },
+            updateMask: { fieldPaths: ["status"] },
+            updateTransforms: [
+              { fieldPath: "updatedAt", setToServerValue: "REQUEST_TIME" },
+            ],
+            currentDocument: { updateTime: profile.updateTime },
+          },
+        ],
+      },
+    );
+    return result.writeResults[0].updateTime;
+  }
   return {
     async getProfile(uid) {
       return request(
@@ -150,25 +180,32 @@ export function makeFirebase(secret) {
       return result.users?.find((user) => user.localId === uid) || null;
     },
     async disableProfile(profile) {
-      const result = await request(
+      return setProfileStatus(profile, "disabled");
+    },
+    setProfileStatus,
+    async touchProfile(profile) {
+      await request(
         `https://firestore.googleapis.com/v1/${documentRoot}:commit`,
         {
           writes: [
             {
-              update: {
-                name: profile.name,
-                fields: { status: { stringValue: "disabled" } },
+              transform: {
+                document: profile.name,
+                fieldTransforms: [
+                  { fieldPath: "updatedAt", setToServerValue: "REQUEST_TIME" },
+                ],
               },
-              updateMask: { fieldPaths: ["status"] },
-              updateTransforms: [
-                { fieldPath: "updatedAt", setToServerValue: "REQUEST_TIME" },
-              ],
               currentDocument: { updateTime: profile.updateTime },
             },
           ],
         },
       );
-      return result.writeResults[0].updateTime;
+    },
+    async updateAuth(uid, changes) {
+      await request(
+        `https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:update`,
+        { localId: uid, ...changes },
+      );
     },
     async deleteAuth(uid) {
       await request(

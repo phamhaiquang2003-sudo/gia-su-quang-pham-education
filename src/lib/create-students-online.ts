@@ -183,7 +183,7 @@ export async function createStudentsOnline(
                 await deleteUser(newUser);
               } catch {
                 message =
-                  "Chưa hoàn tất cấp hồ sơ và dọn tài khoản. Hãy kiểm tra Authentication bằng công cụ quản trị trên máy.";
+                  "Chưa hoàn tất cấp hồ sơ và dọn tài khoản. Hãy kiểm tra Authentication trong Firebase Console.";
               }
             } else {
               message =

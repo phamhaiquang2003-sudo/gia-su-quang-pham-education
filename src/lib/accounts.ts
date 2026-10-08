@@ -39,43 +39,32 @@ export interface CreationResult {
   message: string;
 }
 
-export const localAdminEnabled =
-  import.meta.env.DEV && import.meta.env.VITE_LOCAL_ADMIN === "true";
-export const studentDeletionEnabled = localAdminEnabled || Boolean(adminApiUrl);
+export const studentManagementEnabled = Boolean(adminApiUrl);
 
 async function callAdmin<T>(
-  operation: "createStudents" | "manageStudent",
+  operation: "manageStudent",
   data: unknown,
-  online = false,
 ): Promise<T> {
-  if (!localAdminEnabled && !online) {
-    throw new Error(
-      "Mở quan-tri-mien-phi.bat trên máy tính để quản lý tài khoản bằng gói Spark.",
-    );
-  }
+  if (!studentManagementEnabled)
+    throw new Error("Dịch vụ quản trị online chưa được cấu hình.");
   const user = getFirebase().auth.currentUser;
   if (!user)
     throw new FirebaseError("functions/unauthenticated", "Vui lòng đăng nhập.");
   const token = await user.getIdToken();
   let response: Response;
   try {
-    response = await fetch(
-      `${online ? adminApiUrl : ""}/api/admin/${operation}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-        signal: AbortSignal.timeout(online ? 60_000 : 300_000),
+    response = await fetch(`${adminApiUrl}/api/admin/${operation}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
-    );
+      body: JSON.stringify(data),
+      signal: AbortSignal.timeout(60_000),
+    });
   } catch {
     throw new Error(
-      online
-        ? "Không kết nối được dịch vụ quản trị online. Vui lòng tải lại danh sách rồi thử lại."
-        : "Không kết nối được công cụ quản trị trên máy. Hãy mở lại quan-tri-mien-phi.bat.",
+      "Không kết nối được dịch vụ quản trị online. Vui lòng tải lại danh sách rồi thử lại.",
     );
   }
   let result;
@@ -83,9 +72,7 @@ async function callAdmin<T>(
     result = await response.json();
   } catch {
     throw new Error(
-      online
-        ? "Dịch vụ quản trị online chưa sẵn sàng. Vui lòng thử lại sau."
-        : "Công cụ quản trị chưa sẵn sàng. Hãy mở lại quan-tri-mien-phi.bat.",
+      "Dịch vụ quản trị online chưa sẵn sàng. Vui lòng thử lại sau.",
     );
   }
   if (!response.ok) {
@@ -201,8 +188,7 @@ export async function changeOwnPassword(
   const user = auth.currentUser;
   if (!user || user.uid !== uid || !user.email)
     throw new Error("Phiên đăng nhập đã thay đổi. Vui lòng đăng nhập lại.");
-  if (!currentPassword)
-    throw new Error("Hãy nhập mật khẩu hiện tại.");
+  if (!currentPassword) throw new Error("Hãy nhập mật khẩu hiện tại.");
   if (newPassword.length < 8 || newPassword.length > 128)
     throw new Error("Mật khẩu mới cần từ 8 đến 128 ký tự.");
   try {
@@ -224,15 +210,8 @@ export async function changeOwnPassword(
 }
 
 export async function createStudents(students: NewStudent[]) {
-  if (!localAdminEnabled) {
-    const { createStudentsOnline } = await import("./create-students-online");
-    return createStudentsOnline(students);
-  }
-  return (
-    await callAdmin<{ results: CreationResult[] }>("createStudents", {
-      students,
-    })
-  ).results;
+  const { createStudentsOnline } = await import("./create-students-online");
+  return createStudentsOnline(students);
 }
 
 export async function manageStudent(
@@ -240,13 +219,9 @@ export async function manageStudent(
   action: "disable" | "enable" | "resetPassword" | "delete",
   password?: string,
 ) {
-  await callAdmin(
-    "manageStudent",
-    {
-      uid,
-      action,
-      ...(password !== undefined ? { password } : {}),
-    },
-    !localAdminEnabled && action === "delete" && Boolean(adminApiUrl),
-  );
+  await callAdmin("manageStudent", {
+    uid,
+    action,
+    ...(password !== undefined ? { password } : {}),
+  });
 }

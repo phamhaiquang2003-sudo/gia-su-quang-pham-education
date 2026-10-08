@@ -1,4 +1,4 @@
-import { makeDeletionService } from "./deletion-service.js";
+import { makeStudentService } from "./student-service.js";
 import { ServiceError } from "./errors.js";
 import { makeFirebase, verifyToken } from "./firebase.js";
 import { requireQuizUser } from "./quiz-auth.js";
@@ -246,7 +246,7 @@ export function makeHandler({
           "Dữ liệu JSON không hợp lệ.",
         );
       }
-      const service = makeDeletionService({
+      const service = makeStudentService({
         firebase: makeFirebaseClient(env.FIREBASE_SERVICE_ACCOUNT),
         verifyToken: verifyIdToken,
       });
