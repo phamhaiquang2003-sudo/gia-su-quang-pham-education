@@ -43,6 +43,9 @@ import QuizImageInput from "./QuizImageInput";
 import QuizManualGrader from "./QuizManualGrader";
 import QuizScheduleInfo from "./QuizScheduleInfo";
 import QuizShareLink from "./QuizShareLink";
+import QuizAdminCatalog, {
+  defaultQuizCatalogFilters,
+} from "./QuizAdminCatalog";
 import { scheduleInputValue, scheduleTimestamp } from "@/lib/quiz-schedule";
 import { clipboardImage, prepareQuizImage } from "@/lib/quiz-images";
 type ImagePurpose = "question" | "explanation" | "choice" | "statement";
@@ -77,6 +80,9 @@ export default function QuizAdmin({ uid }: { uid: string }) {
   });
   const [view, setView] = useState<"edit" | "list" | "results">("edit");
   const [list, setList] = useState<QuizSummary[]>([]);
+  const [catalogFilters, setCatalogFilters] = useState({
+    ...defaultQuizCatalogFilters,
+  });
   const [busy, setBusy] = useState(false);
   const actionInProgress = useRef(false);
   const [message, setMessage] = useState("");
@@ -1176,20 +1182,19 @@ export default function QuizAdmin({ uid }: { uid: string }) {
         </form>
       )}
       {view === "list" && (
-        <div className="space-y-4">
-          {!list.length && (
-            <p className="rounded-xl bg-slate-50 p-6 text-sm text-slate-600">
-              Chưa có đề. Bấm “Tạo đề mới” để bắt đầu.
-            </p>
-          )}
-          {list.map((item) => (
+        <QuizAdminCatalog
+          quizzes={list}
+          filters={catalogFilters}
+          onFiltersChange={setCatalogFilters}
+          busy={busy}
+          renderQuiz={(item) => (
             <article
               key={item.id}
               className="rounded-2xl border border-slate-200 p-5"
             >
               <div className="flex flex-wrap justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="break-words font-semibold">{item.title}</h3>
+                  <h6 className="break-words font-semibold">{item.title}</h6>
                   <p className="mt-2 text-sm text-slate-500">
                     {getSubject(item.subject).label} · {item.category} ·{" "}
                     {item.gradingMode === "manual" && item.questionCount === 0
@@ -1256,17 +1261,10 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                       onClick={() =>
                         void run(async () => {
                           await quizApi("hide", { id: item.id });
-                          setList((items) =>
-                            items.map((q) =>
-                              q.id === item.id
-                                ? {
-                                    ...q,
-                                    status: "hidden",
-                                    revision: q.revision + 1,
-                                  }
-                                : q,
-                            ),
-                          );
+                          const data = await quizApi<{
+                            quizzes: QuizSummary[];
+                          }>("listAdmin");
+                          setList(data.quizzes);
                           setMessage("Đã ẩn đề khỏi kho bài tập.");
                         })
                       }
@@ -1310,8 +1308,8 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                 </button>
               </div>
             </article>
-          ))}
-        </div>
+          )}
+        />
       )}
       {view === "results" && resultQuiz && (
         <section>

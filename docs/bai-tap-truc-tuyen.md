@@ -13,6 +13,15 @@
 
 Trong **Danh sách đề**, bấm **Ẩn đề** để tạm gỡ đề khỏi kho. Với đề có trạng thái **Đã ẩn**, bấm **Bỏ ẩn** để đưa trở lại kho học sinh. Nội dung, tệp và lịch sử lượt làm/điểm được giữ nguyên.
 
+### Sắp xếp và phân loại đề trong trang quản trị
+
+Mở **Bài tập → Danh sách đề**. Các đề được phân thành từng môn học, rồi từng danh mục/lớp bên trong mỗi môn, kèm số lượng đề trong từng nhóm.
+
+- **Tìm bài tập:** tìm theo tên đề, môn, lớp hoặc mã đề; hỗ trợ nhập tiếng Việt không dấu.
+- Lọc kết hợp theo **môn học**, **danh mục/lớp**, **trạng thái** (đã xuất bản, bản nháp, đã ẩn) và **loại bài** (trắc nghiệm/tự luận).
+- **Sắp xếp trong từng nhóm:** mới tạo nhất, cũ nhất, vừa cập nhật hoặc tên A–Z. Tên có số được xếp theo thứ tự tự nhiên, như “Đề 2” trước “Đề 10”.
+- Bấm **Xóa bộ lọc** hoặc **Hiển thị tất cả bài tập** để quay lại danh sách đầy đủ đang tải. Bộ lọc được giữ khi chuyển qua chỉnh sửa hoặc xem kết quả rồi quay lại danh sách đề trong cùng trang.
+
 ### Gửi liên kết trực tiếp đến một đề
 
 Trong **Bài tập → Danh sách đề**, mỗi đề đã xuất bản có khung **Liên kết gửi học sinh** và nút **Sao chép liên kết**. Khung này cũng xuất hiện trong trình soạn sau khi xuất bản hoặc mở chỉnh sửa đề đã xuất bản. Dán liên kết để gửi qua Zalo; học sinh mở thẳng trang của đề với nút **Bắt đầu làm bài**, không cần tìm trong kho.
