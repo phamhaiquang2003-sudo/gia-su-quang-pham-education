@@ -34,9 +34,9 @@ PDF khổ A4, nhúng phông chữ tiếng Việt và ảnh QR, mở được mà
 
 ## QR ngân hàng
 
-Hiển thị mã VietQR chuyển khoản **MB Bank**, tài khoản **0365900419**, chủ tài khoản **PHAM HAI QUANG**, theo thông tin người dùng cung cấp. Bấm **Tải mã QR** để lưu ảnh gửi cho học sinh/phụ huynh. QR không cố định số tiền; người chuyển khoản nhập số tiền theo thống kê tháng.
+Mã VietQR chuyển khoản được hiển thị trong **file PDF tổng hợp học phí**: **MB Bank**, tài khoản **0365900419**, chủ tài khoản **PHAM HAI QUANG**, theo thông tin người dùng cung cấp. Trang quản trị chỉ hiển thị form ghi nhận buổi học và các bảng thống kê, không hiển thị khung QR ngân hàng. QR không cố định số tiền; người chuyển khoản nhập số tiền theo thống kê tháng.
 
-Ảnh QR được lưu tại `public/qr-mb-pham-hai-quang.png`, không phụ thuộc dịch vụ tạo QR bên ngoài khi mở trang.
+Ảnh QR được lưu tại `public/qr-mb-pham-hai-quang.png` và nhúng vào PDF, không phụ thuộc dịch vụ tạo QR bên ngoài khi xuất báo cáo.
 
 ## Lưu trữ và quyền truy cập
 

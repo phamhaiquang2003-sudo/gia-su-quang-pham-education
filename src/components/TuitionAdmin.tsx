@@ -13,7 +13,6 @@ import { accountError } from "@/lib/accounts";
 import { quizApi, QuizApiError } from "@/lib/quizzes";
 import {
   tuitionDate,
-  tuitionBank,
   tuitionMoney,
   tuitionMonthLabel,
   vietnamToday,
@@ -355,169 +354,138 @@ export default function TuitionAdmin({
           </article>
         ))}
       </section>
-      <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        <section
-          id="tuition-form"
-          className="min-w-0 scroll-mt-6 rounded-2xl border border-slate-200 p-4 sm:p-6"
-          aria-labelledby="tuition-form-title"
-        >
-          <h3 id="tuition-form-title" className="mb-4 font-semibold">
-            {editing ? "Chỉnh sửa buổi học" : "Thêm buổi học"}
-          </h3>
-          <form onSubmit={saveLesson}>
-            <fieldset
-              disabled={busy || loadingStudents || loading || !overview}
-              className="grid min-w-0 gap-4 sm:grid-cols-2"
-            >
-              <label className="account-label min-w-0 sm:col-span-2">
-                Học sinh
-                <select
-                  className="account-input min-w-0"
-                  required
-                  value={formStudent}
-                  onChange={(event) => {
-                    setFormStudent(event.target.value);
-                    const rate = overview?.rates.find(
-                      (row) => row.studentUid === event.target.value,
-                    );
-                    setFee(rate ? String(rate.fee) : "");
-                  }}
-                >
-                  <option value="">Chọn học sinh</option>
-                  {(editing ? options : accounts).map((student) => (
-                    <option key={student.uid} value={student.uid}>
-                      {student.displayName} · @{student.username}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="account-label min-w-0">
-                Ngày học
-                <input
-                  className="account-input min-w-0"
-                  type="date"
-                  min="2000-01-01"
-                  max="2100-12-31"
-                  value={date}
-                  onChange={(event) => setDate(event.target.value)}
-                  required
-                />
-              </label>
-              <label className="account-label min-w-0">
-                Học phí buổi này (đồng)
-                <input
-                  className="account-input min-w-0"
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  max={1_000_000_000}
-                  step={1}
-                  value={fee}
-                  onChange={(event) => setFee(event.target.value)}
-                  placeholder="250000"
-                  required
-                />
-              </label>
-              <label className="account-label min-w-0 sm:col-span-2">
-                Ghi chú (tùy chọn)
-                <textarea
-                  className="account-input min-h-20"
-                  value={note}
-                  onChange={(event) => setNote(event.target.value)}
-                  maxLength={1000}
-                  rows={2}
-                />
-              </label>
-              <label className="flex items-start gap-2 text-sm leading-relaxed text-slate-700 sm:col-span-2">
-                <input
-                  type="checkbox"
-                  className="mt-1 size-4 shrink-0 accent-sky-800"
-                  checked={setDefaultRate}
-                  onChange={(event) => setSaveDefaultRate(event.target.checked)}
-                />
-                Lưu mức phí này làm mặc định cho học sinh
-              </label>
-            </fieldset>
-            <p className="mt-3 text-xs leading-relaxed text-slate-500">
-              Mức phí mặc định dùng cho buổi mới; mỗi buổi học giữ số tiền đã
-              ghi nhận.
+      <section
+        id="tuition-form"
+        className="min-w-0 scroll-mt-6 rounded-2xl border border-slate-200 p-4 sm:p-6"
+        aria-labelledby="tuition-form-title"
+      >
+        <h3 id="tuition-form-title" className="mb-4 font-semibold">
+          {editing ? "Chỉnh sửa buổi học" : "Thêm buổi học"}
+        </h3>
+        <form onSubmit={saveLesson}>
+          <fieldset
+            disabled={busy || loadingStudents || loading || !overview}
+            className="grid min-w-0 gap-4 sm:grid-cols-2"
+          >
+            <label className="account-label min-w-0 sm:col-span-2">
+              Học sinh
+              <select
+                className="account-input min-w-0"
+                required
+                value={formStudent}
+                onChange={(event) => {
+                  setFormStudent(event.target.value);
+                  const rate = overview?.rates.find(
+                    (row) => row.studentUid === event.target.value,
+                  );
+                  setFee(rate ? String(rate.fee) : "");
+                }}
+              >
+                <option value="">Chọn học sinh</option>
+                {(editing ? options : accounts).map((student) => (
+                  <option key={student.uid} value={student.uid}>
+                    {student.displayName} · @{student.username}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="account-label min-w-0">
+              Ngày học
+              <input
+                className="account-input min-w-0"
+                type="date"
+                min="2000-01-01"
+                max="2100-12-31"
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+                required
+              />
+            </label>
+            <label className="account-label min-w-0">
+              Học phí buổi này (đồng)
+              <input
+                className="account-input min-w-0"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={1_000_000_000}
+                step={1}
+                value={fee}
+                onChange={(event) => setFee(event.target.value)}
+                placeholder="250000"
+                required
+              />
+            </label>
+            <label className="account-label min-w-0 sm:col-span-2">
+              Ghi chú (tùy chọn)
+              <textarea
+                className="account-input min-h-20"
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                maxLength={1000}
+                rows={2}
+              />
+            </label>
+            <label className="flex items-start gap-2 text-sm leading-relaxed text-slate-700 sm:col-span-2">
+              <input
+                type="checkbox"
+                className="mt-1 size-4 shrink-0 accent-sky-800"
+                checked={setDefaultRate}
+                onChange={(event) => setSaveDefaultRate(event.target.checked)}
+              />
+              Lưu mức phí này làm mặc định cho học sinh
+            </label>
+          </fieldset>
+          <p className="mt-3 text-xs leading-relaxed text-slate-500">
+            Mức phí mặc định dùng cho buổi mới; mỗi buổi học giữ số tiền đã ghi
+            nhận.
+          </p>
+          {!loadingStudents && !accounts.length && !editing && (
+            <p className="mt-3 text-sm text-slate-600">
+              Chưa có học sinh trong danh sách. Cấp tài khoản tại mục Thêm tài
+              khoản.
             </p>
-            {!loadingStudents && !accounts.length && !editing && (
-              <p className="mt-3 text-sm text-slate-600">
-                Chưa có học sinh trong danh sách. Cấp tài khoản tại mục Thêm tài
-                khoản.
-              </p>
-            )}
-            {hasMoreStudents && (
+          )}
+          {hasMoreStudents && (
+            <button
+              type="button"
+              className="mt-3 text-sm text-sky-800 underline"
+              disabled={busy || loadingStudents}
+              onClick={onLoadMoreStudents}
+            >
+              {loadingStudents ? "Đang tải học sinh…" : "Tải thêm học sinh"}
+            </button>
+          )}
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              className="account-button"
+              disabled={
+                busy ||
+                loading ||
+                loadingStudents ||
+                !overview ||
+                (!accounts.length && !editing)
+              }
+            >
+              {busy && !exporting
+                ? "Đang lưu…"
+                : editing
+                  ? "Lưu thay đổi"
+                  : "Lưu buổi học"}
+            </button>
+            {editing && (
               <button
                 type="button"
-                className="mt-3 text-sm text-sky-800 underline"
-                disabled={busy || loadingStudents}
-                onClick={onLoadMoreStudents}
+                className="account-button-secondary"
+                disabled={busy}
+                onClick={() => resetDraft()}
               >
-                {loadingStudents ? "Đang tải học sinh…" : "Tải thêm học sinh"}
+                Hủy chỉnh sửa
               </button>
             )}
-            <div className="mt-5 flex flex-wrap gap-2">
-              <button
-                className="account-button"
-                disabled={
-                  busy ||
-                  loading ||
-                  loadingStudents ||
-                  !overview ||
-                  (!accounts.length && !editing)
-                }
-              >
-                {busy && !exporting
-                  ? "Đang lưu…"
-                  : editing
-                    ? "Lưu thay đổi"
-                    : "Lưu buổi học"}
-              </button>
-              {editing && (
-                <button
-                  type="button"
-                  className="account-button-secondary"
-                  disabled={busy}
-                  onClick={() => resetDraft()}
-                >
-                  Hủy chỉnh sửa
-                </button>
-              )}
-            </div>
-          </form>
-        </section>
-        <section
-          className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center sm:p-6"
-          aria-labelledby="tuition-bank-title"
-        >
-          <h3 id="tuition-bank-title" className="font-semibold">
-            QR ngân hàng của giáo viên
-          </h3>
-          <p className="mt-2 text-sm font-semibold text-sky-900">
-            {tuitionBank.name} · VietQR
-          </p>
-          <img
-            src={`${import.meta.env.BASE_URL}${tuitionBank.qrPath}`}
-            alt="Mã QR chuyển khoản MB Bank của Phạm Hải Quang"
-            width={560}
-            height={560}
-            className="mx-auto my-4 w-full max-w-64 rounded-xl border border-slate-200 bg-white"
-          />
-          <p className="text-sm font-semibold">{tuitionBank.accountName}</p>
-          <p className="mt-1 break-all text-lg font-bold tracking-wider text-sky-950">
-            {tuitionBank.accountNumber}
-          </p>
-          <a
-            href={`${import.meta.env.BASE_URL}${tuitionBank.qrPath}`}
-            download="QR-MB-Pham-Hai-Quang.png"
-            className="account-button-secondary mt-4"
-          >
-            Tải mã QR
-          </a>
-        </section>
-      </div>
+          </div>
+        </form>
+      </section>
       <section aria-labelledby="tuition-summary-title" aria-busy={loading}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h3 id="tuition-summary-title" className="font-semibold">
