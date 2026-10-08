@@ -40,6 +40,7 @@ import QuizFile from "./QuizFile";
 import QuizQuestions from "./QuizQuestions";
 import QuizResultView from "./QuizResultView";
 import QuizImageInput from "./QuizImageInput";
+import QuizPointsInput from "./QuizPointsInput";
 import QuizManualGrader from "./QuizManualGrader";
 import QuizScheduleInfo from "./QuizScheduleInfo";
 import QuizShareLink from "./QuizShareLink";
@@ -889,19 +890,13 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                         {!manual && (
                           <label className="account-label">
                             {fixedForm ? "Điểm cố định" : "Điểm trọng số"}
-                            <input
-                              className="account-input read-only:bg-slate-100 read-only:text-slate-500"
-                              type="number"
-                              min={0.01}
-                              max={100}
-                              step={0.01}
+                            <QuizPointsInput
                               value={q.points}
                               readOnly={Boolean(fixedForm)}
-                              aria-label={`${fixedForm ? "Điểm cố định" : "Điểm trọng số"} câu ${index + 1}`}
-                              required
-                              onChange={(e) =>
+                              ariaLabel={`${fixedForm ? "Điểm cố định" : "Điểm trọng số"} câu ${index + 1}`}
+                              onChange={(points) =>
                                 updateQuestion(q.id, {
-                                  points: Number(e.target.value),
+                                  points,
                                 })
                               }
                             />

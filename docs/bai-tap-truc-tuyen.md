@@ -85,6 +85,7 @@ Trong **Thông tin đề**, chọn **Trắc nghiệm · Chấm tự động**. �
 ### Quy tắc chấm
 
 - Điểm từng câu là trọng số, tổng điểm được quy đổi về thang 10 và làm tròn 2 chữ số thập phân.
+- Ô **Điểm trọng số** nhận cả dấu phẩy và dấu chấm: `0,25` và `0.25` đều được lưu thành cùng giá trị số `0.25`. Khi chọn form cố định, ô điểm vẫn được khóa theo form.
 - A/B/C/D: đúng được toàn bộ điểm câu.
 - Đúng/Sai: chia đều 25%/ý đúng hoặc tính 10% / 25% / 50% / 100% khi đúng 1 / 2 / 3 / 4 ý.
 - Trả lời ngắn: mỗi dòng là một đáp án chấp nhận. Nhận diện `0,5`, `0.5`, `1/2` là tương đương; có thể đặt sai số tuyệt đối cho kết quả số. Văn bản được chuẩn hóa khoảng trắng và chữ hoa/thường, vẫn phân biệt dấu tiếng Việt.
