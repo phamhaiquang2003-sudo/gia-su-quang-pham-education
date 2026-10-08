@@ -360,6 +360,11 @@ test("online provisioning restricts role, status, initial classes, creator, time
     { status: "disabled" },
     { classIds: ["class-one"] },
     { classIds: ["lop-0"] },
+    { classIds: ["lop-1"] },
+    { classIds: ["lop-2"] },
+    { classIds: ["lop-3"] },
+    { classIds: ["lop-4"] },
+    { classIds: ["lop-5"] },
     { classIds: ["lop-13"] },
     { classIds: ["lop-01"] },
     { classIds: ["lop-6", "lop-7"] },
@@ -414,11 +419,11 @@ test("online provisioning restricts role, status, initial classes, creator, time
   await assertFails(deleteDoc(doc(client, "usernames", "validonline")));
 });
 
-test("claimed active admins can provision exactly one selected school class from grades 1 through 12, and students cannot change it or provision peers", async () => {
+test("claimed active admins can provision exactly one selected school class from grades 6 through 12, and students cannot change it or provision peers", async () => {
   const client = environment
     .authenticatedContext(adminUid, { admin: true })
     .firestore();
-  for (let grade = 1; grade <= 12; grade++) {
+  for (let grade = 6; grade <= 12; grade++) {
     const uid = `grade-${grade}`,
       username = `grade${grade}`;
     await assertSucceeds(

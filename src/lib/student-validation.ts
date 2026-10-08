@@ -35,7 +35,7 @@ export function normalizeStudents(students: NewStudent[]): NewStudent[] {
     }
     const classId = input.classId ?? "";
     if (classId !== "" && !isSchoolClassId(classId)) {
-      throw new Error(`Dòng ${index + 1}: hãy chọn lớp từ Lớp 1 đến Lớp 12.`);
+      throw new Error(`Dòng ${index + 1}: hãy chọn lớp từ Lớp 6 đến Lớp 12.`);
     }
     if (seen.has(username))
       throw new Error(`Tên đăng nhập ${username} bị lặp trong danh sách.`);

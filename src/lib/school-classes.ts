@@ -1,9 +1,8 @@
-export type SchoolClassId =
-  `lop-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12}`;
+export type SchoolClassId = `lop-${6 | 7 | 8 | 9 | 10 | 11 | 12}`;
 
-export const schoolClasses = Array.from({ length: 12 }, (_, index) => ({
-  id: `lop-${index + 1}` as SchoolClassId,
-  label: `Lớp ${index + 1}`,
+export const schoolClasses = Array.from({ length: 7 }, (_, index) => ({
+  id: `lop-${index + 6}` as SchoolClassId,
+  label: `Lớp ${index + 6}`,
 }));
 
 export function isSchoolClassId(value: unknown): value is SchoolClassId {

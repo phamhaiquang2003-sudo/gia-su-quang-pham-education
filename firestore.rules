@@ -23,7 +23,7 @@ service cloud.firestore {
         && data.status == 'active'
         && data.classIds is list && data.classIds.size() <= 1
         && data.classIds.hasOnly([
-          'lop-1', 'lop-2', 'lop-3', 'lop-4', 'lop-5', 'lop-6',
+          'lop-6',
           'lop-7', 'lop-8', 'lop-9', 'lop-10', 'lop-11', 'lop-12'
         ])
         && data.createdBy == request.auth.uid
