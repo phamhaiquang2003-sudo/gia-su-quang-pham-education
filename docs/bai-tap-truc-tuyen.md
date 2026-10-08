@@ -45,6 +45,22 @@ PDF/Word (.doc, .docx)/PNG/JPG/WebP được tải trực tiếp, tối đa **1,
 - Có ảnh riêng thì nội dung chữ của lựa chọn/ý đó được để trống, hoặc dùng kết hợp chữ và ảnh. Vẫn chọn đáp án đúng / Đúng–Sai để chấm tự động.
 - Dán lại để thay ảnh, **Bỏ ảnh** chỉ gỡ ảnh của đúng lựa chọn đó. Ảnh hiển thị ở đúng lựa chọn trong **Xem trước** và khi học sinh làm bài; bản nháp, nhân bản câu và snapshot lượt làm đều giữ ảnh.
 
+### Form đề cố định (trắc nghiệm chấm tự động)
+
+Trong **Thông tin đề**, chọn **Trắc nghiệm · Chấm tự động**. Ô **Form đề cố định** xuất hiện bên cạnh **Cách đưa đề lên**, áp dụng được cho cả soạn trực tiếp và tệp đề + phiếu trả lời:
+
+| Form   | Trắc nghiệm A/B/C/D | Đúng/Sai  | Trả lời ngắn | Tổng điểm |
+| ------ | ------------------- | --------- | ------------ | --------- |
+| 22 câu | 12 câu × 0,25       | 4 câu × 1 | 6 câu × 0,5  | 10        |
+| 28 câu | 18 câu × 0,25       | 4 câu × 1 | 6 câu × 0,25 | 10        |
+| 40 câu | 40 câu × 0,25       | —         | —            | 10        |
+
+- Với form 22/28 câu, đúng **1/2/3/4 ý** trong một câu Đúng/Sai được **0,1 / 0,25 / 0,5 / 1 điểm**; đúng 0 ý được 0 điểm.
+- Chọn form tự tạo đủ các câu theo thứ tự: trắc nghiệm → đúng/sai → trả lời ngắn. Nội dung, đáp án và ảnh đã soạn được giữ theo từng dạng câu nếu vừa cấu trúc; hệ thống hỏi trước khi bỏ câu có nội dung vượt số lượng của form.
+- Số câu, dạng câu, điểm và cách tính Đúng/Sai được khóa. Có thể soạn nội dung/đáp án/lời giải và đổi vị trí giữa các câu cùng dạng. Máy chủ kiểm tra lại cấu trúc khi lưu.
+- Chọn **Tự thiết kế** để mở lại thêm/xóa/nhân bản câu, đổi dạng, sửa điểm và cách tính Đúng/Sai; nội dung đang soạn được giữ.
+- Khi chuyển sang **Tự luận · Gia sư chấm thủ công**, mục form được ẩn và bỏ lựa chọn form cố định. Lượt học sinh đã bắt đầu giữ form và điểm của snapshot cũ; thay đổi form chỉ áp dụng cho lượt mới sau khi lưu.
+
 ### Giới hạn giờ mở / đóng đề (tùy chọn)
 
 - Trong **Thông tin đề**, đặt **Giờ mở đề** và **Giờ đóng đề** theo **giờ Việt Nam (UTC+7)**. Để trống cả hai ô để không giới hạn lịch; cũng có thể chỉ đặt một mốc. Bấm **Lưu nháp** hoặc **Xuất bản đề** để lưu. Nút **Bỏ giới hạn giờ** xóa cả hai mốc, sau đó cần lưu lại đề.

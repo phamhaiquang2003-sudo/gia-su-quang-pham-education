@@ -1,6 +1,7 @@
 import { getFirebase } from "./firebase";
 import { adminApiUrl } from "./admin-config";
 import type { SubjectId } from "./subjects";
+import type { FixedQuizFormId } from "../../shared/quiz-forms.js";
 
 export type QuestionType = "single" | "truefalse" | "short" | "essay";
 export interface Question {
@@ -29,6 +30,7 @@ export interface Quiz {
   status: "draft" | "published" | "hidden";
   mode: "inline" | "document";
   gradingMode?: "auto" | "manual";
+  fixedForm?: FixedQuizFormId | "";
   durationMinutes: number;
   opensAt?: number | null;
   closesAt?: number | null;

@@ -935,6 +935,104 @@ function fixture(revealAnswers = true) {
     ],
   };
 }
+
+function fixedFormFixture(fixedForm) {
+  const [single, truefalse, short, shortPoints] = fixedForm === "mixed-22"
+    ? [12, 4, 6, 0.5] : fixedForm === "mixed-28" ? [18, 4, 6, 0.25] : [40, 0, 0, 0.25];
+  const sample = fixture();
+  return {
+    ...sample, fixedForm,
+    questions: [
+      ...Array.from({ length: single }, (_, i) => ({ ...structuredClone(sample.questions[0]), id: `single-${i}`, points: 0.25 })),
+      ...Array.from({ length: truefalse }, (_, i) => ({ ...structuredClone(sample.questions[1]), id: `tf-${i}`, points: 1, scoring: "exam" })),
+      ...Array.from({ length: short }, (_, i) => ({ ...structuredClone(sample.questions[2]), id: `short-${i}`, points: shortPoints })),
+    ],
+  };
+}
+
+test("all three fixed forms validate exact counts and weights, total ten points and grade full answers as ten", () => {
+  for (const [id, counts] of [["mixed-22", [12, 4, 6]], ["mixed-28", [18, 4, 6]], ["single-40", [40, 0, 0]]]) {
+    const quiz = validateQuiz(fixedFormFixture(id));
+    assert.equal(quiz.fixedForm, id);
+    assert.deepEqual(["single", "truefalse", "short"].map(type => quiz.questions.filter(q => q.type === type).length), counts);
+    const answers = Object.fromEntries(quiz.questions.map(q => [q.id, q.answer || q.acceptedAnswers[0]]));
+    const result = grade(quiz, answers);
+    assert.equal(result.total, 10); assert.equal(result.earned, 10); assert.equal(result.score, 10);
+    assert.equal(result.correctCount, counts.reduce((a, b) => a + b, 0));
+    assert.equal(publicQuiz(quiz).fixedForm, id);
+    assert.equal(publicQuiz(quiz).questions[0].answer, undefined);
+  }
+});
+
+test("fixed forms reject count, type, ordering, point and true/false scoring changes; custom and manual quizzes keep existing behavior", () => {
+  for (const id of ["mixed-22", "mixed-28", "single-40"]) {
+    const changes = [
+      q => { q.questions.pop(); },
+      q => { q.questions.push({ ...q.questions[0], id: "extra" }); },
+      q => { q.questions[0].points = 0.5; },
+      q => { q.questions[0].type = "short"; },
+      q => { q.gradingMode = "manual"; },
+      q => { q.fixedForm = "unknown"; },
+    ];
+    if (id !== "single-40") changes.push(
+      q => { q.questions.find(item => item.type === "truefalse").scoring = "equal"; },
+      q => { delete q.questions.find(item => item.type === "truefalse").scoring; },
+      q => { q.questions.find(item => item.type === "short").points = 1; },
+      q => { const i = q.questions.findIndex(item => item.type === "truefalse"); [q.questions[0], q.questions[i]] = [q.questions[i], q.questions[0]]; },
+    );
+    for (const change of changes) {
+      const input = fixedFormFixture(id); change(input);
+      assert.throws(() => validateQuiz(input), { code: "invalid-argument" });
+    }
+  }
+  const custom = fixedFormFixture("mixed-22");
+  custom.fixedForm = ""; custom.questions[0].points = 2.75; custom.questions[12].scoring = "equal";
+  assert.equal(validateQuiz(custom).questions[0].points, 2.75);
+  assert.equal(validateQuiz(custom).questions[12].scoring, "equal");
+  assert.equal(validateQuiz(fixture()).fixedForm, "");
+  assert.equal(validateQuiz(essayFixture()).fixedForm, "");
+});
+
+test("mixed forms award 0.1/0.25/0.5/1 for one to four correct true/false statements and their exact short-answer points", () => {
+  for (const [id, shortPoints] of [["mixed-22", 0.5], ["mixed-28", 0.25]]) {
+    const quiz = validateQuiz(fixedFormFixture(id));
+    const question = quiz.questions.find(q => q.type === "truefalse");
+    const short = quiz.questions.find(q => q.type === "short");
+    for (const [count, expected] of [[0, 0], [1, 0.1], [2, 0.25], [3, 0.5], [4, 1]]) {
+      const result = grade(quiz, { [question.id]: question.answer.map((answer, index) => index < count ? answer : !answer), [short.id]: "0,5", "single-0": "B" });
+      assert.equal(result.details.find(q => q.id === question.id).points, expected);
+      assert.equal(result.details.find(q => q.id === short.id).points, shortPoints);
+      assert.equal(result.score, Math.round((expected + shortPoints + 0.25) * 100) / 100);
+    }
+  }
+});
+
+test("fixed forms persist through save/reload and existing attempts keep their original form, answers and scoring after a teacher changes the form", async () => {
+  const { db, sqlite } = database();
+  try {
+    const teacher = makeQuizService(db, adminUser, () => 1_000_000);
+    const student = makeQuizService(db, studentUser, () => 1_000_000);
+    const { quiz } = await teacher.save({ quiz: fixedFormFixture("mixed-22") });
+    assert.equal((await teacher.adminDetail({ id: quiz.id })).quiz.fixedForm, "mixed-22");
+    let attempt = (await student.start({ id: quiz.id })).attempt;
+    const original = (await teacher.adminDetail({ id: quiz.id })).quiz;
+    const answers = Object.fromEntries(original.questions.map(q => [q.id, q.answer || q.acceptedAnswers[0]]));
+    attempt = (await student.progress({ id: attempt.id, revision: attempt.revision, answers, flagged: ["tf-0"] })).attempt;
+    await teacher.save({ id: quiz.id, revision: quiz.revision, quiz: fixedFormFixture("mixed-28") });
+    const current = await student.detail({ id: quiz.id });
+    assert.equal(current.quiz.fixedForm, "mixed-22"); assert.equal(current.quiz.questions.length, 22);
+    assert.deepEqual(current.attempt.answers, answers);
+    const graded = await student.submit({ id: attempt.id, revision: attempt.revision, answers, flagged: ["tf-0"] });
+    assert.equal(graded.attempt.result.score, 10); assert.equal(graded.attempt.result.total, 10);
+    const other = makeQuizService(db, { ...studentUser, uid: "next-form" }, () => 1_000_000);
+    const newer = await other.start({ id: quiz.id });
+    assert.equal(newer.quiz.fixedForm, "mixed-28"); assert.equal(newer.quiz.questions.length, 28);
+    await teacher.allowRetake({ id: attempt.id });
+    const retake = await student.start({ id: quiz.id });
+    assert.equal(retake.quiz.fixedForm, "mixed-28"); assert.equal(retake.attempt.attemptNumber, 2);
+    assert.deepEqual(retake.attempt.answers, {});
+  } finally { sqlite.close(); }
+});
 const adminUser = {
   uid: "teacher",
   admin: true,

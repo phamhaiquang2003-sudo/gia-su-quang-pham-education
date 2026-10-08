@@ -1,4 +1,8 @@
 import { ServiceError } from "./errors.js";
+import {
+  getFixedQuizForm,
+  fixedQuizFormQuestions,
+} from "../../shared/quiz-forms.js";
 
 const subjectIds = ["toan", "vat-ly", "khtn", "tsa-hsa-spt", "giai-tri"];
 export const validId = (value) =>
@@ -47,6 +51,12 @@ export function validateQuiz(input) {
   const gradingMode = input.gradingMode || "auto";
   if (!["auto", "manual"].includes(gradingMode))
     fail("Cách chấm điểm không hợp lệ.");
+  const fixedForm = input.fixedForm === undefined ? "" : input.fixedForm;
+  const form = getFixedQuizForm(fixedForm);
+  if (fixedForm !== "" && (!form || gradingMode !== "auto"))
+    fail(
+      "Form đề cố định chỉ áp dụng cho bài trắc nghiệm chấm tự động. Hãy chọn form hợp lệ.",
+    );
   const wholeSubmission = gradingMode === "manual" && input.mode === "document";
   const title = text(input.title, 160, "Tên đề", true);
   const opensAt = scheduleTime(input.opensAt, "Giờ mở đề"),
@@ -73,6 +83,9 @@ export function validateQuiz(input) {
   )
     fail("Mỗi đề cần từ 1 đến 100 câu.");
   const ids = new Set();
+  const fixedQuestions = form ? fixedQuizFormQuestions(form) : null;
+  if (fixedQuestions && input.questions.length !== fixedQuestions.length)
+    fail(`Form đề đã chọn cần đúng ${fixedQuestions.length} câu hỏi.`);
   const questions = input.questions.map((q, index) => {
     if (!q || !validId(q.id) || ids.has(q.id))
       fail(`Mã câu ${index + 1} không hợp lệ hoặc bị trùng.`);
@@ -92,6 +105,16 @@ export function validateQuiz(input) {
     const points = Number(q.points);
     if (!Number.isFinite(points) || points <= 0 || points > 100)
       fail(`Điểm câu ${index + 1} phải lớn hơn 0 và không quá 100.`);
+    const rule = fixedQuestions?.[index];
+    if (
+      rule &&
+      (q.type !== rule.type ||
+        points !== rule.points ||
+        (rule.scoring && q.scoring !== rule.scoring))
+    )
+      fail(
+        `Câu ${index + 1} cần đúng dạng và ${rule.points} điểm theo form cố định; Đúng/Sai tính 10% / 25% / 50% / 100%.`,
+      );
     const imageId = q.imageId || "";
     if (imageId && !validId(imageId)) fail("Ảnh câu hỏi không hợp lệ.");
     const explanationImageId = q.explanationImageId || "";
@@ -189,6 +212,7 @@ export function validateQuiz(input) {
   return {
     title,
     gradingMode,
+    fixedForm,
     opensAt,
     closesAt,
     subject: input.subject,

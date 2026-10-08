@@ -48,6 +48,14 @@ import QuizAdminCatalog, {
 } from "./QuizAdminCatalog";
 import { scheduleInputValue, scheduleTimestamp } from "@/lib/quiz-schedule";
 import { clipboardImage, prepareQuizImage } from "@/lib/quiz-images";
+import {
+  fixedQuizForms,
+  getFixedQuizForm,
+  fixedQuizFormQuestions,
+  prepareFixedQuizForm,
+  hasQuestionContent,
+  type FixedQuizFormId,
+} from "@/lib/quiz-forms";
 type ImagePurpose = "question" | "explanation" | "choice" | "statement";
 
 const types: [QuestionType, string][] = [
@@ -107,12 +115,17 @@ export default function QuizAdmin({ uid }: { uid: string }) {
     setMessage("");
   }
   function updateQuestion(id: string, patch: Partial<Question>) {
-    setQuiz((q) => ({
-      ...q,
-      questions: q.questions.map((item) =>
-        item.id === id ? { ...item, ...patch } : item,
-      ),
-    }));
+    setQuiz((q) => {
+      const form =
+        q.gradingMode === "manual" ? undefined : getFixedQuizForm(q.fixedForm);
+      const rules = form ? fixedQuizFormQuestions(form) : [];
+      return {
+        ...q,
+        questions: q.questions.map((item, index) =>
+          item.id === id ? { ...item, ...patch, ...rules[index] } : item,
+        ),
+      };
+    });
     setMessage("");
   }
   async function run(action: () => Promise<void>) {
@@ -273,6 +286,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
   }
   const subject = getSubject(quiz.subject);
   const manual = quiz.gradingMode === "manual";
+  const fixedForm = manual ? undefined : getFixedQuizForm(quiz.fixedForm);
   const availableTypes = types.filter(([type]) =>
     manual ? type === "essay" : type !== "essay",
   );
@@ -288,6 +302,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
       return;
     update({
       gradingMode,
+      fixedForm: gradingMode === "auto" ? quiz.fixedForm || "" : "",
       mode,
       questions:
         gradingMode === "manual" && mode === "document"
@@ -315,6 +330,24 @@ export default function QuizAdmin({ uid }: { uid: string }) {
             ),
     });
     setAddType(gradingMode === "manual" ? "essay" : "single");
+  }
+  function changeFixedForm(id: FixedQuizFormId | "") {
+    if (!id) {
+      update({ fixedForm: "" });
+      return;
+    }
+    const next = prepareFixedQuizForm(quiz, id);
+    const discarded = next.discarded.filter((question) =>
+      hasQuestionContent(question, quiz.mode === "document"),
+    );
+    if (
+      discarded.length &&
+      !window.confirm(
+        `Form đã chọn không có chỗ cho ${discarded.length} câu đang có nội dung. Bỏ những câu vượt cấu trúc để áp dụng form này?`,
+      )
+    )
+      return;
+    update({ fixedForm: id, questions: next.questions });
   }
   return (
     <div className="space-y-6">
@@ -400,7 +433,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                   {quiz.id ? statusLabels[quiz.status] : "Đề mới"}
                 </span>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid min-w-0 gap-4 sm:grid-cols-2">
                 <label className="account-label sm:col-span-2">
                   Tên bài tập / đề thi
                   <input
@@ -505,6 +538,59 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                     </option>
                   </select>
                 </label>
+                {!manual && (
+                  <label className="account-label min-w-0">
+                    Form đề cố định
+                    <select
+                      className="account-input min-w-0"
+                      aria-label="Form đề cố định"
+                      value={quiz.fixedForm || ""}
+                      onChange={(event) =>
+                        changeFixedForm(
+                          event.target.value as FixedQuizFormId | "",
+                        )
+                      }
+                    >
+                      <option value="">
+                        Tự thiết kế · Tùy chỉnh số câu và điểm
+                      </option>
+                      {fixedQuizForms.map((form) => (
+                        <option key={form.id} value={form.id}>
+                          {form.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {fixedForm && (
+                  <div className="min-w-0 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950 sm:col-span-2">
+                    <p className="font-semibold">
+                      Cấu trúc cố định · Tổng 10 điểm
+                    </p>
+                    <ul className="mt-2 space-y-1">
+                      {fixedForm.sections.map((section) => (
+                        <li key={section.type}>
+                          {section.count} câu{" "}
+                          {section.label.toLocaleLowerCase("vi")} ×{" "}
+                          {section.points.toLocaleString("vi-VN")} điểm
+                        </li>
+                      ))}
+                    </ul>
+                    {fixedForm.sections.some(
+                      (section) => section.scoring === "exam",
+                    ) && (
+                      <p className="mt-2">
+                        Đúng 1/2/3/4 ý: 0,1 / 0,25 / 0,5 / 1 điểm mỗi câu
+                        Đúng/Sai.
+                      </p>
+                    )}
+                    <p className="mt-2 text-xs leading-relaxed">
+                      Số câu, dạng câu và điểm đã khóa theo form. Bạn soạn nội
+                      dung, đáp án và lời giải; có thể đổi vị trí trong cùng
+                      dạng câu. Chọn “Tự thiết kế” để tùy chỉnh lại.
+                    </p>
+                  </div>
+                )}
                 <label className="account-label sm:col-span-2">
                   Hướng dẫn làm bài
                   <textarea
@@ -661,9 +747,12 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                   </h3>
                   {!manual && (
                     <span className="text-xs text-slate-600">
-                      Tổng trọng số:{" "}
-                      {quiz.questions.reduce((n, q) => n + (q.points || 0), 0)}{" "}
-                      · Quy đổi về 10 điểm
+                      {fixedForm ? "Tổng điểm: " : "Tổng trọng số: "}
+                      {quiz.questions.reduce(
+                        (n, q) => n + (q.points || 0),
+                        0,
+                      )}{" "}
+                      {fixedForm ? "· Form cố định" : "· Quy đổi về 10 điểm"}
                     </span>
                   )}
                 </div>
@@ -675,8 +764,10 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                       Chụp cả câu hỏi và các lựa chọn rồi dán bằng Ctrl + V vào
                       vùng “Ảnh câu hỏi”. Không cần gõ lại phần đã có trong ảnh.
                       Chọn đáp án đúng bên dưới để chấm tự động; ảnh đáp án /
-                      lời giải dùng để học sinh xem sau khi nộp. Điểm là trọng
-                      số của mỗi câu.
+                      lời giải dùng để học sinh xem sau khi nộp.{" "}
+                      {fixedForm
+                        ? "Điểm từng câu đã cố định theo form được chọn."
+                        : "Điểm là trọng số của mỗi câu."}
                     </>
                   )}
                 </p>
@@ -700,7 +791,11 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                               disabled={
                                 busy ||
                                 index + step < 0 ||
-                                index + step >= quiz.questions.length
+                                index + step >= quiz.questions.length ||
+                                Boolean(
+                                  fixedForm &&
+                                  quiz.questions[index + step]?.type !== q.type,
+                                )
                               }
                               className="rounded-lg p-2 hover:bg-slate-100 disabled:opacity-30"
                               onClick={() => {
@@ -722,8 +817,12 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                           <button
                             type="button"
                             aria-label={`Nhân bản câu ${index + 1}`}
-                            disabled={busy || quiz.questions.length >= 100}
-                            className="rounded-lg p-2 hover:bg-slate-100"
+                            disabled={
+                              busy ||
+                              Boolean(fixedForm) ||
+                              quiz.questions.length >= 100
+                            }
+                            className="rounded-lg p-2 hover:bg-slate-100 disabled:opacity-30"
                             onClick={() => {
                               const arr = [...quiz.questions];
                               arr.splice(index + 1, 0, {
@@ -738,7 +837,11 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                           <button
                             type="button"
                             aria-label={`Xóa câu ${index + 1}`}
-                            disabled={busy || quiz.questions.length <= 1}
+                            disabled={
+                              busy ||
+                              Boolean(fixedForm) ||
+                              quiz.questions.length <= 1
+                            }
                             className="rounded-lg p-2 text-red-700 hover:bg-red-50 disabled:opacity-30"
                             onClick={() => {
                               if (window.confirm(`Xóa câu ${index + 1}?`))
@@ -759,6 +862,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                           <select
                             className="account-input"
                             value={q.type}
+                            disabled={Boolean(fixedForm)}
                             onChange={(e) => {
                               const next = newQuestion(
                                 e.target.value as QuestionType,
@@ -784,14 +888,16 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                         </label>
                         {!manual && (
                           <label className="account-label">
-                            Điểm trọng số
+                            {fixedForm ? "Điểm cố định" : "Điểm trọng số"}
                             <input
-                              className="account-input"
+                              className="account-input read-only:bg-slate-100 read-only:text-slate-500"
                               type="number"
                               min={0.01}
                               max={100}
                               step={0.01}
                               value={q.points}
+                              readOnly={Boolean(fixedForm)}
+                              aria-label={`${fixedForm ? "Điểm cố định" : "Điểm trọng số"} câu ${index + 1}`}
                               required
                               onChange={(e) =>
                                 updateQuestion(q.id, {
@@ -984,6 +1090,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                             <select
                               className="account-input"
                               value={q.scoring}
+                              disabled={Boolean(fixedForm)}
                               onChange={(e) =>
                                 updateQuestion(q.id, {
                                   scoring: e.target
@@ -1070,49 +1177,53 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                     </article>
                   ))}
                 </div>
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <select
-                    aria-label="Dạng câu cần thêm"
-                    className="account-input w-full sm:w-auto"
-                    value={
-                      manual
-                        ? "essay"
-                        : addType === "essay"
-                          ? "single"
-                          : addType
-                    }
-                    onChange={(e) => setAddType(e.target.value as QuestionType)}
-                  >
-                    {availableTypes.map(([type, label]) => (
-                      <option key={type} value={type}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className="account-button-secondary"
-                    disabled={busy || quiz.questions.length >= 100}
-                    onClick={() =>
-                      update({
-                        questions: [
-                          ...quiz.questions,
-                          newQuestion(
-                            manual
-                              ? "essay"
-                              : addType === "essay"
-                                ? "single"
-                                : addType,
-                            quiz.mode === "document",
-                          ),
-                        ],
-                      })
-                    }
-                  >
-                    <Plus className="size-4" />
-                    Thêm câu hỏi
-                  </button>
-                </div>
+                {!fixedForm && (
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <select
+                      aria-label="Dạng câu cần thêm"
+                      className="account-input w-full sm:w-auto"
+                      value={
+                        manual
+                          ? "essay"
+                          : addType === "essay"
+                            ? "single"
+                            : addType
+                      }
+                      onChange={(e) =>
+                        setAddType(e.target.value as QuestionType)
+                      }
+                    >
+                      {availableTypes.map(([type, label]) => (
+                        <option key={type} value={type}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className="account-button-secondary"
+                      disabled={busy || quiz.questions.length >= 100}
+                      onClick={() =>
+                        update({
+                          questions: [
+                            ...quiz.questions,
+                            newQuestion(
+                              manual
+                                ? "essay"
+                                : addType === "essay"
+                                  ? "single"
+                                  : addType,
+                              quiz.mode === "document",
+                            ),
+                          ],
+                        })
+                      }
+                    >
+                      <Plus className="size-4" />
+                      Thêm câu hỏi
+                    </button>
+                  </div>
+                )}
               </section>
             )}
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
