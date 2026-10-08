@@ -17,7 +17,7 @@ export interface Question {
   statementImageIds?: string[];
   answer?: string | boolean[];
   acceptedAnswers?: string[];
-  tolerance?: number;
+  tolerance?: 0;
   scoring?: "exam";
   explanation?: string;
 }
@@ -241,7 +241,9 @@ export function prepareQuizForEditing(quiz: Quiz): Quiz {
     questions: quiz.questions.map((question) =>
       question.type === "truefalse"
         ? { ...question, scoring: "exam" }
-        : question,
+        : question.type === "short"
+          ? { ...question, tolerance: 0 }
+          : question,
     ),
   };
 }

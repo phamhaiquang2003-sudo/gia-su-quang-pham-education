@@ -186,15 +186,12 @@ export function validateQuiz(input) {
       q.acceptedAnswers.length > 10
     )
       fail(`Câu ${index + 1} cần ít nhất một đáp án ngắn.`);
-    const tolerance = Number(q.tolerance || 0);
-    if (!Number.isFinite(tolerance) || tolerance < 0 || tolerance > 100)
-      fail("Sai số không hợp lệ.");
     return {
       ...common,
       acceptedAnswers: q.acceptedAnswers.map((a) =>
         text(a, 100, "Đáp án ngắn", true),
       ),
-      tolerance,
+      tolerance: 0,
     };
   });
   const documentIds = input.documentIds || [];
@@ -346,15 +343,77 @@ function numberValue(value) {
 }
 const normalized = (value) =>
   value.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase("vi");
+
+// Keep decimals and fractions exact instead of rounding them to floating point.
+// Store the decimal exponent separately so even large exponents need no huge powers.
+function exactDecimal(value) {
+  const match = value.match(
+    /^([+-]?)(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:[eE]([+-]?\d+))?$/,
+  );
+  if (!match) return null;
+  const fraction = match[3] ?? match[4] ?? "";
+  return {
+    coefficient: BigInt(`${match[1]}${match[2] || "0"}${fraction}`),
+    exponent: BigInt(match[5] || "0") - BigInt(fraction.length),
+  };
+}
+function exactNumber(value) {
+  const parts = value
+    .normalize("NFKC")
+    .trim()
+    .replace(",", ".")
+    .split("/")
+    .map((part) => part.trim());
+  if (parts.length > 2) return null;
+  const numerator = exactDecimal(parts[0]);
+  const denominator =
+    parts.length === 2
+      ? exactDecimal(parts[1])
+      : { coefficient: 1n, exponent: 0n };
+  if (!numerator || !denominator || denominator.coefficient === 0n) return null;
+  return {
+    numerator: numerator.coefficient,
+    denominator: denominator.coefficient,
+    exponent: numerator.exponent - denominator.exponent,
+  };
+}
+function scaledInteger(coefficient, exponent) {
+  if (coefficient === 0n) return { coefficient: 0n, exponent: 0n };
+  while (coefficient % 10n === 0n) {
+    coefficient /= 10n;
+    exponent += 1n;
+  }
+  return { coefficient, exponent };
+}
 export function shortMatches(value, expected, tolerance = 0) {
   if (typeof value !== "string" || !value.trim()) return false;
-  const actual = numberValue(value),
-    target = numberValue(expected);
-  if (actual !== null && target !== null)
-    return (
-      Math.abs(actual - target) <=
-      tolerance + Number.EPSILON * Math.max(1, Math.abs(target)) * 8
-    );
+  // Positive tolerance is only retained by older, already-started snapshots.
+  if (tolerance > 0) {
+    const actual = numberValue(value),
+      target = numberValue(expected);
+    if (actual !== null && target !== null)
+      return (
+        Math.abs(actual - target) <=
+        tolerance + Number.EPSILON * Math.max(1, Math.abs(target)) * 8
+      );
+  } else {
+    const actual = exactNumber(value),
+      target = exactNumber(expected);
+    if (actual !== null && target !== null) {
+      const left = scaledInteger(
+        actual.numerator * target.denominator,
+        actual.exponent,
+      );
+      const right = scaledInteger(
+        target.numerator * actual.denominator,
+        target.exponent,
+      );
+      return (
+        left.coefficient === right.coefficient &&
+        left.exponent === right.exponent
+      );
+    }
+  }
   return normalized(value) === normalized(expected);
 }
 export function answered(q, a) {

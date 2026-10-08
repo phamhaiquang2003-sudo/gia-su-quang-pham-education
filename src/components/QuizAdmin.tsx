@@ -1098,7 +1098,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                         </div>
                       )}
                       {q.type === "short" && (
-                        <div className="mt-5 grid gap-4 sm:grid-cols-[minmax(0,1fr)_140px]">
+                        <div className="mt-5">
                           <label className="account-label">
                             Đáp án được chấp nhận (mỗi dòng một đáp án)
                             <textarea
@@ -1113,26 +1113,9 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                               placeholder="0,5"
                             />
                             <span className="text-xs font-normal text-slate-500">
-                              Tự nhận diện 0,5 = 0.5 = 1/2. Tối đa 10 đáp án.
-                            </span>
-                          </label>
-                          <label className="account-label">
-                            Sai số số học
-                            <input
-                              className="account-input"
-                              type="number"
-                              min={0}
-                              max={100}
-                              step="any"
-                              value={q.tolerance}
-                              onChange={(e) =>
-                                updateQuestion(q.id, {
-                                  tolerance: Number(e.target.value),
-                                })
-                              }
-                            />
-                            <span className="text-xs font-normal text-slate-500">
-                              0 = khớp chính xác
+                              Đáp án phải khớp chính xác, không chấp nhận sai
+                              số. Tự nhận diện 0,5 = 0.5 = 1/2. Tối đa 10 đáp
+                              án.
                             </span>
                           </label>
                         </div>

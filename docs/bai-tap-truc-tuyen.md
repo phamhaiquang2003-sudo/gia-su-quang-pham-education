@@ -88,7 +88,7 @@ Trong **Thông tin đề**, chọn **Trắc nghiệm · Chấm tự động**. �
 - Ô **Điểm trọng số** nhận cả dấu phẩy và dấu chấm: `0,25` và `0.25` đều được lưu thành cùng giá trị số `0.25`. Khi chọn form cố định, ô điểm vẫn được khóa theo form.
 - A/B/C/D: đúng được toàn bộ điểm câu.
 - Đúng/Sai: chỉ tính **10% / 25% / 50% / 100% điểm câu** khi đúng **1 / 2 / 3 / 4 ý**; đúng 0 ý được 0 điểm. Ví dụ câu 1 điểm nhận 0,1 / 0,25 / 0,5 / 1 điểm tương ứng. Áp dụng cho cả **Tự thiết kế** và **Form đề cố định**.
-- Trả lời ngắn: mỗi dòng là một đáp án chấp nhận. Nhận diện `0,5`, `0.5`, `1/2` là tương đương; có thể đặt sai số tuyệt đối cho kết quả số. Văn bản được chuẩn hóa khoảng trắng và chữ hoa/thường, vẫn phân biệt dấu tiếng Việt.
+- Trả lời ngắn: mỗi dòng là một đáp án chấp nhận, tối đa 10 đáp án. **Phải khớp chính xác, không chấp nhận sai số**. Các giá trị bằng nhau như `0,5`, `0.5`, `1/2` vẫn tương đương; `0.5000000000000001` không bằng `0.5`, và số thập phân làm tròn không bằng phân số có giá trị khác. Văn bản được chuẩn hóa khoảng trắng và chữ hoa/thường, vẫn phân biệt dấu tiếng Việt.
 - Ô **Hiện đáp án và lời giải ngay sau khi nộp** quyết định việc học sinh có thấy đáp án sau khi chấm hay không.
 
 ### Học sinh
@@ -124,6 +124,8 @@ Học sinh tải lại trang đề (hoặc bấm **Kiểm tra lượt làm lại
 Chạy từ thư mục `worker`:
 
 Migration `0004_manual_submissions.sql` bổ sung liên kết ảnh bài nộp tự luận riêng tư và mã xác nhận cho thao tác gỡ ảnh nguyên tử. Áp dụng trước khi triển khai Worker hỗ trợ tự luận.
+
+Migration `0009_exact_short_answers.sql` đặt sai số của đề hiện tại về 0 và tăng revision cho đề được cập nhật. Lượt bắt đầu sau đó chấm chính xác; lượt đã bắt đầu dùng snapshot của thời điểm bắt đầu. Máy chủ cũng luôn ghi sai số 0 khi lưu đề từ bản nháp cũ.
 
 ```powershell
 npm test

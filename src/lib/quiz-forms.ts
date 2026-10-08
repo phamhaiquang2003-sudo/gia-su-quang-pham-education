@@ -48,7 +48,6 @@ export function hasQuestionContent(question: Question, document: boolean) {
         statement.trim() && (!document || statement !== `Ý ${"abcd"[index]}`),
     ) ||
     question.acceptedAnswers?.some((answer) => answer.trim()) ||
-    question.tolerance ||
     (typeof question.answer === "string" && question.answer !== "A") ||
     (Array.isArray(question.answer) &&
       question.answer.some((answer) => !answer)),

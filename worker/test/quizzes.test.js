@@ -1025,6 +1025,85 @@ test("custom true/false questions always use exam scoring even when a cached edi
   }
 });
 
+test("short answers compare exact decimal and fraction values without rounding away tiny differences", () => {
+  for (const [answer, expected] of [
+    ["0,5", "0.5"], ["1/2", "0.5"], ["2/4", "0,5"], ["0.5000", ".5"],
+    [" 1 / 2 ", "0.5"], ["1/-2", "-0.5"], ["5e-1", "0.5"],
+    ["0", "-0.000"], ["1e1000000", "10e999999"], ["１／２", "0.5"],
+    ["HÀ   NỘI", "hà nội"],
+  ]) assert.equal(shortMatches(answer, expected), true, `${answer} equals ${expected}`);
+  for (const [answer, expected] of [
+    ["0.51", "0.5"], ["0.5000000000000001", "0.5"], ["0.50000000000000001", "0.5"],
+    ["1/3", "0.3333333333333333"], ["1e-400", "0"],
+    ["10000000000000001", "10000000000000000"], ["1/0", "0.5"], ["", "0"],
+    ["ha noi", "hà nội"],
+  ]) assert.equal(shortMatches(answer, expected), false, `${answer} differs from ${expected}`);
+});
+
+test("new and edited short questions always discard the retired tolerance field and award points only for exact accepted answers", () => {
+  for (const tolerance of [undefined, 0, 0.01, "0.1", -1, null, "old-setting"]) {
+    const input = fixture(); input.questions[2].tolerance = tolerance;
+    const quiz = validateQuiz(input);
+    assert.equal(quiz.questions[2].tolerance, 0);
+    for (const answer of ["0.51", "0.50000000000000001"])
+      assert.equal(grade(quiz, { short: answer }).details[2].points, 0);
+    assert.equal(grade(quiz, { short: "1/2" }).details[2].points, 2);
+    quiz.questions[2].acceptedAnswers.push("0.6");
+    assert.equal(grade(quiz, { short: "3/5" }).details[2].points, 2);
+  }
+});
+
+test("exact-answer migration updates only current tolerant quizzes with a new revision; snapshots, submitted grades, files and other content persist", async () => {
+  const { db, sqlite } = database("0009");
+  try {
+    const now = 1_000_000;
+    const teacher = makeQuizService(db, adminUser, () => now);
+    const student = makeQuizService(db, studentUser, () => now);
+    const other = makeQuizService(db, { ...studentUser, uid: "old-submitted" }, () => now);
+    const uploaded = await teacher.upload(teacherUpload(submissionPng, "image/png", "exact-migration.png"));
+    const input = { ...fixture(), opensAt: now - 1000, closesAt: now + 60_000 };
+    input.questions[0].imageId = uploaded.file.id;
+    const { quiz } = await teacher.save({ quiz: input });
+    sqlite.prepare("UPDATE quizzes SET body=json_set(body,'$.questions[2].tolerance',0.01) WHERE id=?").run(quiz.id);
+    const unaffected = (await teacher.save({ quiz: fixture() })).quiz;
+    const manual = (await teacher.save({ quiz: essayFixture() })).quiz;
+    let active = (await student.start({ id: quiz.id })).attempt;
+    const answers = { single: "B", tf: [true, false, true, false], short: "0.51" };
+    active = (await student.progress({ id: active.id, revision: active.revision, answers, flagged: ["short"] })).attempt;
+    const submitted = (await other.start({ id: quiz.id })).attempt;
+    await other.submit({ id: submitted.id, revision: submitted.revision, answers });
+    const beforeQuiz = sqlite.prepare("SELECT * FROM quizzes WHERE id=?").get(quiz.id);
+    const beforeOther = sqlite.prepare("SELECT * FROM quizzes WHERE id IN (?,?) ORDER BY id").all(unaffected.id, manual.id);
+    const beforeAttempts = sqlite.prepare("SELECT * FROM quiz_attempts ORDER BY id").all();
+    const beforeFiles = sqlite.prepare("SELECT * FROM quiz_files ORDER BY id").all();
+    const beforeLinks = sqlite.prepare("SELECT * FROM attempt_file_links ORDER BY attempt_id").all();
+    const beforeCounters = sqlite.prepare("SELECT * FROM quiz_attempt_counters ORDER BY user_uid").all();
+    const migration = readFileSync(new URL("../migrations/0009_exact_short_answers.sql", import.meta.url), "utf8");
+    sqlite.exec("BEGIN"); sqlite.exec(migration); sqlite.exec("COMMIT");
+    const afterQuiz = sqlite.prepare("SELECT * FROM quizzes WHERE id=?").get(quiz.id);
+    const expectedBody = JSON.parse(beforeQuiz.body); expectedBody.questions[2].tolerance = 0;
+    assert.deepEqual(JSON.parse(afterQuiz.body), expectedBody);
+    assert.equal(afterQuiz.revision, beforeQuiz.revision + 1);
+    assert.ok(afterQuiz.updated_at >= beforeQuiz.updated_at);
+    assert.deepEqual({ ...afterQuiz, body: beforeQuiz.body, revision: beforeQuiz.revision, updated_at: beforeQuiz.updated_at }, { ...beforeQuiz });
+    assert.deepEqual(sqlite.prepare("SELECT * FROM quizzes WHERE id IN (?,?) ORDER BY id").all(unaffected.id, manual.id), beforeOther);
+    assert.deepEqual(sqlite.prepare("SELECT * FROM quiz_attempts ORDER BY id").all(), beforeAttempts);
+    assert.deepEqual(sqlite.prepare("SELECT * FROM quiz_files ORDER BY id").all(), beforeFiles);
+    assert.deepEqual(sqlite.prepare("SELECT * FROM attempt_file_links ORDER BY attempt_id").all(), beforeLinks);
+    assert.deepEqual(sqlite.prepare("SELECT * FROM quiz_attempt_counters ORDER BY user_uid").all(), beforeCounters);
+    sqlite.exec(migration);
+    assert.deepEqual(sqlite.prepare("SELECT * FROM quizzes WHERE id=?").get(quiz.id), afterQuiz);
+    await assert.rejects(teacher.save({ id: quiz.id, revision: quiz.revision, quiz: input }), e => e.status === 409);
+    assert.equal((await other.detail({ id: quiz.id })).attempt.result.score, 10);
+    assert.equal((await student.submit({ id: active.id, revision: active.revision, answers })).attempt.result.score, 10);
+    const newer = makeQuizService(db, { ...studentUser, uid: "exact-new" }, () => now);
+    const fresh = (await newer.start({ id: quiz.id })).attempt;
+    const result = (await newer.submit({ id: fresh.id, revision: fresh.revision, answers })).attempt.result;
+    assert.equal(result.score, 5); assert.equal(result.details[2].points, 0);
+    assert.deepEqual(sqlite.prepare("PRAGMA foreign_key_check").all(), []);
+  } finally { sqlite.close(); }
+});
+
 test("saving an older equal-weighted quiz retires that option for new attempts while preserving the original scoring of started attempts", async () => {
   for (const scoring of ["equal", undefined]) {
     const { db, sqlite } = database();
