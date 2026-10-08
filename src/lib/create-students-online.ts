@@ -126,7 +126,7 @@ export async function createStudentsOnline(
               displayName: student.displayName,
               role: "student",
               status: "active",
-              classIds: [],
+              classIds: student.classId ? [student.classId] : [],
               createdBy: admin.uid,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),

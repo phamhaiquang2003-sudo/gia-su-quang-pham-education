@@ -15,6 +15,7 @@ import { doc, getDoc, type Timestamp } from "firebase/firestore";
 import { getFirebase } from "./firebase";
 import { usernamePattern } from "./student-validation";
 import { adminApiUrl } from "./admin-config";
+import type { SchoolClassId } from "./school-classes";
 export { usernamePattern } from "./student-validation";
 
 export interface AccountProfile {
@@ -31,6 +32,7 @@ export interface NewStudent {
   username: string;
   password: string;
   displayName: string;
+  classId?: SchoolClassId | "";
 }
 
 export interface CreationResult {

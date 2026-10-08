@@ -53,7 +53,7 @@ Bạn đã tạo Firestore `(default)`. Trong Firebase Console:
 2. Sao chép toàn bộ nội dung tệp `firestore.rules` trong dự án vào trình soạn thảo.
 3. Bấm **Publish / Publier / Xuất bản**.
 
-Rules trong `firestore.rules` cho phép học sinh đọc hồ sơ của mình; quản trị có quyền đọc danh sách và tạo mới hồ sơ học sinh kèm giữ chỗ tên duy nhất trong một giao dịch. Hồ sơ mới luôn có role `student`, status `active`, danh sách lớp rỗng và không được chứa mật khẩu. Client không được sửa/xóa hồ sơ hay giữ chỗ đã tồn tại. Các collection khác mặc định bị chặn đến khi có tính năng và Rules tương ứng.
+Rules trong `firestore.rules` cho phép học sinh đọc hồ sơ của mình; quản trị có quyền đọc danh sách và tạo mới hồ sơ học sinh kèm giữ chỗ tên duy nhất trong một giao dịch. Hồ sơ mới luôn có role `student`, status `active`, tối đa một lớp hợp lệ từ `lop-1` đến `lop-12` và không được chứa mật khẩu. Rules vẫn nhận danh sách lớp rỗng từ phiên bản cấp tài khoản cũ. Client không được sửa/xóa hồ sơ hay giữ chỗ đã tồn tại. Các collection khác mặc định bị chặn đến khi có tính năng và Rules tương ứng.
 
 ## 4. Thiết lập quản trị viên đầu tiên
 
@@ -78,8 +78,8 @@ Chỉ thêm `role: admin` bằng Firestore Console chưa đủ quyền quản tr
 
 Mở `quan-tri.html` trên website và đăng nhập bằng tài khoản quản trị đã được cấp quyền. Không cần mở tệp `.bat` để thêm tài khoản.
 
-- **Thêm tài khoản:** nhập username, mật khẩu ban đầu, họ tên. Role luôn là học sinh. Ghi lại thông tin để gửi riêng cho học sinh.
-- **Danh sách:** tải 50 hồ sơ mỗi trang; có nút tải thêm. Quản trị viên được hiển thị nhưng không thể bị sửa/xóa từ trang học sinh.
+- **Thêm tài khoản:** nhập username, mật khẩu ban đầu, họ tên và **Chọn lớp** từ **Lớp 1 đến Lớp 12**. Role luôn là học sinh. Lớp được lưu trong `users/{uid}.classIds`, ví dụ `["lop-12"]`. Ghi lại thông tin đăng nhập để gửi riêng cho học sinh.
+- **Danh sách:** tải 50 hồ sơ mỗi trang; có nút tải thêm và hiển thị lớp đã chọn bên cạnh tên đăng nhập. Quản trị viên được hiển thị nhưng không thể bị sửa/xóa từ trang học sinh.
 - **Khóa:** đổi trạng thái Firestore ngay để thu hồi quyền, khóa Auth và thu hồi refresh token qua Worker.
 - **Mở khóa:** mở Auth rồi kích hoạt hồ sơ qua Worker; học sinh đăng nhập lại.
 - **Cấp lại mật khẩu:** cập nhật Auth và thu hồi phiên cũ qua Worker. Thao tác không tự mở khóa tài khoản đang khóa; mật khẩu giữ nguyên khoảng trắng và cần 8–128 ký tự.

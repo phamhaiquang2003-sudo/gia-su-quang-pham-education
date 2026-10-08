@@ -40,6 +40,11 @@ import {
 } from "@/lib/accounts";
 import { getFirebase } from "@/lib/firebase";
 import { useAccount } from "@/lib/use-account";
+import {
+  schoolClasses,
+  schoolClassLabel,
+  type SchoolClassId,
+} from "@/lib/school-classes";
 
 type Tab = "quizzes" | "tuition" | "add" | "list";
 type Action = "disable" | "enable" | "resetPassword" | "delete";
@@ -50,6 +55,7 @@ export default function AdminPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [classId, setClassId] = useState<SchoolClassId | "">("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -116,13 +122,19 @@ export default function AdminPage() {
     setBusy(true);
     try {
       const response = await createStudents([
-        { username: cleanUsername, password, displayName: displayName.trim() },
+        {
+          username: cleanUsername,
+          password,
+          displayName: displayName.trim(),
+          classId,
+        },
       ]);
       setResults(response);
       setPassword("");
       if (response[0]?.success) {
         setUsername("");
         setDisplayName("");
+        setClassId("");
       }
     } catch (error) {
       setMessage(accountError(error));
@@ -346,6 +358,27 @@ export default function AdminPage() {
                         readOnly
                       />
                     </label>
+                    <label className="account-label sm:col-span-2">
+                      Lớp
+                      <select
+                        className="account-input"
+                        aria-label="Chọn lớp"
+                        value={classId}
+                        onChange={(event) =>
+                          setClassId(event.target.value as SchoolClassId | "")
+                        }
+                        required
+                      >
+                        <option value="" disabled>
+                          Chọn lớp…
+                        </option>
+                        {schoolClasses.map((schoolClass) => (
+                          <option key={schoolClass.id} value={schoolClass.id}>
+                            {schoolClass.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                   </fieldset>
                   <p className="my-4 text-sm leading-relaxed text-slate-600">
                     Học sinh dùng tên đăng nhập và mật khẩu bạn cấp. Hãy ghi lại
@@ -392,6 +425,9 @@ export default function AdminPage() {
                         </h3>
                         <p className="mt-1 break-all text-sm text-slate-500">
                           @{student.username} ·{" "}
+                          {student.classIds?.length
+                            ? `${student.classIds.map(schoolClassLabel).join(", ")} · `
+                            : ""}
                           {student.status === "active"
                             ? "Đang hoạt động"
                             : "Đã khóa"}

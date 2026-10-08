@@ -359,6 +359,14 @@ test("online provisioning restricts role, status, initial classes, creator, time
     { role: "admin" },
     { status: "disabled" },
     { classIds: ["class-one"] },
+    { classIds: ["lop-0"] },
+    { classIds: ["lop-13"] },
+    { classIds: ["lop-01"] },
+    { classIds: ["lop-6", "lop-7"] },
+    { classIds: ["lop-12", "lop-12"] },
+    { classIds: [12] },
+    { classIds: "lop-12" },
+    { classIds: null },
     { createdBy: "someone-else" },
     { createdAt: new Date(0) },
     { updatedAt: new Date(0) },
@@ -404,6 +412,37 @@ test("online provisioning restricts role, status, initial classes, creator, time
     updateDoc(doc(client, "usernames", "validonline"), { uid: "changed" }),
   );
   await assertFails(deleteDoc(doc(client, "usernames", "validonline")));
+});
+
+test("claimed active admins can provision exactly one selected school class from grades 1 through 12, and students cannot change it or provision peers", async () => {
+  const client = environment
+    .authenticatedContext(adminUid, { admin: true })
+    .firestore();
+  for (let grade = 1; grade <= 12; grade++) {
+    const uid = `grade-${grade}`,
+      username = `grade${grade}`;
+    await assertSucceeds(
+      provisionOnline(client, uid, username, { classIds: [`lop-${grade}`] }),
+    );
+    const profile = (await db.doc(`users/${uid}`).get()).data();
+    assert.deepEqual(profile.classIds, [`lop-${grade}`]);
+    assert.equal(profile.role, "student");
+    assert.equal(profile.password, undefined);
+    assert.equal((await db.doc(`usernames/${username}`).get()).data().uid, uid);
+  }
+  const student = environment.authenticatedContext("grade-12").firestore();
+  await assertSucceeds(getDoc(doc(student, "users", "grade-12")));
+  await assertFails(
+    updateDoc(doc(student, "users", "grade-12"), { classIds: ["lop-11"] }),
+  );
+  await assertFails(
+    provisionOnline(student, "grade-peer", "gradepeer", {
+      classIds: ["lop-12"],
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(client, "users", "grade-12"), { classIds: ["lop-11"] }),
+  );
 });
 
 test("lock, unlock, password reset and deletion update Auth and Firestore; admins cannot be deleted", async () => {
