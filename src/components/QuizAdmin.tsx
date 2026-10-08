@@ -1303,32 +1303,22 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                   Kết quả học sinh
                 </button>
                 {item.status === "published" && (
-                  <>
-                    <a
-                      href={quizHref(item)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="account-button-secondary text-xs"
-                    >
-                      Mở bài ↗
-                    </a>
-                    <button
-                      disabled={busy}
-                      className="account-button-secondary text-xs"
-                      onClick={() =>
-                        void run(async () => {
-                          await quizApi("hide", { id: item.id });
-                          const data = await quizApi<{
-                            quizzes: QuizSummary[];
-                          }>("listAdmin");
-                          setList(data.quizzes);
-                          setMessage("Đã ẩn đề khỏi kho bài tập.");
-                        })
-                      }
-                    >
-                      Ẩn đề
-                    </button>
-                  </>
+                  <button
+                    disabled={busy}
+                    className="account-button-secondary text-xs"
+                    onClick={() =>
+                      void run(async () => {
+                        await quizApi("hide", { id: item.id });
+                        const data = await quizApi<{
+                          quizzes: QuizSummary[];
+                        }>("listAdmin");
+                        setList(data.quizzes);
+                        setMessage("Đã ẩn đề khỏi kho bài tập.");
+                      })
+                    }
+                  >
+                    Ẩn đề
+                  </button>
                 )}
                 {item.status === "hidden" && (
                   <button
