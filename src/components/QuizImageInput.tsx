@@ -1,5 +1,5 @@
 import { useRef, useState, type ClipboardEvent } from "react";
-import { ClipboardPaste, ImagePlus, Trash2 } from "lucide-react";
+import { ClipboardPaste, Trash2 } from "lucide-react";
 import { clipboardImage } from "@/lib/quiz-images";
 import QuizFile from "./QuizFile";
 
@@ -18,7 +18,6 @@ export default function QuizImageInput({
   onUpload: (file: File) => Promise<void>;
   onRemove: () => void;
 }) {
-  const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const [reading, setReading] = useState(false);
   const readingRef = useRef(false);
@@ -82,14 +81,6 @@ export default function QuizImageInput({
           <ClipboardPaste className="size-4" />
           {reading ? "Đang đọc clipboard…" : "Dán ảnh từ clipboard"}
         </button>
-        <button
-          type="button"
-          className="account-button-secondary text-xs"
-          disabled={disabled || reading}
-          onClick={() => input.current?.click()}
-        >
-          <ImagePlus className="size-4" /> Chọn ảnh có sẵn
-        </button>
         {imageId && (
           <button
             type="button"
@@ -101,22 +92,6 @@ export default function QuizImageInput({
           </button>
         )}
       </div>
-      <input
-        ref={input}
-        type="file"
-        className="sr-only"
-        aria-label={`Chọn ${label.toLowerCase()}`}
-        accept="image/png,image/jpeg,image/webp"
-        disabled={disabled || reading}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file) {
-            setError("");
-            void onUpload(file);
-          }
-        }}
-      />
       {error && (
         <p role="alert" className="mt-3 text-xs text-red-700">
           {error}
