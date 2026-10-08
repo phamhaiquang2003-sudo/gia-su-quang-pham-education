@@ -23,6 +23,7 @@ import {
   quizHref,
   newQuiz,
   newQuestion,
+  prepareQuizForEditing,
   uploadQuizFile,
   type Quiz,
   type Question,
@@ -85,7 +86,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
       ) {
         delete q.accessCode;
         delete q.requiresAccessCode;
-        return restoreCustomQuizDraft(q);
+        return prepareQuizForEditing(restoreCustomQuizDraft(q));
       }
     } catch {
       /* new draft */
@@ -163,7 +164,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
       const data = await quizApi<{ quiz: QuizSummary }>("save", {
         id: quiz.id,
         revision: quiz.revision,
-        quiz: { ...quiz, status },
+        quiz: prepareQuizForEditing({ ...quiz, status }),
       });
       setQuiz((q) => ({
         ...q,
@@ -1085,27 +1086,15 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                               />
                             </div>
                           ))}
-                          <label className="account-label">
-                            Cách tính điểm Đúng/Sai
-                            <select
-                              className="account-input"
-                              value={q.scoring}
-                              disabled={Boolean(fixedForm)}
-                              onChange={(e) =>
-                                updateQuestion(q.id, {
-                                  scoring: e.target
-                                    .value as Question["scoring"],
-                                })
-                              }
-                            >
-                              <option value="equal">
-                                Chia đều: mỗi ý đúng được 25% điểm câu
-                              </option>
-                              <option value="exam">
-                                Đúng 1/2/3/4 ý → 10% / 25% / 50% / 100% điểm câu
-                              </option>
-                            </select>
-                          </label>
+                          <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+                            <p className="font-semibold">
+                              Cách tính điểm Đúng/Sai
+                            </p>
+                            <p className="mt-1 leading-relaxed">
+                              Đúng 1/2/3/4 ý → 10% / 25% / 50% / 100% điểm câu.
+                              Đúng 0 ý được 0 điểm.
+                            </p>
+                          </div>
                         </div>
                       )}
                       {q.type === "short" && (
@@ -1316,7 +1305,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                         "adminDetail",
                         { id: item.id },
                       );
-                      setQuiz(data.quiz);
+                      setQuiz(prepareQuizForEditing(data.quiz));
                       setView("edit");
                     })
                   }

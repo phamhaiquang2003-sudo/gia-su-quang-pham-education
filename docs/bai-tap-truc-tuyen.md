@@ -58,7 +58,7 @@ Trong **Thông tin đề**, chọn **Trắc nghiệm · Chấm tự động**. �
 - Với form 22/28 câu, đúng **1/2/3/4 ý** trong một câu Đúng/Sai được **0,1 / 0,25 / 0,5 / 1 điểm**; đúng 0 ý được 0 điểm.
 - Chọn form tự tạo đủ các câu theo thứ tự: trắc nghiệm → đúng/sai → trả lời ngắn. Nội dung, đáp án và ảnh đã soạn được giữ theo từng dạng câu nếu vừa cấu trúc; hệ thống hỏi trước khi bỏ câu có nội dung vượt số lượng của form.
 - Số câu, dạng câu, điểm và cách tính Đúng/Sai được khóa. Có thể soạn nội dung/đáp án/lời giải và đổi vị trí giữa các câu cùng dạng. Máy chủ kiểm tra lại cấu trúc khi lưu.
-- Chọn **Tự thiết kế** để mở lại thêm/xóa/nhân bản câu, đổi dạng, sửa điểm và cách tính Đúng/Sai. Các câu trống tự sinh được dọn, chỉ giữ câu đã có nội dung/đáp án/lời giải; nếu chưa soạn gì thì bắt đầu với **1 câu trống**. Với đề đã có tệp đính kèm, các câu trả lời được giữ để khớp nội dung trong tệp.
+- Chọn **Tự thiết kế** để mở lại thêm/xóa/nhân bản câu, đổi dạng và sửa điểm. Các câu trống tự sinh được dọn, chỉ giữ câu đã có nội dung/đáp án/lời giải; nếu chưa soạn gì thì bắt đầu với **1 câu trống**. Với đề đã có tệp đính kèm, các câu trả lời được giữ để khớp nội dung trong tệp.
 - Khi chuyển sang **Tự luận · Gia sư chấm thủ công**, mục form được ẩn và bỏ lựa chọn form cố định. Lượt học sinh đã bắt đầu giữ form và điểm của snapshot cũ; thay đổi form chỉ áp dụng cho lượt mới sau khi lưu.
 
 ### Giới hạn giờ mở / đóng đề (tùy chọn)
@@ -87,7 +87,7 @@ Trong **Thông tin đề**, chọn **Trắc nghiệm · Chấm tự động**. �
 - Điểm từng câu là trọng số, tổng điểm được quy đổi về thang 10 và làm tròn 2 chữ số thập phân.
 - Ô **Điểm trọng số** nhận cả dấu phẩy và dấu chấm: `0,25` và `0.25` đều được lưu thành cùng giá trị số `0.25`. Khi chọn form cố định, ô điểm vẫn được khóa theo form.
 - A/B/C/D: đúng được toàn bộ điểm câu.
-- Đúng/Sai: chia đều 25%/ý đúng hoặc tính 10% / 25% / 50% / 100% khi đúng 1 / 2 / 3 / 4 ý.
+- Đúng/Sai: chỉ tính **10% / 25% / 50% / 100% điểm câu** khi đúng **1 / 2 / 3 / 4 ý**; đúng 0 ý được 0 điểm. Ví dụ câu 1 điểm nhận 0,1 / 0,25 / 0,5 / 1 điểm tương ứng. Áp dụng cho cả **Tự thiết kế** và **Form đề cố định**.
 - Trả lời ngắn: mỗi dòng là một đáp án chấp nhận. Nhận diện `0,5`, `0.5`, `1/2` là tương đương; có thể đặt sai số tuyệt đối cho kết quả số. Văn bản được chuẩn hóa khoảng trắng và chữ hoa/thường, vẫn phân biệt dấu tiếng Việt.
 - Ô **Hiện đáp án và lời giải ngay sau khi nộp** quyết định việc học sinh có thấy đáp án sau khi chấm hay không.
 

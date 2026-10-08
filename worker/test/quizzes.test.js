@@ -988,7 +988,7 @@ test("fixed forms reject count, type, ordering, point and true/false scoring cha
   const custom = fixedFormFixture("mixed-22");
   custom.fixedForm = ""; custom.questions[0].points = 2.75; custom.questions[12].scoring = "equal";
   assert.equal(validateQuiz(custom).questions[0].points, 2.75);
-  assert.equal(validateQuiz(custom).questions[12].scoring, "equal");
+  assert.equal(validateQuiz(custom).questions[12].scoring, "exam");
   assert.equal(validateQuiz(fixture()).fixedForm, "");
   assert.equal(validateQuiz(essayFixture()).fixedForm, "");
 });
@@ -1004,6 +1004,54 @@ test("mixed forms award 0.1/0.25/0.5/1 for one to four correct true/false statem
       assert.equal(result.details.find(q => q.id === short.id).points, shortPoints);
       assert.equal(result.score, Math.round((expected + shortPoints + 0.25) * 100) / 100);
     }
+  }
+});
+
+test("custom true/false questions always use exam scoring even when a cached editor sends equal weighting or no scoring field", () => {
+  for (const legacyScoring of [undefined, "equal", "exam"]) {
+    for (const points of [1, 2.5]) {
+      const input = fixture();
+      input.questions[1].scoring = legacyScoring;
+      input.questions[1].points = points;
+      const quiz = validateQuiz(input), question = quiz.questions[1];
+      assert.equal(question.scoring, "exam");
+      for (const [count, ratio] of [[0, 0], [1, 0.1], [2, 0.25], [3, 0.5], [4, 1]]) {
+        const answers = question.answer.map((answer, index) => index < count ? answer : !answer);
+        const result = grade(quiz, { tf: answers });
+        assert.equal(result.details[1].points, points * ratio);
+        assert.equal(result.details[1].maxPoints, points);
+      }
+    }
+  }
+});
+
+test("saving an older equal-weighted quiz retires that option for new attempts while preserving the original scoring of started attempts", async () => {
+  for (const scoring of ["equal", undefined]) {
+    const { db, sqlite } = database();
+    try {
+      const now = 1_000_000;
+      const teacher = makeQuizService(db, adminUser, () => now);
+      const student = makeQuizService(db, studentUser, () => now);
+      const { quiz } = await teacher.save({ quiz: fixture() });
+      const stored = (await teacher.adminDetail({ id: quiz.id })).quiz;
+      stored.questions[1].scoring = scoring;
+      sqlite.prepare("UPDATE quizzes SET body=? WHERE id=?").run(JSON.stringify(stored), quiz.id);
+      const started = (await student.start({ id: quiz.id })).attempt;
+      const snapshot = sqlite.prepare("SELECT snapshot FROM quiz_attempts WHERE id=?").get(started.id).snapshot;
+      await teacher.save({ id: quiz.id, revision: quiz.revision, quiz: stored });
+      assert.equal((await teacher.adminDetail({ id: quiz.id })).quiz.questions[1].scoring, "exam");
+      assert.equal(sqlite.prepare("SELECT snapshot FROM quiz_attempts WHERE id=?").get(started.id).snapshot, snapshot);
+      const answers = { single: "B", tf: [true, true, false, true], short: "0.5" };
+      const original = (await student.submit({ id: started.id, revision: started.revision, answers })).attempt;
+      assert.equal(original.result.details[1].points, 0.25);
+      assert.equal(original.result.score, 8.13);
+      const nextStudent = makeQuizService(db, { ...studentUser, uid: "new-scoring" }, () => now);
+      const newer = (await nextStudent.start({ id: quiz.id })).attempt;
+      const current = (await nextStudent.submit({ id: newer.id, revision: newer.revision, answers })).attempt;
+      assert.equal(current.result.details[1].points, 0.1);
+      assert.equal(current.result.score, 7.75);
+      assert.deepEqual((await student.detail({ id: quiz.id })).attempt.result, original.result);
+    } finally { sqlite.close(); }
   }
 });
 

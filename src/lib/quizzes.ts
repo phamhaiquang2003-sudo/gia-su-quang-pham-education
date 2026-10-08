@@ -18,7 +18,7 @@ export interface Question {
   answer?: string | boolean[];
   acceptedAnswers?: string[];
   tolerance?: number;
-  scoring?: "equal" | "exam";
+  scoring?: "exam";
   explanation?: string;
 }
 export interface Quiz {
@@ -235,6 +235,17 @@ export function isAnswered(
         answer.every((a) => typeof a === "boolean")
     : typeof answer === "string" && Boolean(answer.trim());
 }
+export function prepareQuizForEditing(quiz: Quiz): Quiz {
+  return {
+    ...quiz,
+    questions: quiz.questions.map((question) =>
+      question.type === "truefalse"
+        ? { ...question, scoring: "exam" }
+        : question,
+    ),
+  };
+}
+
 export function newQuestion(
   type: QuestionType = "single",
   document = false,
@@ -260,7 +271,7 @@ export function newQuestion(
       ...base,
       statements: document ? ["Ý a", "Ý b", "Ý c", "Ý d"] : ["", "", "", ""],
       answer: [true, true, true, true],
-      scoring: "equal",
+      scoring: "exam",
     };
   if (type === "essay") return base;
   return { ...base, acceptedAnswers: [""], tolerance: 0 };

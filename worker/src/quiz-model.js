@@ -161,7 +161,6 @@ export function validateQuiz(input) {
         q.answer.some((a) => typeof a !== "boolean")
       )
         fail(`Câu ${index + 1} cần 4 ý và đáp án Đúng/Sai cho từng ý.`);
-      const scoring = q.scoring === "exam" ? "exam" : "equal";
       const statementImageIds = partImages(
         q.statementImageIds,
         "Ảnh các ý Đúng/Sai",
@@ -178,7 +177,7 @@ export function validateQuiz(input) {
         ),
         statementImageIds,
         answer: q.answer,
-        scoring,
+        scoring: "exam",
       };
     }
     if (
@@ -391,6 +390,7 @@ export function grade(quiz, answers) {
       const count = q.answer.filter(
         (a, i) => Array.isArray(value) && value[i] === a,
       ).length;
+      // Only older attempt snapshots can retain the retired equal weighting.
       ratio = q.scoring === "exam" ? [0, 0.1, 0.25, 0.5, 1][count] : count / 4;
     } else
       ratio = q.acceptedAnswers.some((expected) =>
