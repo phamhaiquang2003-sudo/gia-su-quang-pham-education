@@ -76,7 +76,7 @@ Trong **Thông tin đề**, chọn **Trắc nghiệm · Chấm tự động** đ
 4. Học sinh bắt đầu lượt làm, nhập bài giải hoặc tải nhiều ảnh bài viết tay từ máy tính/điện thoại. Có thể dán ảnh vào vùng trả lời. Mỗi lượt tối đa **20 ảnh PNG/JPG/WebP**, mỗi ảnh dưới **1,8 MB**; ảnh lớn tự nén. Ảnh được lưu trên máy chủ ngay khi tải thành công, có thể gỡ trước khi nộp. Văn bản tự lưu/khôi phục như bài trắc nghiệm.
 5. Sau khi nộp hoặc hết giờ, bài được khóa với trạng thái **Đã nộp bài · Chờ gia sư chấm**, chưa hiển thị điểm. Hệ thống không tự chấm bài tự luận.
 6. Giáo viên mở **Danh sách đề → Kết quả học sinh → Xem bài và chấm điểm**, xem ảnh/nội dung, nhập **Điểm (thang 10)** và **Nhận xét của gia sư**, bấm **Lưu điểm và nhận xét**. Có thể chỉnh điểm sau đó.
-7. Học sinh mở lại đề hoặc bấm **Cập nhật điểm và nhận xét** để xem điểm và nhận xét. Gia sư có thể cấp lượt làm lại; lượt cũ, đáp án, điểm và ảnh bài nộp được xóa, lượt mới trống và dùng đề hiện tại. Số lượt tiếp tục tăng dù kết quả cũ đã xóa.
+7. Học sinh mở lại đề hoặc bấm **Cập nhật điểm và nhận xét** để xem điểm và nhận xét. Sau khi nộp, học sinh có thể tự làm lại tối đa 3 lần, kể cả khi bài đang chờ chấm; gia sư có thể cấp thêm lượt nếu cần. Lượt cũ, đáp án, điểm và ảnh bài nộp được xóa khi bắt đầu làm lại, lượt mới trống và dùng đề hiện tại. Số lượt tiếp tục tăng dù kết quả cũ đã xóa.
 
 Đề tự luận dạng tệp đã tạo trước đây dùng vùng nộp chung cho cả đề; có thể mở chỉnh sửa và quản lý tệp của các đề này.
 
@@ -93,19 +93,25 @@ Trong **Thông tin đề**, chọn **Trắc nghiệm · Chấm tự động** đ
 
 ### Học sinh
 
-Đăng nhập → mở kho môn học → **Mở bài tập** → **Bắt đầu làm bài**. Đồng hồ mới chạy khi bắt đầu; mỗi tài khoản có một lượt ban đầu/đề, giáo viên có thể cấp thêm lượt. Bấm số câu để chuyển nhanh; dấu cờ **Đánh dấu xem lại** độc lập với trạng thái đã trả lời và không ảnh hưởng điểm.
+Đăng nhập → mở kho môn học → **Mở bài tập** → **Bắt đầu làm bài**. Đồng hồ mới chạy khi bắt đầu; mỗi tài khoản có **1 lượt đầu và tối đa 3 lần tự làm lại/đề** (tổng cộng 4 lượt). Giáo viên có thể cấp thêm lượt sau giới hạn này. Bấm số câu để chuyển nhanh; dấu cờ **Đánh dấu xem lại** độc lập với trạng thái đã trả lời và không ảnh hưởng điểm.
 
 Câu trả lời và dấu cờ tự lưu sau khoảng 0,9 giây ngừng thay đổi. Khi mất mạng, trang giữ bản chưa đồng bộ trên thiết bị và thử lại; trạng thái lưu hiển thị trên trang. Tải lại trang lấy cùng lượt làm và thời hạn từ máy chủ. Trước khi nộp sớm có thông báo số câu chưa hoàn tất/đánh dấu.
 
-Hết giờ, khóa trả lời và chấm **các câu đã được máy chủ lưu trước hạn**, kể cả khi yêu cầu gửi đáp án đến muộn. Trang đang mở tự nộp; tác vụ máy chủ chạy mỗi 5 phút hoàn tất các lượt hết hạn theo từng đợt khi học sinh đã đóng trang. Khi offline, việc ghi kết quả có thể trễ và cần nhiều đợt nếu có nhiều lượt chờ, nhưng thời hạn được giữ nguyên. Mở lại bài hoặc giáo viên tải kết quả cũng hoàn tất các lượt đã hết hạn. Kết quả đã nộp không thể sửa; học sinh chỉ làm lại khi giáo viên cấp thêm lượt.
+Hết giờ, khóa trả lời và chấm **các câu đã được máy chủ lưu trước hạn**, kể cả khi yêu cầu gửi đáp án đến muộn. Trang đang mở tự nộp; tác vụ máy chủ chạy mỗi 5 phút hoàn tất các lượt hết hạn theo từng đợt khi học sinh đã đóng trang. Khi offline, việc ghi kết quả có thể trễ và cần nhiều đợt nếu có nhiều lượt chờ, nhưng thời hạn được giữ nguyên. Mở lại bài hoặc giáo viên tải kết quả cũng hoàn tất các lượt đã hết hạn. Kết quả đã nộp không thể sửa; muốn trả lời lại, học sinh bắt đầu lượt làm lại mới.
 
 Đề hiện giao cho tất cả tài khoản hoạt động. Có thể **ẩn đề** khỏi kho; các lượt đã bắt đầu vẫn tiếp tục/xem kết quả. Sửa đề không thay đổi nội dung/đáp án của lượt đã bắt đầu, vì mỗi lượt lưu bản chụp riêng. Giáo viên có thể cấp lượt làm lại cho từng tài khoản hoặc xóa vĩnh viễn đề.
 
-### Cho phép một học sinh làm lại
+### Học sinh tự làm lại tối đa 3 lần
 
-**Bài tập → Danh sách đề → Kết quả học sinh → Cho phép làm lại** ở dòng đúng học sinh, rồi xác nhận. Đề cần đang xuất bản. Lượt cũ và điểm vẫn được giữ, có số lượt để đối chiếu. Nếu học sinh đang làm, lượt đó được kết thúc và chấm theo đáp án đã lưu.
+Trên trang kết quả, học sinh xem số lần còn lại rồi bấm **Làm lại bài → Bắt đầu làm lại**. Chỉ được làm lại sau khi nộp hoặc lượt đã hết giờ được hoàn tất. Đồng hồ lượt mới chạy ngay; lượt mới dùng nội dung và lịch mở/đóng đề hiện tại, đáp án/cờ trống và thay thế lượt cũ trong kết quả/hồ sơ. Ảnh bài nộp và tệp của lượt cũ chỉ được xóa khi không còn dùng chung.
 
-Học sinh tải lại trang đề (hoặc bấm **Kiểm tra lượt làm lại** trên trang kết quả), sau đó bấm **Bắt đầu làm bài**. Lượt mới có đáp án/cờ trống, sử dụng phiên bản đề hiện tại và đủ thời gian. Đồng hồ chưa chạy khi giáo viên cấp quyền. Giáo viên có thể cấp thêm lượt sau mỗi lần làm; học sinh không thể tự mở thêm lượt. Nút này cũng áp dụng cho lượt làm thử quản trị.
+Giới hạn được kiểm tra trên máy chủ theo tài khoản và đề: tải lại trang, mở nhiều tab hoặc gửi lại yêu cầu không tạo thêm lượt ngoài giới hạn. Tối đa 4 lượt gồm lượt đầu và 3 lượt làm lại; số lượt đã có trước khi cập nhật cũng được tính. Đề ẩn, chưa mở hoặc đã đóng không cho bắt đầu lượt làm lại, kết quả hiện tại được giữ.
+
+### Giáo viên cấp thêm lượt làm lại
+
+**Bài tập → Danh sách đề → Kết quả học sinh → Cho phép làm lại** ở dòng đúng học sinh, rồi xác nhận. Đề cần đang xuất bản. Thao tác này xóa lượt cũ, câu trả lời, điểm và ảnh bài nộp, kể cả khi học sinh đang làm. Bộ đếm vẫn giữ số lượt để lượt mới tiếp tục đúng thứ tự.
+
+Học sinh tải lại trang đề (hoặc bấm **Kiểm tra lượt làm lại** trên trang kết quả), sau đó bấm **Bắt đầu làm bài**. Lượt mới có đáp án/cờ trống, sử dụng phiên bản đề hiện tại và thời hạn chịu giới hạn giờ đóng đề. Đồng hồ chưa chạy khi giáo viên cấp quyền. Giáo viên vẫn cấp thêm lượt được khi học sinh đã dùng hết 3 lần tự làm lại; số lượt không được đặt lại và quyền cấp thêm này chỉ dành cho giáo viên. Nút này cũng áp dụng cho lượt làm thử quản trị.
 
 ### Xóa vĩnh viễn đề
 

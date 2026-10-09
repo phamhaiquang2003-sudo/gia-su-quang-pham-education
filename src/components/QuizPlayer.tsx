@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Clock3, Flag, Grid3X3 } from "lucide-react";
+import { ArrowLeft, Clock3, Flag, Grid3X3, RotateCcw } from "lucide-react";
+import { MAX_SELF_RETAKES } from "../../shared/quiz-retakes.js";
 import {
   quizApi,
   QuizApiError,
@@ -44,6 +45,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
   const [stale, setStale] = useState(false);
   const [saveStatus, setSaveStatus] = useState("Đã lưu trên máy chủ");
   const [confirm, setConfirm] = useState(false);
+  const [confirmRetake, setConfirmRetake] = useState(false);
   const [navigation, setNavigation] = useState(false);
   const [mobileTab, setMobileTab] = useState<"document" | "answers">("answers");
   const [reload, setReload] = useState(0);
@@ -509,6 +511,62 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
       setStarting(false);
     }
   }
+  async function retake() {
+    const old = attemptRef.current;
+    if (starting || !old?.result) return;
+    setStarting(true);
+    setConfirmRetake(false);
+    setError("");
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    const requestGeneration = ++generation.current;
+    try {
+      const data = await enqueue(() =>
+        quizApi<QuizState>("retake", {
+          id,
+          attemptId: old.id,
+          revision: old.revision,
+        }),
+      );
+      if (!mounted.current || generation.current !== requestGeneration) return;
+      setQuiz(data.quiz);
+      setActive(data.quiz.questions[0]?.id || "");
+      setNextAttemptNumber(data.nextAttemptNumber || 1);
+      clock.current = data.serverNow - performance.now();
+      setWaitingNow(data.serverNow);
+      attemptRef.current = data.attempt;
+      setAttempt(data.attempt);
+      const a = data.attempt?.answers || {},
+        f = data.attempt?.flagged || [];
+      current.current = { answers: a, flagged: f, version: 0, savedVersion: 0 };
+      setAnswers(a);
+      setFlagged(f);
+      lockRef.current = !!data.attempt?.result;
+      setLocked(lockRef.current);
+      staleRef.current = false;
+      setStale(false);
+      setSaveStatus("Đã lưu trên máy chủ");
+      setRemaining(
+        data.attempt
+          ? Math.max(0, data.attempt.deadlineAt - data.serverNow)
+          : data.quiz.durationMinutes * 60_000,
+      );
+      try {
+        localStorage.removeItem(cacheKey);
+      } catch {
+        /* storage unavailable */
+      }
+    } catch (e) {
+      if (!mounted.current || generation.current !== requestGeneration) return;
+      setError(
+        e instanceof Error ? e.message : "Chưa bắt đầu được lượt làm lại.",
+      );
+      if (e instanceof QuizApiError && [403, 404, 409].includes(e.status))
+        setStale(true);
+    } finally {
+      if (mounted.current && generation.current === requestGeneration)
+        setStarting(false);
+    }
+  }
   function jump(questionId: string) {
     setMobileTab("answers");
     setNavigation(false);
@@ -525,6 +583,12 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
   const wholeSubmission =
     quiz?.gradingMode === "manual" && quiz.mode === "document";
   const availability = quiz ? quizAvailability(quiz, waitingNow) : "open";
+  const retakesRemaining =
+    attempt?.retakesRemaining ??
+    Math.max(
+      0,
+      MAX_SELF_RETAKES + 1 - (attempt?.attemptNumber || nextAttemptNumber),
+    );
   const seconds = Math.ceil(remaining / 1000);
   const timer = `${Math.floor(seconds / 60)
     .toString()
@@ -679,10 +743,13 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
                   Đồng hồ chạy ngay khi bắt đầu. Bạn có thể đánh dấu câu để xem
                   lại và dùng bảng số câu để chuyển nhanh. Hết giờ, bài được
                   khóa và chấm từ các câu trả lời đã lưu trước hạn. Tải lại
-                  trang để tiếp tục lượt hiện tại. Giáo viên có thể cấp thêm
-                  lượt làm lại.
+                  trang để tiếp tục lượt hiện tại.
                 </>
               )}
+            </p>
+            <p className="mb-6 text-sm leading-relaxed text-sky-200">
+              Mỗi đề có 1 lượt đầu và tối đa {MAX_SELF_RETAKES} lần tự làm lại
+              sau khi nộp bài, không cần giáo viên cấp phép từng lần.
             </p>
             {nextAttemptNumber > 1 && (
               <p className="mb-6 rounded-xl border border-emerald-300/30 bg-emerald-300/10 p-4 text-sm text-emerald-200">
@@ -742,6 +809,24 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
             ) : (
               <QuizResultView result={attempt.result} />
             )}
+            <div className="mt-6 rounded-xl border border-sky-300/25 bg-sky-300/5 p-4">
+              <p className="text-sm text-sky-100">
+                {retakesRemaining > 0
+                  ? `Bạn còn ${retakesRemaining}/${MAX_SELF_RETAKES} lần tự làm lại bài này.`
+                  : `Bạn đã dùng hết ${MAX_SELF_RETAKES} lần làm lại tự động. Liên hệ giáo viên nếu cần thêm lượt.`}
+              </p>
+              {retakesRemaining > 0 && (
+                <button
+                  type="button"
+                  className="mt-4 flex items-center gap-2 rounded-xl bg-amber-300 px-5 py-3 text-sm font-bold text-slate-950 disabled:opacity-50"
+                  disabled={starting || stale}
+                  onClick={() => setConfirmRetake(true)}
+                >
+                  <RotateCcw className="size-4" />
+                  {starting ? "Đang bắt đầu lượt mới…" : "Làm lại bài"}
+                </button>
+              )}
+            </div>
             {attempt.result.manual && (
               <button
                 type="button"
@@ -925,6 +1010,34 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
               onClick={() => void submit()}
             >
               Nộp bài
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={confirmRetake} onOpenChange={setConfirmRetake}>
+        <DialogContent className="exercise-page">
+          <DialogTitle>Bắt đầu lượt làm lại?</DialogTitle>
+          <DialogDescription className="text-slate-200">
+            Bạn còn {retakesRemaining}/{MAX_SELF_RETAKES} lần tự làm lại. Lượt
+            mới sẽ thay thế kết quả, câu trả lời và ảnh bài nộp của lượt hiện
+            tại. Đáp án và dấu cờ được làm trống; đồng hồ bắt đầu ngay theo thời
+            gian và lịch mở/đóng đề hiện tại.
+          </DialogDescription>
+          <div className="flex flex-wrap justify-end gap-3">
+            <button
+              type="button"
+              className="rounded-xl border border-white/20 px-4 py-3 text-sm"
+              onClick={() => setConfirmRetake(false)}
+            >
+              Giữ kết quả hiện tại
+            </button>
+            <button
+              type="button"
+              className="rounded-xl bg-amber-300 px-4 py-3 text-sm font-bold text-slate-950"
+              disabled={starting}
+              onClick={() => void retake()}
+            >
+              Bắt đầu làm lại
             </button>
           </div>
         </DialogContent>

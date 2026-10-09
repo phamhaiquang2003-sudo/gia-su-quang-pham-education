@@ -13,6 +13,7 @@ import {
   fileIds,
 } from "../src/quiz-model.js";
 import { requireQuizUser } from "../src/quiz-auth.js";
+import { makeHandler } from "../src/index.js";
 import { makeProfileService, studyStreak } from "../src/profile-service.js";
 import { DOC_MIME, DOCX_MIME } from "../src/word-files.js";
 
@@ -1328,6 +1329,208 @@ test("retake migration preserves existing attempts, answers, results and attachm
   } finally {
     sqlite.close();
   }
+});
+
+test("students can replace a submitted attempt exactly three times; reloads and old requests preserve the latest attempt, other students and teacher-only extra grants", async () => {
+  const { db, sqlite } = database();
+  let now = 1_000_000;
+  try {
+    const teacher = makeQuizService(db, adminUser, () => now);
+    const student = makeQuizService(db, studentUser, () => now);
+    const other = makeQuizService(db, { ...studentUser, uid: "self-retake-other" }, () => now);
+    const { quiz } = await teacher.save({ quiz: fixture() });
+    const otherAttempt = (await other.start({ id: quiz.id })).attempt;
+    let attempt = (await student.start({ id: quiz.id })).attempt;
+    const firstId = attempt.id;
+    assert.equal(attempt.retakesRemaining, 3);
+    for (let number = 1; number <= 4; number++) {
+      assert.equal(attempt.attemptNumber, number);
+      attempt = (await student.submit({ id: attempt.id, revision: attempt.revision, answers: { single: "B", short: "0.5" }, flagged: ["tf"] })).attempt;
+      assert.equal(attempt.retakesRemaining, 4 - number);
+      assert.equal((await student.start({ id: quiz.id })).attempt.id, attempt.id);
+      if (number === 4) break;
+      const request = { id: quiz.id, attemptId: attempt.id, revision: attempt.revision };
+      const oldId = attempt.id;
+      now += 2_000;
+      const next = await student.retake(request);
+      attempt = next.attempt;
+      assert.notEqual(attempt.id, oldId);
+      assert.deepEqual(attempt.answers, {});
+      assert.deepEqual(attempt.flagged, []);
+      assert.equal(attempt.result, null);
+      assert.equal(attempt.deadlineAt, now + 60_000);
+      assert.equal(sqlite.prepare("SELECT id FROM quiz_attempts WHERE id=?").get(oldId), undefined);
+      assert.equal((await student.retake(request)).attempt.id, attempt.id);
+      assert.equal((await student.detail({ id: quiz.id })).attempt.id, attempt.id);
+      assert.equal((await other.detail({ id: quiz.id })).attempt.id, otherAttempt.id);
+    }
+    await assert.rejects(student.retake({ id: quiz.id, attemptId: attempt.id, revision: attempt.revision }), e => e.status === 403 && e.message.includes("3 lần"));
+    assert.equal((await student.retake({ id: quiz.id, attemptId: firstId, revision: 1 })).attempt.id, attempt.id);
+    const results = (await teacher.results({ id: quiz.id })).attempts;
+    assert.equal(results.length, 2);
+    assert.equal(results.find(row => row.id === attempt.id).attemptNumber, 4);
+    assert.equal((await makeProfileService(db, studentUser, () => now).profileOverview()).recent.length, 1);
+    await assert.rejects(student.allowRetake({ id: attempt.id }), e => e.status === 403);
+    await teacher.allowRetake({ id: attempt.id });
+    const granted = (await student.start({ id: quiz.id })).attempt;
+    assert.equal(granted.attemptNumber, 5);
+    assert.equal(granted.retakesRemaining, 0);
+    assert.deepEqual(granted.answers, {});
+    assert.deepEqual(sqlite.prepare("PRAGMA foreign_key_check").all(), []);
+  } finally { sqlite.close(); }
+});
+
+test("self-retakes require a submitted own attempt and a current revision, obey current publication/schedule, and use a fresh snapshot with the closing deadline", async () => {
+  const { db, sqlite } = database();
+  let now = 1_000_000;
+  try {
+    const teacher = makeQuizService(db, adminUser, () => now);
+    const student = makeQuizService(db, studentUser, () => now);
+    const other = makeQuizService(db, { ...studentUser, uid: "retake-ownership" }, () => now);
+    const { quiz } = await teacher.save({ quiz: fixture() });
+    let a = (await student.start({ id: quiz.id })).attempt;
+    await assert.rejects(student.retake({ id: quiz.id, attemptId: a.id, revision: a.revision }), e => e.status === 409);
+    assert.equal((await other.retake({ id: quiz.id, attemptId: a.id, revision: a.revision })).attempt, null);
+    a = (await student.submit({ id: a.id, revision: a.revision, answers: { single: "B" }, flagged: [] })).attempt;
+    await assert.rejects(student.retake({ id: quiz.id, attemptId: a.id, revision: a.revision - 1 }), e => e.status === 409);
+    const before = sqlite.prepare("SELECT * FROM quiz_attempts WHERE id=?").get(a.id);
+    const closed = { ...fixture(), closesAt: now };
+    let saved = (await teacher.save({ id: quiz.id, revision: quiz.revision, quiz: closed })).quiz;
+    await assert.rejects(student.retake({ id: quiz.id, attemptId: a.id, revision: a.revision }), e => e.status === 403);
+    saved = (await teacher.save({ id: quiz.id, revision: saved.revision, quiz: { ...fixture(), opensAt: now + 10_000 } })).quiz;
+    await assert.rejects(student.retake({ id: quiz.id, attemptId: a.id, revision: a.revision }), e => e.status === 403);
+    await teacher.hide({ id: quiz.id });
+    await assert.rejects(student.retake({ id: quiz.id, attemptId: a.id, revision: a.revision }), e => e.status === 403);
+    assert.deepEqual(sqlite.prepare("SELECT * FROM quiz_attempts WHERE id=?").get(a.id), before);
+    assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_attempt_counters").get().n, 0);
+    const revised = { ...fixture(), durationMinutes: 2, closesAt: now + 5000 };
+    revised.questions[0].answer = "A";
+    saved = (await teacher.save({ id: quiz.id, revision: saved.revision + 1, quiz: revised })).quiz;
+    const fresh = await student.retake({ id: quiz.id, attemptId: a.id, revision: a.revision });
+    assert.equal(fresh.quiz.durationMinutes, 2);
+    assert.equal(fresh.quiz.revision, saved.revision);
+    assert.equal(fresh.attempt.deadlineAt, now + 5000);
+    assert.equal(fresh.quiz.questions[0].answer, undefined);
+    const graded = await student.submit({ id: fresh.attempt.id, revision: 0, answers: { single: "A" }, flagged: [] });
+    assert.equal(graded.attempt.result.details[0].expected, "A");
+  } finally { sqlite.close(); }
+});
+
+test("racing self-retake requests and stale teacher grading cannot replace two attempts or delete a new result", async () => {
+  const { db, sqlite } = database();
+  try {
+    const teacher = makeQuizService(db, adminUser), student = makeQuizService(db, studentUser);
+    const { quiz } = await teacher.save({ quiz: fixture() });
+    let a = (await student.start({ id: quiz.id })).attempt;
+    a = (await student.submit({ id: a.id, revision: 0, answers: {}, flagged: [] })).attempt;
+    const request = { id: quiz.id, attemptId: a.id, revision: a.revision };
+    let raced = false, winner;
+    const concurrent = makeQuizService({ ...db, async batch(statements) {
+      if (!raced) { raced = true; winner = await student.retake(request); }
+      return db.batch(statements);
+    } }, studentUser);
+    const loser = await concurrent.retake(request);
+    assert.equal(loser.attempt.id, winner.attempt.id);
+    assert.equal(loser.attempt.attemptNumber, 2);
+    assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_attempts").get().n, 1);
+    assert.equal(sqlite.prepare("SELECT last_attempt_number FROM quiz_attempt_counters").get().last_attempt_number, 1);
+    let latest = (await student.submit({ id: winner.attempt.id, revision: 0, answers: { single: "B" }, flagged: [] })).attempt;
+    assert.equal((await student.retake(request)).attempt.id, latest.id);
+    let revised = false;
+    const stale = makeQuizService({ ...db, async batch(statements) {
+      if (!revised) { revised = true; sqlite.prepare("UPDATE quiz_attempts SET revision=revision+1 WHERE id=?").run(latest.id); }
+      return db.batch(statements);
+    } }, studentUser);
+    await assert.rejects(stale.retake({ id: quiz.id, attemptId: latest.id, revision: latest.revision }), e => e.status === 409);
+    assert.equal((await student.detail({ id: quiz.id })).attempt.id, latest.id);
+    assert.equal(sqlite.prepare("SELECT last_attempt_number FROM quiz_attempt_counters").get().last_attempt_number, 1);
+  } finally { sqlite.close(); }
+});
+
+test("a raced quiz edit or failed replacement insert rolls back self-retakes without losing the original result or numbering", async () => {
+  const { db, sqlite } = database();
+  try {
+    const teacher = makeQuizService(db, adminUser), student = makeQuizService(db, studentUser);
+    const { quiz } = await teacher.save({ quiz: fixture() });
+    let a = (await student.start({ id: quiz.id })).attempt;
+    a = (await student.submit({ id: a.id, revision: 0, answers: { single: "B" }, flagged: [] })).attempt;
+    const before = sqlite.prepare("SELECT * FROM quiz_attempts WHERE id=?").get(a.id);
+    let raced = false;
+    const concurrent = makeQuizService({ ...db, async batch(statements) {
+      if (!raced) { raced = true; sqlite.prepare("UPDATE quizzes SET revision=revision+1 WHERE id=?").run(quiz.id); }
+      return db.batch(statements);
+    } }, studentUser);
+    const request = { id: quiz.id, attemptId: a.id, revision: a.revision };
+    await assert.rejects(concurrent.retake(request), e => e.status === 409);
+    assert.deepEqual(sqlite.prepare("SELECT * FROM quiz_attempts WHERE id=?").get(a.id), before);
+    sqlite.exec("CREATE TRIGGER reject_new_attempt BEFORE INSERT ON quiz_attempts WHEN NEW.attempt_number>1 BEGIN SELECT RAISE(ABORT,'replacement failed'); END");
+    await assert.rejects(student.retake(request), /replacement failed/);
+    assert.deepEqual(sqlite.prepare("SELECT * FROM quiz_attempts WHERE id=?").get(a.id), before);
+    assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM quiz_attempt_counters").get().n, 0);
+    sqlite.exec("DROP TRIGGER reject_new_attempt");
+    assert.equal((await student.retake(request)).attempt.attemptNumber, 2);
+  } finally { sqlite.close(); }
+});
+
+test("self-retaking a pending essay deletes private work and old exclusive snapshot files, preserves shared images and starts a blank new manual submission", async () => {
+  const { db, sqlite } = database();
+  let now = 1_000_000;
+  try {
+    const teacher = makeQuizService(db, adminUser, () => now), student = makeQuizService(db, studentUser, () => now);
+    const shared = (await teacher.upload(teacherUpload(submissionPng, "image/png", "shared.png"))).file.id;
+    const oldFile = (await teacher.upload(teacherUpload(submissionPng, "image/png", "old.png"))).file.id;
+    const input = essayFixture();
+    input.questions[0].imageId = shared;
+    input.questions[1].imageId = oldFile;
+    const { quiz } = await teacher.save({ quiz: input });
+    let a = (await student.start({ id: quiz.id })).attempt;
+    a = (await student.submissionUpload(workUpload(a, "essay-one"))).attempt;
+    const privateFile = a.answers["essay-one"].imageIds[0];
+    a = (await student.submit({ id: a.id, revision: a.revision, answers: a.answers, flagged: [] })).attempt;
+    assert.equal(a.result.status, "pending");
+    const revised = structuredClone(input);
+    revised.questions[1].imageId = shared;
+    await teacher.save({ id: quiz.id, revision: quiz.revision, quiz: revised });
+    now += 1000;
+    const next = (await student.retake({ id: quiz.id, attemptId: a.id, revision: a.revision })).attempt;
+    assert.equal(next.attemptNumber, 2);
+    assert.equal(next.deadlineAt, now + 60_000);
+    assert.deepEqual(next.answers, {});
+    assert.equal(next.result, null);
+    for (const id of [privateFile, oldFile]) await assert.rejects(teacher.file({ id }), e => e.status === 404);
+    assert.equal((await student.file({ id: shared })).status, 200);
+    await assert.rejects(teacher.manualGrade({ id: a.id, revision: a.revision, score: 8, feedback: "Old" }), e => e.status === 404);
+    assert.deepEqual(sqlite.prepare("PRAGMA foreign_key_check").all(), []);
+    now = next.deadlineAt;
+    const expired = (await student.detail({ id: quiz.id })).attempt;
+    assert.equal(expired.result.status, "pending");
+    assert.equal((await student.retake({ id: quiz.id, attemptId: expired.id, revision: expired.revision })).attempt.attemptNumber, 3);
+  } finally { sqlite.close(); }
+});
+
+test("self-retake HTTP endpoint accepts active student identities without admin claims and denies locked or revoked sessions", async () => {
+  const { db, sqlite } = database();
+  try {
+    const teacher = makeQuizService(db, adminUser), student = makeQuizService(db, studentUser);
+    const { quiz } = await teacher.save({ quiz: fixture() });
+    let a = (await student.start({ id: quiz.id })).attempt;
+    a = (await student.submit({ id: a.id, revision: 0, answers: {}, flagged: [] })).attempt;
+    let disabled = false, status = "active";
+    const firebase = {
+      getAuthUser: async () => ({ validSince: "10", disabled }),
+      getProfile: async () => ({ fields: { role: { stringValue: "student" }, status: { stringValue: status }, username: { stringValue: studentUser.username }, displayName: { stringValue: studentUser.displayName } } }),
+    };
+    const handler = makeHandler({ makeFirebaseClient: () => firebase, verifyIdToken: async () => ({ sub: studentUser.uid, auth_time: 100 }) });
+    const env = { ALLOWED_ORIGIN: "https://lumenpelagi.vercel.app", QUIZ_DB: db };
+    const request = () => new Request("https://worker.example/api/quiz/retake", { method: "POST", headers: { Origin: env.ALLOWED_ORIGIN, Authorization: "Bearer student-token", "Content-Type": "application/json" }, body: JSON.stringify({ id: quiz.id, attemptId: a.id, revision: a.revision }) });
+    const response = await handler(request(), env);
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).attempt.attemptNumber, 2);
+    status = "disabled";
+    assert.equal((await handler(request(), env)).status, 403);
+    status = "active"; disabled = true;
+    assert.equal((await handler(request(), env)).status, 401);
+  } finally { sqlite.close(); }
 });
 
 test("retake cleanup migration deletes released results and exclusive attachments, retains current/shared files, and preserves next attempt numbers", async () => {

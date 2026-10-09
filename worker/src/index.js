@@ -145,6 +145,7 @@ export function makeHandler({
           "allowRetake",
           "detail",
           "start",
+          "retake",
           "progress",
           "submit",
           "results",

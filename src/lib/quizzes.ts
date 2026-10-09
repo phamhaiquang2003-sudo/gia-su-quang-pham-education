@@ -95,6 +95,7 @@ export interface Attempt {
   id: string;
   quizId: string;
   attemptNumber?: number;
+  retakesRemaining?: number;
   isCurrent?: boolean;
   answers: Answers;
   flagged: string[];

@@ -1340,7 +1340,8 @@ export default function QuizAdmin({ uid }: { uid: string }) {
             <div>
               <h3 className="font-semibold">Kết quả: {resultQuiz.title}</h3>
               <p className="mt-1 text-xs text-slate-500">
-                Tối đa 200 lượt gần nhất · Cấp lượt làm lại sẽ xóa kết quả cũ
+                Tối đa 200 lượt gần nhất · Học sinh tự làm lại tối đa 3 lần ·
+                Lượt mới thay thế kết quả cũ
               </p>
             </div>
             <button

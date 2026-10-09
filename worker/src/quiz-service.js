@@ -1,4 +1,5 @@
 import { ServiceError } from "./errors.js";
+import { MAX_SELF_RETAKES } from "../../shared/quiz-retakes.js";
 import {
   DOC_MIME,
   DOCX_MIME,
@@ -147,6 +148,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
     id: row.id,
     quizId: row.quiz_id,
     attemptNumber: row.attempt_number,
+    retakesRemaining: Math.max(0, MAX_SELF_RETAKES + 1 - row.attempt_number),
     isCurrent: Boolean(row.is_current),
     answers: JSON.parse(row.answers),
     flagged: JSON.parse(row.flagged),
@@ -162,7 +164,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       : null,
   });
 
-  return {
+  const service = {
     async list(data) {
       const rows = await db
         .prepare(
@@ -457,6 +459,144 @@ export function makeQuizService(db, user, now = () => Date.now()) {
             ).number || 0) + 1,
         serverNow: now(),
       };
+    },
+    async retake(data) {
+      const row = await quizRow(data.id);
+      checkId(data.attemptId);
+      let attempt = await db
+        .prepare(
+          "SELECT * FROM quiz_attempts WHERE quiz_id=? AND user_uid=? AND is_current=1",
+        )
+        .bind(row.id, user.uid)
+        .first();
+      // A retry from an old tab must never replace the next attempt.
+      if (!attempt || attempt.id !== data.attemptId)
+        return service.detail({ id: row.id });
+      attempt = await expire(attempt);
+      if (!attempt.result || attempt.submitted_at === null)
+        throw new ServiceError(
+          "failed-precondition",
+          "Hãy nộp lượt hiện tại trước khi làm lại.",
+          409,
+        );
+      if (data.revision !== attempt.revision) conflict();
+      if (attempt.attempt_number >= MAX_SELF_RETAKES + 1)
+        throw new ServiceError(
+          "permission-denied",
+          `Bạn đã dùng hết ${MAX_SELF_RETAKES} lần làm lại tự động. Hãy liên hệ giáo viên nếu cần thêm lượt.`,
+          403,
+        );
+      if (row.status !== "published")
+        throw new ServiceError(
+          "permission-denied",
+          "Đề chưa được xuất bản; chưa thể bắt đầu lượt làm lại.",
+          403,
+        );
+      const quiz = {
+        ...withoutQuizAccessCode(JSON.parse(row.body)),
+        id: row.id,
+        revision: row.revision,
+      };
+      const startedAt = now();
+      const availability = quizAvailability(quiz, startedAt);
+      if (availability !== "open")
+        throw new ServiceError(
+          "permission-denied",
+          availability === "upcoming"
+            ? "Đề chưa đến giờ mở. Vui lòng quay lại đúng lịch."
+            : "Đề đã đóng. Bạn không thể bắt đầu lượt làm mới.",
+          403,
+        );
+      const attached = await db
+        .prepare(
+          "SELECT file_id FROM attempt_file_links WHERE attempt_id=? UNION SELECT file_id FROM submission_file_links WHERE attempt_id=?",
+        )
+        .bind(attempt.id, attempt.id)
+        .all();
+      const id = crypto.randomUUID(),
+        nonce = crypto.randomUUID();
+      const statements = [
+        db
+          .prepare(
+            "UPDATE quiz_attempts SET is_current=0,mutation_token=? WHERE id=? AND user_uid=? AND revision=? AND is_current=1 AND submitted_at IS NOT NULL AND result IS NOT NULL AND attempt_number<? AND COALESCE((SELECT last_attempt_number FROM quiz_attempt_counters WHERE quiz_id=? AND user_uid=?),0)<? AND EXISTS(SELECT 1 FROM quizzes WHERE id=? AND revision=? AND status='published')",
+          )
+          .bind(
+            nonce,
+            attempt.id,
+            user.uid,
+            attempt.revision,
+            MAX_SELF_RETAKES + 1,
+            row.id,
+            user.uid,
+            MAX_SELF_RETAKES + 1,
+            row.id,
+            row.revision,
+          ),
+        db
+          .prepare(
+            "INSERT INTO quiz_attempt_counters(quiz_id,user_uid,last_attempt_number) SELECT quiz_id,user_uid,attempt_number FROM quiz_attempts WHERE id=? AND is_current=0 AND mutation_token=? ON CONFLICT(quiz_id,user_uid) DO UPDATE SET last_attempt_number=MAX(last_attempt_number,excluded.last_attempt_number)",
+          )
+          .bind(attempt.id, nonce),
+        db
+          .prepare(
+            "INSERT INTO quiz_attempts(id,quiz_id,user_uid,display_name,username,user_role,snapshot,started_at,deadline_at,attempt_number) SELECT ?,?,?,?,?,?,?,?,?,(SELECT last_attempt_number+1 FROM quiz_attempt_counters WHERE quiz_id=? AND user_uid=?) WHERE EXISTS(SELECT 1 FROM quiz_attempts WHERE id=? AND is_current=0 AND mutation_token=?)",
+          )
+          .bind(
+            id,
+            row.id,
+            user.uid,
+            user.displayName,
+            user.username,
+            user.role,
+            JSON.stringify(quiz),
+            startedAt,
+            Math.min(
+              startedAt + quiz.durationMinutes * 60_000,
+              quiz.closesAt || Infinity,
+            ),
+            row.id,
+            user.uid,
+            attempt.id,
+            nonce,
+          ),
+      ];
+      const newFiles = fileIds(quiz);
+      if (newFiles.length)
+        statements.push(
+          db
+            .prepare(
+              "INSERT INTO attempt_file_links(attempt_id,file_id) SELECT ?,value FROM json_each(?) WHERE EXISTS(SELECT 1 FROM quiz_attempts WHERE id=?)",
+            )
+            .bind(id, JSON.stringify(newFiles), id),
+        );
+      statements.push(
+        db
+          .prepare(
+            "DELETE FROM quiz_attempts WHERE id=? AND is_current=0 AND mutation_token=? AND EXISTS(SELECT 1 FROM quiz_attempts WHERE id=?)",
+          )
+          .bind(attempt.id, nonce, id),
+      );
+      for (let i = 0; i < attached.results.length; i += 80) {
+        const ids = attached.results
+          .slice(i, i + 80)
+          .map((file) => file.file_id);
+        statements.push(
+          db
+            .prepare(
+              `DELETE FROM quiz_files WHERE id IN (${ids.map(() => "?").join(",")}) AND NOT EXISTS(SELECT 1 FROM quiz_file_links WHERE file_id=quiz_files.id) AND NOT EXISTS(SELECT 1 FROM attempt_file_links WHERE file_id=quiz_files.id) AND NOT EXISTS(SELECT 1 FROM submission_file_links WHERE file_id=quiz_files.id) AND EXISTS(SELECT 1 FROM quiz_attempts WHERE id=?)`,
+            )
+            .bind(...ids, id),
+        );
+      }
+      // D1 batch is transactional: either the fresh attempt and file links replace
+      // the submitted attempt together, or the previous result remains intact.
+      const writes = await db.batch(statements);
+      if (!writes[0].meta.changes) {
+        const current = await service.detail({ id: row.id });
+        if (current.attempt?.id === attempt.id) conflict();
+        return current;
+      }
+      return service.detail({ id: row.id });
     },
     async start(data) {
       const row = await quizRow(data.id);
@@ -876,6 +1016,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       });
     },
   };
+  return service;
 }
 
 export async function readUpload(request, imageOnly = false) {
