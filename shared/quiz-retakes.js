@@ -1,1 +1,1 @@
-export const MAX_SELF_RETAKES = 3;
+export const MAX_SELF_RETAKES = 2;

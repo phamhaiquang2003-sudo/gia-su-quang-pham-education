@@ -1423,7 +1423,7 @@ test("retake migration preserves existing attempts, answers, results and attachm
   }
 });
 
-test("students can replace a submitted attempt exactly three times; reloads and old requests preserve the latest attempt, other students and teacher-only extra grants", async () => {
+test("students can replace a submitted attempt exactly twice; reloads and old requests preserve the latest attempt, other students and teacher-only extra grants", async () => {
   const { db, sqlite } = database();
   let now = 1_000_000;
   try {
@@ -1434,13 +1434,13 @@ test("students can replace a submitted attempt exactly three times; reloads and 
     const otherAttempt = (await other.start({ id: quiz.id })).attempt;
     let attempt = (await student.start({ id: quiz.id })).attempt;
     const firstId = attempt.id;
-    assert.equal(attempt.retakesRemaining, 3);
-    for (let number = 1; number <= 4; number++) {
+    assert.equal(attempt.retakesRemaining, 2);
+    for (let number = 1; number <= 3; number++) {
       assert.equal(attempt.attemptNumber, number);
       attempt = (await student.submit({ id: attempt.id, revision: attempt.revision, answers: { single: "B", short: "0.5" }, flagged: ["tf"] })).attempt;
-      assert.equal(attempt.retakesRemaining, 4 - number);
+      assert.equal(attempt.retakesRemaining, 3 - number);
       assert.equal((await student.start({ id: quiz.id })).attempt.id, attempt.id);
-      if (number === 4) break;
+      if (number === 3) break;
       const request = { id: quiz.id, attemptId: attempt.id, revision: attempt.revision };
       const oldId = attempt.id;
       now += 2_000;
@@ -1456,16 +1456,16 @@ test("students can replace a submitted attempt exactly three times; reloads and 
       assert.equal((await student.detail({ id: quiz.id })).attempt.id, attempt.id);
       assert.equal((await other.detail({ id: quiz.id })).attempt.id, otherAttempt.id);
     }
-    await assert.rejects(student.retake({ id: quiz.id, attemptId: attempt.id, revision: attempt.revision }), e => e.status === 403 && e.message.includes("3 lần"));
+    await assert.rejects(student.retake({ id: quiz.id, attemptId: attempt.id, revision: attempt.revision }), e => e.status === 403 && e.message.includes("2 lần"));
     assert.equal((await student.retake({ id: quiz.id, attemptId: firstId, revision: 1 })).attempt.id, attempt.id);
     const results = (await teacher.results({ id: quiz.id })).attempts;
     assert.equal(results.length, 2);
-    assert.equal(results.find(row => row.id === attempt.id).attemptNumber, 4);
+    assert.equal(results.find(row => row.id === attempt.id).attemptNumber, 3);
     assert.equal((await makeProfileService(db, studentUser, () => now).profileOverview()).recent.length, 1);
     await assert.rejects(student.allowRetake({ id: attempt.id }), e => e.status === 403);
     await teacher.allowRetake({ id: attempt.id });
     const granted = (await student.start({ id: quiz.id })).attempt;
-    assert.equal(granted.attemptNumber, 5);
+    assert.equal(granted.attemptNumber, 4);
     assert.equal(granted.retakesRemaining, 0);
     assert.deepEqual(granted.answers, {});
     assert.deepEqual(sqlite.prepare("PRAGMA foreign_key_check").all(), []);

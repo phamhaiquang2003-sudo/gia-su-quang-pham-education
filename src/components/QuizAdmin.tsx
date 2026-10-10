@@ -18,6 +18,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { subjects, getSubject } from "@/lib/subjects";
+import { MAX_SELF_RETAKES } from "../../shared/quiz-retakes.js";
 import {
   quizApi,
   quizHref,
@@ -1480,7 +1481,8 @@ export default function QuizAdmin({ uid }: { uid: string }) {
             <div>
               <h3 className="font-semibold">Kết quả: {resultQuiz.title}</h3>
               <p className="mt-1 text-xs text-slate-500">
-                Tối đa 200 lượt gần nhất · Học sinh tự làm lại tối đa 3 lần ·
+                Tối đa 200 lượt gần nhất · Học sinh tự làm lại tối đa{" "}
+                {MAX_SELF_RETAKES} lần ·{" "}
                 Lượt mới thay thế kết quả cũ
               </p>
             </div>
