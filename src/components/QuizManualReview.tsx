@@ -13,10 +13,15 @@ export default function QuizManualReview({
   return (
     <div className="space-y-5">
       {attempt.result && <QuizResultView result={attempt.result} />}
+      <h2 className="font-semibold">
+        {quiz.mode === "document"
+          ? "Xem lại đề bài và bài làm"
+          : "Xem lại câu hỏi và bài làm"}
+      </h2>
       {quiz.mode === "document" ? (
         <>
           {quiz.documentIds.map((id) => (
-            <QuizFile key={id} id={id} />
+            <QuizFile key={id} id={id} openImage />
           ))}
           <section className="rounded-xl border border-current/20 p-4">
             <h3 className="mb-4 font-semibold">Bài nộp chung cho cả đề</h3>
@@ -37,7 +42,7 @@ export default function QuizManualReview({
             )}
             {question.imageId && (
               <div className="mb-4">
-                <QuizFile id={question.imageId} imageOnly />
+                <QuizFile id={question.imageId} imageOnly openImage />
               </div>
             )}
             <QuizEssayAnswer value={attempt.answers[question.id]} readOnly />

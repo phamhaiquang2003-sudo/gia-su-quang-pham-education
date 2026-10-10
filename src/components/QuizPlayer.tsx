@@ -807,7 +807,7 @@ export default function QuizPlayer({ id, uid }: { id: string; uid: string }) {
             {attempt.result.manual ? (
               <QuizManualReview attempt={attempt} quiz={quiz} />
             ) : (
-              <QuizResultView result={attempt.result} />
+              <QuizResultView result={attempt.result} quiz={quiz} />
             )}
             <div className="mt-6 rounded-xl border border-sky-300/25 bg-sky-300/5 p-4">
               <p className="text-sm text-sky-100">

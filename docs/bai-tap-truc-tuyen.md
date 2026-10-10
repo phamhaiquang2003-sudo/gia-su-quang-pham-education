@@ -97,6 +97,8 @@ Trong **Thông tin đề**, chọn **Trắc nghiệm · Chấm tự động** đ
 
 Câu trả lời và dấu cờ tự lưu sau khoảng 0,9 giây ngừng thay đổi. Khi mất mạng, trang giữ bản chưa đồng bộ trên thiết bị và thử lại; trạng thái lưu hiển thị trên trang. Tải lại trang lấy cùng lượt làm và thời hạn từ máy chủ. Trước khi nộp sớm có thông báo số câu chưa hoàn tất/đánh dấu.
 
+Sau khi nộp hoặc hết giờ, phần **Xem lại câu hỏi và bài làm** hiển thị nội dung/ảnh từng câu, các lựa chọn A/B/C/D hoặc các ý Đúng/Sai cùng câu trả lời đã nộp. Các câu trả lời chỉ để xem, không chỉnh sửa. Với đề dạng tệp, học sinh xem lại PDF/ảnh hoặc tải file Word ở phần **Xem lại đề bài**. Nội dung lấy từ phiên bản của lượt đã làm, kể cả khi giáo viên đã sửa hoặc ẩn đề. Đáp án đúng và lời giải chỉ xuất hiện khi lượt đó được phép công bố đáp án.
+
 Hết giờ, khóa trả lời và chấm **các câu đã được máy chủ lưu trước hạn**, kể cả khi yêu cầu gửi đáp án đến muộn. Trang đang mở tự nộp; tác vụ máy chủ chạy mỗi 5 phút hoàn tất các lượt hết hạn theo từng đợt khi học sinh đã đóng trang. Khi offline, việc ghi kết quả có thể trễ và cần nhiều đợt nếu có nhiều lượt chờ, nhưng thời hạn được giữ nguyên. Mở lại bài hoặc giáo viên tải kết quả cũng hoàn tất các lượt đã hết hạn. Kết quả đã nộp không thể sửa; muốn trả lời lại, học sinh bắt đầu lượt làm lại mới.
 
 Đề hiện giao cho tất cả tài khoản hoạt động. Có thể **ẩn đề** khỏi kho; các lượt đã bắt đầu vẫn tiếp tục/xem kết quả. Sửa đề không thay đổi nội dung/đáp án của lượt đã bắt đầu, vì mỗi lượt lưu bản chụp riêng. Giáo viên có thể cấp lượt làm lại cho từng tài khoản hoặc xóa vĩnh viễn đề.
