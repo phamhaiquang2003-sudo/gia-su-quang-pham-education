@@ -41,7 +41,7 @@ export default function QuizQuestions({
               <span className="ml-2 text-xs font-normal text-slate-300">
                 {q.type === "essay"
                   ? "Gia sư chấm thủ công"
-                  : `${q.points} điểm trọng số`}
+                   : `${q.points.toLocaleString("vi-VN", { maximumFractionDigits: 6 })} điểm trọng số`}
               </span>
             </h2>
             <button
