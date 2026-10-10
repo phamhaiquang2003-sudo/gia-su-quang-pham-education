@@ -1,4 +1,5 @@
 export const ZALO_CONTACT_URL = "https://zalo.me/0365900419";
+export const TUTOR_CONTACT_VISIBLE = false;
 
 const schoolCategories = [
   "Thi thử TNTHPT",

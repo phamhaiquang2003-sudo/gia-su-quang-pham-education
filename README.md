@@ -61,7 +61,7 @@ Trong `quan-tri.html` → **Bài tập**, giáo viên tạo đề bằng PDF/ả
 
 Trong trang quản trị, mục **Thống kê buổi học** ghi ngày học và phí từng buổi, lưu mức phí mặc định cho mỗi học sinh, tổng hợp số buổi/tổng học phí theo tháng và xuất PDF riêng cho từng em kèm QR MB Bank của giáo viên. Dữ liệu được lưu trên Cloudflare D1; xem [hướng dẫn ghi buổi học, học phí và xuất PDF](docs/buoi-hoc-hoc-phi.md).
 
-Mục **Liên hệ gia sư** trên cả menu máy tính và điện thoại mở Zalo của Phạm Hải Quang tại **https://zalo.me/0365900419**, không yêu cầu đăng nhập.
+Mục **Liên hệ gia sư** hiện tạm ẩn trên menu máy tính, điện thoại và kho bài tập. Đổi `TUTOR_CONTACT_VISIBLE` thành `true` trong `src/lib/subjects.ts` để hiển thị lại liên kết Zalo **https://zalo.me/0365900419**; liên kết không yêu cầu đăng nhập.
 
 Trang quản trị cho phép thêm từng tài khoản, xem danh sách, khóa/mở khóa, cấp lại mật khẩu và xóa học sinh ngay trên website công khai. Mật khẩu thuộc Firebase Authentication; dữ liệu hồ sơ thuộc Firestore. **Dùng Firebase Spark miễn phí:** một phiên Auth riêng trong bộ nhớ giữ nguyên phiên giáo viên khi tạo; Firestore Rules kiểm tra quyền trước khi cấp hồ sơ. Các thao tác quản lý tài khoản chạy trên **Cloudflare Workers miễn phí**, kiểm tra ID token, quyền quản trị và trạng thái tài khoản. Xem [hướng dẫn dịch vụ Cloudflare](docs/cloudflare-admin.md).
 

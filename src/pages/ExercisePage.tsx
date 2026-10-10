@@ -16,6 +16,7 @@ import {
   getSubject,
   subjectHref,
   subjects,
+  TUTOR_CONTACT_VISIBLE,
   ZALO_CONTACT_URL,
 } from "@/lib/subjects";
 import { useAccount } from "@/lib/use-account";
@@ -226,9 +227,11 @@ export default function ExercisePage() {
                 {item.label}
               </a>
             ))}
-            <a href={ZALO_CONTACT_URL} className="exercise-nav-link">
-              Liên hệ gia sư
-            </a>
+            {TUTOR_CONTACT_VISIBLE && (
+              <a href={ZALO_CONTACT_URL} className="exercise-nav-link">
+                Liên hệ gia sư
+              </a>
+            )}
           </nav>
         </div>
       </header>

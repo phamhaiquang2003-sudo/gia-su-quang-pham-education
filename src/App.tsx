@@ -7,6 +7,7 @@ import {
   getSubject,
   subjectHref,
   subjects,
+  TUTOR_CONTACT_VISIBLE,
   ZALO_CONTACT_URL,
   type SubjectId,
 } from "@/lib/subjects";
@@ -214,12 +215,14 @@ export default function App({
                   </DialogTrigger>
                 ),
               )}
-              <a
-                href={ZALO_CONTACT_URL}
-                className="text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                Liên hệ gia sư
-              </a>
+              {TUTOR_CONTACT_VISIBLE && (
+                <a
+                  href={ZALO_CONTACT_URL}
+                  className="text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Liên hệ gia sư
+                </a>
+              )}
             </nav>
 
             <div
@@ -288,16 +291,18 @@ export default function App({
                         </DialogTrigger>
                       ),
                     )}
-                    <a
-                      href={ZALO_CONTACT_URL}
-                      onClick={() => {
-                        if (mobileMenuRef.current)
-                          mobileMenuRef.current.open = false;
-                      }}
-                      className="shrink-0 rounded-lg px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      Liên hệ gia sư
-                    </a>
+                    {TUTOR_CONTACT_VISIBLE && (
+                      <a
+                        href={ZALO_CONTACT_URL}
+                        onClick={() => {
+                          if (mobileMenuRef.current)
+                            mobileMenuRef.current.open = false;
+                        }}
+                        className="shrink-0 rounded-lg px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        Liên hệ gia sư
+                      </a>
+                    )}
                   </nav>
                 </div>
               </details>
