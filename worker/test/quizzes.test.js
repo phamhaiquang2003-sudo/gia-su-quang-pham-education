@@ -16,6 +16,7 @@ import { requireQuizUser } from "../src/quiz-auth.js";
 import { makeHandler } from "../src/index.js";
 import { makeProfileService, studyStreak } from "../src/profile-service.js";
 import { DOC_MIME, DOCX_MIME } from "../src/word-files.js";
+import { parseQuickAnswerKey } from "../../shared/quiz-forms.js";
 
 const wordWorksheet = Buffer.from(
   readFileSync(
@@ -950,6 +951,97 @@ function fixedFormFixture(fixedForm) {
     ],
   };
 }
+
+function fullMultipleChoiceFixture(count) {
+  const sample = fixture();
+  return {
+    ...sample,
+    fixedForm: "single-all",
+    questions: Array.from({ length: count }, (_, index) => ({
+      ...structuredClone(sample.questions[0]),
+      id: `single-${index}`,
+      points: 10 / count,
+      answer: "ABCD"[index % 4],
+    })),
+  };
+}
+
+test("full multiple-choice forms grade 1–100 equal-weight questions without rounded-weight drift", () => {
+  for (let count = 1; count <= 100; count++) {
+    const quiz = validateQuiz(fullMultipleChoiceFixture(count));
+    assert.equal(quiz.questions.length, count);
+    assert.ok(quiz.questions.every(question => question.points === 10 / count));
+    const all = Object.fromEntries(quiz.questions.map(question => [question.id, question.answer]));
+    const perfect = grade(quiz, all);
+    assert.equal(perfect.score, 10);
+    assert.equal(perfect.earned, 10);
+    assert.equal(perfect.total, 10);
+    assert.equal(perfect.correctCount, count);
+    delete all[quiz.questions.at(-1).id];
+    const partial = grade(quiz, all);
+    assert.equal(partial.earned, (count - 1) * 10 / count);
+    assert.equal(partial.score, Math.round(((count - 1) * 10 / count) * 100) / 100);
+    assert.equal(partial.total, 10);
+    assert.equal(partial.unansweredCount, 1);
+    assert.equal(partial.details.at(-1).points, 0);
+    assert.equal(partial.details.at(-1).maxPoints, 10 / count);
+    assert.equal(publicQuiz(quiz).questions[0].answer, undefined);
+  }
+});
+
+test("full multiple-choice forms reject out-of-range counts, mismatched weights and other question types", () => {
+  for (const count of [0, 101])
+    assert.throws(() => validateQuiz(fullMultipleChoiceFixture(count)), { code: "invalid-argument" });
+  for (const change of [
+    quiz => { quiz.questions[0].points = 0.833333; },
+    quiz => { quiz.questions[0] = { ...fixture().questions[2], points: 10 / 12 }; },
+    quiz => { quiz.questions.pop(); },
+    quiz => { quiz.gradingMode = "manual"; },
+  ]) {
+    const quiz = fullMultipleChoiceFixture(12);
+    change(quiz);
+    assert.throws(() => validateQuiz(quiz), { code: "invalid-argument" });
+  }
+});
+
+test("quick answer keys retain A/B/C/D order, accept separators and reject invalid or excess answers", () => {
+  assert.deepEqual(parseQuickAnswerKey("ACD", 12), ["A", "C", "D"]);
+  assert.deepEqual(parseQuickAnswerKey("a c\r\nd, b; A", 5), ["A", "C", "D", "B", "A"]);
+  for (const input of ["", "  ", "ACX", "A1C", "A/C", "ABCD"])
+    assert.throws(() => parseQuickAnswerKey(input, 3));
+  assert.deepEqual(parseQuickAnswerKey("ABCD".repeat(25), 100), [..."ABCD".repeat(25)]);
+});
+
+test("full multiple-choice count changes preserve active snapshots and retakes use the new question count", async () => {
+  const { db, sqlite } = database();
+  try {
+    const teacher = makeQuizService(db, adminUser, () => 1_000_000);
+    const student = makeQuizService(db, studentUser, () => 1_000_000);
+    const original = fullMultipleChoiceFixture(12);
+    const saved = (await teacher.save({ quiz: original })).quiz;
+    const active = (await student.start({ id: saved.id })).attempt;
+    await teacher.save({ id: saved.id, revision: saved.revision, quiz: fullMultipleChoiceFixture(50) });
+    const detail = await student.detail({ id: saved.id });
+    assert.equal(detail.quiz.questions.length, 12);
+    assert.equal(detail.quiz.questions[0].points, 10 / 12);
+    const answers = Object.fromEntries(original.questions.slice(0, 11).map(question => [question.id, question.answer]));
+    const result = (await student.submit({ id: active.id, revision: active.revision, answers, flagged: [] })).attempt;
+    assert.equal(result.result.questionCount, 12);
+    assert.equal(result.result.score, 9.17);
+    assert.equal(result.result.total, 10);
+    const next = await student.retake({ id: saved.id, attemptId: result.id, revision: result.revision });
+    assert.equal(next.quiz.questions.length, 50);
+    assert.equal(next.quiz.questions[0].points, 0.2);
+    assert.deepEqual(next.attempt.answers, {});
+    const newAnswers = Object.fromEntries(fullMultipleChoiceFixture(50).questions.map(question => [question.id, question.answer]));
+    const perfect = (await student.submit({ id: next.attempt.id, revision: next.attempt.revision, answers: newAnswers, flagged: [] })).attempt;
+    assert.equal(perfect.result.score, 10);
+    assert.equal(perfect.result.earned, 10);
+    assert.equal(perfect.result.total, 10);
+  } finally {
+    sqlite.close();
+  }
+});
 
 test("all three fixed forms validate exact counts and weights, total ten points and grade full answers as ten", () => {
   for (const [id, counts] of [["mixed-22", [12, 4, 6]], ["mixed-28", [18, 4, 6]], ["single-40", [40, 0, 0]]]) {

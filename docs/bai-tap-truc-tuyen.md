@@ -49,17 +49,24 @@ Khi chỉnh sửa đề cũ dạng tệp, phần **Tệp đề PDF / Word / ản
 
 Trong **Thông tin đề**, chọn **Trắc nghiệm · Chấm tự động** để hiện ô **Form đề cố định**. Chọn một trong ba form dưới đây:
 
-| Form   | Trắc nghiệm A/B/C/D | Đúng/Sai  | Trả lời ngắn | Tổng điểm |
-| ------ | ------------------- | --------- | ------------ | --------- |
-| 22 câu | 12 câu × 0,25       | 4 câu × 1 | 6 câu × 0,5  | 10        |
-| 28 câu | 18 câu × 0,25       | 4 câu × 1 | 6 câu × 0,25 | 10        |
-| 40 câu | 40 câu × 0,25       | —         | —            | 10        |
+| Form                  | Trắc nghiệm A/B/C/D                    | Đúng/Sai  | Trả lời ngắn | Tổng điểm |
+| --------------------- | -------------------------------------- | --------- | ------------ | --------- |
+| 22 câu                | 12 câu × 0,25                          | 4 câu × 1 | 6 câu × 0,5  | 10        |
+| 28 câu                | 18 câu × 0,25                          | 4 câu × 1 | 6 câu × 0,25 | 10        |
+| Trắc nghiệm toàn phần | Tự chọn 1–100 câu, mỗi câu = 10 / số câu | —         | —            | 10        |
 
 - Với form 22/28 câu, đúng **1/2/3/4 ý** trong một câu Đúng/Sai được **0,1 / 0,25 / 0,5 / 1 điểm**; đúng 0 ý được 0 điểm.
 - Chọn form tự tạo đủ các câu theo thứ tự: trắc nghiệm → đúng/sai → trả lời ngắn. Nội dung, đáp án và ảnh đã soạn được giữ theo từng dạng câu nếu vừa cấu trúc; hệ thống hỏi trước khi bỏ câu có nội dung vượt số lượng của form.
-- Số câu, dạng câu, điểm và cách tính Đúng/Sai được khóa. Có thể soạn nội dung/đáp án/lời giải và đổi vị trí giữa các câu cùng dạng. Máy chủ kiểm tra lại cấu trúc khi lưu.
+- Với **Trắc nghiệm toàn phần**, nhập **Số câu trắc nghiệm** rồi bấm **Áp dụng số câu**: 40 câu = 0,25 điểm/câu; 50 câu = 0,2 điểm/câu; 12 câu ≈ 0,833333 điểm/câu. Điểm hiển thị tối đa 6 chữ số thập phân; hệ thống giữ giá trị đầy đủ và chấm theo số câu đúng để tổng luôn là 10 điểm. Tăng số câu giữ các câu đã soạn; giảm số câu hỏi xác nhận nếu bỏ câu có nội dung. Đề 40 câu cũ mở để sửa sẽ dùng lựa chọn mới, giữ nguyên câu hỏi/đáp án; lượt học sinh đã bắt đầu giữ snapshot cũ.
+- Form 22/28 khóa số câu; cả ba form khóa dạng câu, điểm và cách tính Đúng/Sai. Có thể soạn nội dung/đáp án/lời giải và đổi vị trí giữa các câu cùng dạng. Máy chủ kiểm tra lại cấu trúc khi lưu.
 - Chọn **Tự thiết kế** để mở lại thêm/xóa/nhân bản câu, đổi dạng và sửa điểm. Các câu trống tự sinh được dọn, chỉ giữ câu đã có nội dung/đáp án/lời giải; nếu chưa soạn gì thì bắt đầu với **1 câu trống**. Với đề đã có tệp đính kèm, các câu trả lời được giữ để khớp nội dung trong tệp.
 - Khi chuyển sang **Tự luận · Gia sư chấm thủ công**, mục form được ẩn và bỏ lựa chọn form cố định. Lượt học sinh đã bắt đầu giữ form và điểm của snapshot cũ; thay đổi form chỉ áp dụng cho lượt mới sau khi lưu.
+
+### Nhập nhanh đáp án đúng
+
+- Trong phần câu hỏi của đề chấm tự động, nhập chuỗi như **ACD** vào **Nhập nhanh đáp án đúng** rồi bấm **Áp dụng đáp án**: câu A/B/C/D thứ 1 nhận A, thứ 2 nhận C, thứ 3 nhận D. Đúng/Sai và trả lời ngắn được bỏ qua.
+- Chấp nhận chữ thường, khoảng trắng, dấu phẩy, dấu chấm phẩy và xuống dòng. Có thể nhập ít hơn số câu trắc nghiệm; đáp án những câu phía sau được giữ nguyên.
+- Ký tự ngoài A/B/C/D hoặc chuỗi dài hơn số câu trắc nghiệm bị từ chối trước khi thay đổi đáp án. Có thể chỉnh lại từng câu sau khi áp dụng. Bấm **Lưu nháp** hoặc **Xuất bản** để lưu lên máy chủ.
 
 ### Giới hạn giờ mở / đóng đề (tùy chọn)
 

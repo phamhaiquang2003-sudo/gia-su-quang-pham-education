@@ -63,7 +63,13 @@ export default function QuizResultView({
             <div className="flex justify-between gap-3">
               <h3 className="font-semibold">Câu {index + 1}</h3>
               <span>
-                {detail.points.toLocaleString("vi-VN")} / {detail.maxPoints}{" "}
+                {detail.points.toLocaleString("vi-VN", {
+                  maximumFractionDigits: 6,
+                })}{" "}
+                /{" "}
+                {detail.maxPoints.toLocaleString("vi-VN", {
+                  maximumFractionDigits: 6,
+                })}{" "}
                 điểm
               </span>
             </div>

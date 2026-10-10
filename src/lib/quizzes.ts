@@ -239,6 +239,7 @@ export function isAnswered(
 export function prepareQuizForEditing(quiz: Quiz): Quiz {
   return {
     ...quiz,
+    fixedForm: quiz.fixedForm === "single-40" ? "single-all" : quiz.fixedForm,
     questions: quiz.questions.map((question) =>
       question.type === "truefalse"
         ? { ...question, scoring: "exam" }

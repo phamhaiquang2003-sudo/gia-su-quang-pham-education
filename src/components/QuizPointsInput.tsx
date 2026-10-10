@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
-const displayPoints = (value: number) => String(value).replace(".", ",");
+const displayPoints = (value: number, precision?: number) =>
+  precision === undefined
+    ? String(value).replace(".", ",")
+    : value.toLocaleString("vi-VN", {
+        useGrouping: false,
+        maximumFractionDigits: precision,
+      });
 function readPoints(text: string) {
   const trimmed = text.trim();
   return /^[0-9]+(?:[.,][0-9]+)?$/.test(trimmed)
@@ -22,23 +28,25 @@ export default function QuizPointsInput({
   onChange,
   readOnly = false,
   ariaLabel,
+  displayPrecision,
 }: {
   value: number;
   onChange: (value: number) => void;
   readOnly?: boolean;
   ariaLabel: string;
+  displayPrecision?: number;
 }) {
-  const [text, setText] = useState(() => displayPoints(value));
+  const [text, setText] = useState(() => displayPoints(value, displayPrecision));
   const lastValue = useRef<number | undefined>(undefined);
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (lastValue.current !== value || readOnly) {
-      const displayed = displayPoints(value);
+      const displayed = displayPoints(value, displayPrecision);
       setText(displayed);
       input.current?.setCustomValidity(readOnly ? "" : pointsError(displayed));
     }
     lastValue.current = value;
-  }, [value, readOnly]);
+  }, [value, readOnly, displayPrecision]);
   return (
     <input
       ref={input}
@@ -50,6 +58,9 @@ export default function QuizPointsInput({
       value={text}
       readOnly={readOnly}
       aria-label={ariaLabel}
+      title={
+        readOnly && displayPrecision !== undefined ? String(value) : undefined
+      }
       required
       onChange={(event) => {
         if (readOnly) return;
@@ -64,6 +75,7 @@ export default function QuizPointsInput({
         }
       }}
       onBlur={(event) => {
+        if (readOnly) return;
         if (!pointsError(text)) {
           setText(displayPoints(readPoints(text)));
           event.target.setCustomValidity("");

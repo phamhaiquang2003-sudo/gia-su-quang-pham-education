@@ -10,11 +10,17 @@ export {
   fixedQuizForms,
   getFixedQuizForm,
   fixedQuizFormQuestions,
+  parseQuickAnswerKey,
 } from "../../shared/quiz-forms.js";
 export type { FixedQuizFormId } from "../../shared/quiz-forms.js";
 
-export function prepareFixedQuizForm(quiz: Quiz, id: FixedQuizFormId) {
-  const form = getFixedQuizForm(id)!;
+export function prepareFixedQuizForm(
+  quiz: Quiz,
+  id: FixedQuizFormId,
+  questionCount = 40,
+) {
+  const form = getFixedQuizForm(id, questionCount);
+  if (!form) throw new Error("Số câu trắc nghiệm cần là số nguyên từ 1 đến 100.");
   const used = new Set<string>();
   const questions = fixedQuizFormQuestions(form).map((rule) => {
     const existing = quiz.questions.find(

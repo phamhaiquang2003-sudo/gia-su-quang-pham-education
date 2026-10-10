@@ -52,7 +52,7 @@ export function validateQuiz(input) {
   if (!["auto", "manual"].includes(gradingMode))
     fail("Cách chấm điểm không hợp lệ.");
   const fixedForm = input.fixedForm === undefined ? "" : input.fixedForm;
-  const form = getFixedQuizForm(fixedForm);
+  const form = getFixedQuizForm(fixedForm, input.questions?.length);
   if (fixedForm !== "" && (!form || gradingMode !== "auto"))
     fail(
       "Form đề cố định chỉ áp dụng cho bài trắc nghiệm chấm tự động. Hãy chọn form hợp lệ.",
@@ -441,6 +441,7 @@ export function grade(quiz, answers) {
     total = 0,
     correctCount = 0,
     unansweredCount = 0;
+  const equalWeight = quiz.fixedForm === "single-all";
   const details = quiz.questions.map((q) => {
     const value = answers[q.id];
     let ratio = 0;
@@ -457,7 +458,9 @@ export function grade(quiz, answers) {
       )
         ? 1
         : 0;
-    const points = Math.round(q.points * ratio * 10000) / 10000;
+    const points = equalWeight
+      ? (ratio === 1 ? 10 / quiz.questions.length : 0)
+      : Math.round(q.points * ratio * 10000) / 10000;
     total += q.points;
     earned += points;
     if (ratio === 1) correctCount++;
@@ -476,9 +479,11 @@ export function grade(quiz, answers) {
     };
   });
   return {
-    score: Math.round((earned / total) * 1000) / 100,
-    earned,
-    total,
+    score: equalWeight
+      ? Math.round((correctCount * 10 / quiz.questions.length) * 100) / 100
+      : Math.round((earned / total) * 1000) / 100,
+    earned: equalWeight ? correctCount * 10 / quiz.questions.length : earned,
+    total: equalWeight ? 10 : total,
     correctCount,
     unansweredCount,
     questionCount: quiz.questions.length,

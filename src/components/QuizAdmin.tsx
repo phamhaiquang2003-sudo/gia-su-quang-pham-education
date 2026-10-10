@@ -58,6 +58,7 @@ import {
   hasQuestionContent,
   customQuizQuestions,
   restoreCustomQuizDraft,
+  parseQuickAnswerKey,
   type FixedQuizFormId,
 } from "@/lib/quiz-forms";
 type ImagePurpose = "question" | "explanation" | "choice" | "statement";
@@ -107,6 +108,16 @@ export default function QuizAdmin({ uid }: { uid: string }) {
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [selected, setSelected] = useState<Attempt | null>(null);
   const [addType, setAddType] = useState<QuestionType>("single");
+  const [fullQuestionCount, setFullQuestionCount] = useState(() =>
+    String(quiz.questions.length),
+  );
+  const [quickAnswerKey, setQuickAnswerKey] = useState("");
+  useEffect(() => {
+    setFullQuestionCount(String(quiz.questions.length));
+  }, [quiz.id, quiz.fixedForm, quiz.questions.length]);
+  useEffect(() => {
+    setQuickAnswerKey("");
+  }, [quiz.id, quiz.fixedForm]);
   useEffect(() => {
     try {
       sessionStorage.setItem(cacheKey, JSON.stringify(quiz));
@@ -121,7 +132,9 @@ export default function QuizAdmin({ uid }: { uid: string }) {
   function updateQuestion(id: string, patch: Partial<Question>) {
     setQuiz((q) => {
       const form =
-        q.gradingMode === "manual" ? undefined : getFixedQuizForm(q.fixedForm);
+        q.gradingMode === "manual"
+          ? undefined
+          : getFixedQuizForm(q.fixedForm, q.questions.length);
       const rules = form ? fixedQuizFormQuestions(form) : [];
       return {
         ...q,
@@ -161,6 +174,15 @@ export default function QuizAdmin({ uid }: { uid: string }) {
         "data-status",
       ) as Quiz["status"]) || "draft";
     await run(async () => {
+      if (
+        quiz.fixedForm === "single-all" &&
+        Number(fullQuestionCount) !== quiz.questions.length
+      )
+        throw new Error("Hãy bấm “Áp dụng số câu” trước khi lưu đề.");
+      if (quiz.gradingMode !== "manual" && quickAnswerKey.trim())
+        throw new Error(
+          "Hãy bấm “Áp dụng đáp án” để điền chuỗi đáp án trước khi lưu đề.",
+        );
       const data = await quizApi<{ quiz: QuizSummary }>("save", {
         id: quiz.id,
         revision: quiz.revision,
@@ -290,7 +312,9 @@ export default function QuizAdmin({ uid }: { uid: string }) {
   }
   const subject = getSubject(quiz.subject);
   const manual = quiz.gradingMode === "manual";
-  const fixedForm = manual ? undefined : getFixedQuizForm(quiz.fixedForm);
+  const fixedForm = manual
+    ? undefined
+    : getFixedQuizForm(quiz.fixedForm, quiz.questions.length);
   const availableTypes = types.filter(([type]) =>
     manual ? type === "essay" : type !== "essay",
   );
@@ -333,9 +357,10 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                   : q,
             ),
     });
+    setQuickAnswerKey("");
     setAddType(gradingMode === "manual" ? "essay" : "single");
   }
-  function changeFixedForm(id: FixedQuizFormId | "") {
+  function changeFixedForm(id: FixedQuizFormId | "", count = 40) {
     if (!id) {
       update({
         fixedForm: "",
@@ -343,7 +368,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
       });
       return;
     }
-    const next = prepareFixedQuizForm(quiz, id);
+    const next = prepareFixedQuizForm(quiz, id, count);
     const discarded = next.discarded.filter((question) =>
       hasQuestionContent(question, quiz.mode === "document"),
     );
@@ -355,6 +380,46 @@ export default function QuizAdmin({ uid }: { uid: string }) {
     )
       return;
     update({ fixedForm: id, questions: next.questions });
+  }
+  function applyFullQuestionCount() {
+    const count = Number(fullQuestionCount);
+    if (
+      !/^\d+$/.test(fullQuestionCount) ||
+      !Number.isInteger(count) ||
+      count < 1 ||
+      count > 100
+    ) {
+      setError("Số câu trắc nghiệm cần là số nguyên từ 1 đến 100.");
+      return;
+    }
+    setError("");
+    changeFixedForm("single-all", count);
+    setFullQuestionCount(String(count));
+  }
+  function applyQuickAnswers() {
+    try {
+      const count = quiz.questions.filter(
+        (question) => question.type === "single",
+      ).length;
+      const key = parseQuickAnswerKey(quickAnswerKey, count);
+      let index = 0;
+      update({
+        questions: quiz.questions.map((question) =>
+          question.type === "single" && index < key.length
+            ? { ...question, answer: key[index++] }
+            : question,
+        ),
+      });
+      setError("");
+      setQuickAnswerKey("");
+      setMessage(
+        `Đã điền đáp án đúng cho ${key.length} câu trắc nghiệm đầu tiên. Hãy lưu nháp hoặc xuất bản để lưu thay đổi.`,
+      );
+    } catch (failure) {
+      setError(
+        failure instanceof Error ? failure.message : "Chuỗi đáp án không hợp lệ.",
+      );
+    }
   }
   return (
     <div className="space-y-6">
@@ -397,6 +462,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                 )
               ) {
                 setQuiz(newQuiz());
+                setQuickAnswerKey("");
                 setView("edit");
                 setError("");
                 setMessage("");
@@ -548,14 +614,53 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                 {fixedForm && (
                   <div className="min-w-0 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950 sm:col-span-2">
                     <p className="font-semibold">
-                      Cấu trúc cố định · Tổng 10 điểm
+                      {fixedForm.variableQuestionCount
+                        ? "Trắc nghiệm toàn phần"
+                        : "Cấu trúc cố định"}{" "}
+                      · Tổng 10 điểm
                     </p>
+                    {fixedForm.variableQuestionCount && (
+                      <div className="mt-3 flex flex-wrap items-end gap-3">
+                        <label className="account-label min-w-0 flex-1">
+                          Số câu trắc nghiệm
+                          <input
+                            className="account-input"
+                            type="number"
+                            inputMode="numeric"
+                            min={1}
+                            max={100}
+                            step={1}
+                            value={fullQuestionCount}
+                            onChange={(event) =>
+                              setFullQuestionCount(event.target.value)
+                            }
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                applyFullQuestionCount();
+                              }
+                            }}
+                            required
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          className="account-button-secondary"
+                          onClick={applyFullQuestionCount}
+                        >
+                          Áp dụng số câu
+                        </button>
+                      </div>
+                    )}
                     <ul className="mt-2 space-y-1">
                       {fixedForm.sections.map((section) => (
                         <li key={section.type}>
                           {section.count} câu{" "}
                           {section.label.toLocaleLowerCase("vi")} ×{" "}
-                          {section.points.toLocaleString("vi-VN")} điểm
+                          {section.points.toLocaleString("vi-VN", {
+                            maximumFractionDigits: 6,
+                          })}{" "}
+                          điểm
                         </li>
                       ))}
                     </ul>
@@ -568,9 +673,9 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                       </p>
                     )}
                     <p className="mt-2 text-xs leading-relaxed">
-                      Số câu, dạng câu và điểm đã khóa theo form. Bạn soạn nội
-                      dung, đáp án và lời giải; có thể đổi vị trí trong cùng
-                      dạng câu. Chọn “Tự thiết kế” để tùy chỉnh lại.
+                      {fixedForm.variableQuestionCount
+                        ? "Nhập từ 1 đến 100 câu rồi bấm “Áp dụng số câu”. Mỗi câu có điểm bằng 10 / số câu; điểm hiển thị tối đa 6 chữ số thập phân, hệ thống chấm bằng giá trị đầy đủ. Dạng A/B/C/D và điểm được tự động giữ theo số câu."
+                        : "Số câu, dạng câu và điểm đã khóa theo form. Bạn soạn nội dung, đáp án và lời giải; có thể đổi vị trí trong cùng dạng câu. Chọn “Tự thiết kế” để tùy chỉnh lại."}
                     </p>
                   </div>
                 )}
@@ -731,10 +836,12 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                   {!manual && (
                     <span className="text-xs text-slate-600">
                       {fixedForm ? "Tổng điểm: " : "Tổng trọng số: "}
-                      {quiz.questions.reduce(
-                        (n, q) => n + (q.points || 0),
-                        0,
-                      )}{" "}
+                      {fixedForm
+                        ? 10
+                        : quiz.questions.reduce(
+                            (n, q) => n + (q.points || 0),
+                            0,
+                          )}{" "}
                       {fixedForm ? "· Form cố định" : "· Quy đổi về 10 điểm"}
                     </span>
                   )}
@@ -754,6 +861,38 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                     </>
                   )}
                 </p>
+                {!manual &&
+                  quiz.questions.some((question) => question.type === "single") && (
+                  <div className="mb-5 rounded-xl border border-sky-200 bg-sky-50 p-4">
+                    <label className="account-label">
+                      Nhập nhanh đáp án đúng
+                      <textarea
+                        className="account-input min-h-20 resize-y font-mono uppercase"
+                        value={quickAnswerKey}
+                        maxLength={2000}
+                        onChange={(event) =>
+                          setQuickAnswerKey(event.target.value)
+                        }
+                        placeholder="Ví dụ: ACD hoặc A C D"
+                      />
+                    </label>
+                    <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                      ACD → câu trắc nghiệm thứ 1 là A, thứ 2 là C, thứ 3 là D.
+                      Áp dụng lần lượt cho các câu A/B/C/D, bỏ qua Đúng/Sai và
+                      trả lời ngắn. Chấp nhận chữ thường, khoảng trắng, dấu phẩy
+                      hoặc xuống dòng. Có thể nhập ít hơn số câu; các đáp án còn
+                      lại được giữ nguyên.
+                    </p>
+                    <button
+                      type="button"
+                      className="account-button-secondary mt-3"
+                      disabled={!quickAnswerKey.trim()}
+                      onClick={applyQuickAnswers}
+                    >
+                      Áp dụng đáp án
+                    </button>
+                  </div>
+                )}
                 <div className="space-y-5">
                   {quiz.questions.map((q, index) => (
                     <article
@@ -875,6 +1014,7 @@ export default function QuizAdmin({ uid }: { uid: string }) {
                             <QuizPointsInput
                               value={q.points}
                               readOnly={Boolean(fixedForm)}
+                              displayPrecision={fixedForm?.variableQuestionCount ? 6 : undefined}
                               ariaLabel={`${fixedForm ? "Điểm cố định" : "Điểm trọng số"} câu ${index + 1}`}
                               onChange={(points) =>
                                 updateQuestion(q.id, {
