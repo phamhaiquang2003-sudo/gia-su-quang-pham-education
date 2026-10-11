@@ -19,7 +19,10 @@ import { DOC_MIME, DOCX_MIME } from "../src/word-files.js";
 import { parseQuickAnswerKey } from "../../shared/quiz-forms.js";
 import {
   allowedQuizCategories,
+  canAccessQuiz,
   canAccessQuizSubject,
+  hasAllQuizAccess,
+  quizSubjectCategories,
 } from "../../shared/quiz-access.js";
 
 test("grade-based catalogues isolate school classes, reserve national mock exams for grade 12, allow senior assessments and entertainment for everyone", async () => {
@@ -129,6 +132,109 @@ test("HTTP access uses the current Firestore class array rather than token claim
     assert.equal((await request("start", { id: twelve.id })).status, 200);
     classValues = [];
     assert.deepEqual((await (await request("list", { subject: "toan" })).json()).quizzes, []);
+  } finally { sqlite.close(); }
+});
+
+test("all-quiz students can use every subject, grade and unclassified quiz while retaining student publication, schedule, answer and retake permissions", async () => {
+  const { db, sqlite } = database();
+  const tester = { ...studentUser, classIds: [], allQuizAccess: true };
+  try {
+    const teacher = makeQuizService(db, adminUser, () => 1_000_000);
+    const student = makeQuizService(db, tester, () => 1_000_000);
+    const image = (await teacher.upload(teacherUpload(submissionPng, "image/png", "Question.png"))).file;
+    const solution = (await teacher.upload(teacherUpload(submissionPng, "image/png", "Solution.png"))).file;
+    for (const [subject, categories] of Object.entries(quizSubjectCategories)) {
+      assert.equal(canAccessQuizSubject(tester, subject), true);
+      assert.deepEqual(allowedQuizCategories(tester, subject), categories);
+      const expected = [];
+      for (const category of [...categories, ""]) {
+        const quiz = (await teacher.save({ quiz: { ...fixture(), subject, category } })).quiz;
+        expected.push(quiz.id);
+        assert.equal(canAccessQuiz(tester, quiz), true);
+        const started = await student.start({ id: quiz.id });
+        assert.equal(started.quiz.id, quiz.id);
+        assert.equal(started.quiz.questions[0].answer, undefined);
+        assert.equal(sqlite.prepare("SELECT user_role FROM quiz_attempts WHERE id=?").get(started.attempt.id).user_role, "student");
+      }
+      assert.deepEqual((await student.list({ subject })).quizzes.map(q => q.id).sort(), expected.sort());
+    }
+    assert.deepEqual(tester.classIds, []);
+    const input = { ...fixture(), subject: "khtn", category: "Lớp 7" };
+    input.questions[0].imageId = image.id;
+    input.questions[0].explanationImageId = solution.id;
+    const quiz = (await teacher.save({ quiz: input })).quiz;
+    assert.equal((await student.file({ id: image.id })).status, 200);
+    await assert.rejects(student.file({ id: solution.id }), e => e.status === 403);
+    let current = await student.start({ id: quiz.id });
+    for (let number = 1; number <= 3; number++) {
+      const submitted = await student.submit({ id: current.attempt.id, revision: current.attempt.revision, answers: { single: "B" } });
+      assert.equal(submitted.attempt.result.details[0].expected, "B");
+      assert.equal((await student.file({ id: solution.id })).status, 200);
+      const data = { id: quiz.id, attemptId: submitted.attempt.id, revision: submitted.attempt.revision };
+      if (number < 3) {
+        current = await student.retake(data);
+        assert.equal(current.attempt.attemptNumber, number + 1);
+      } else await assert.rejects(student.retake(data), e => e.status === 403 && /hết 2 lần/.test(e.message));
+    }
+    for (const status of ["draft", "hidden"]) {
+      const unpublished = (await teacher.save({ quiz: { ...fixture(), status } })).quiz;
+      await assert.rejects(student.detail({ id: unpublished.id }), e => e.status === 403);
+      await assert.rejects(student.start({ id: unpublished.id }), e => e.status === 403);
+    }
+    const future = (await teacher.save({ quiz: { ...fixture(), opensAt: 2_000_000 } })).quiz;
+    assert.deepEqual((await student.detail({ id: future.id })).quiz.questions, []);
+    await assert.rejects(student.start({ id: future.id }), e => e.status === 403);
+    for (const operation of ["listAdmin", "adminDetail", "save", "results", "hide", "allowRetake"])
+      await assert.rejects(student[operation]({ id: quiz.id, quiz: fixture() }), e => e.status === 403);
+    assert.equal(hasAllQuizAccess({ role: "student", allQuizAccess: "true" }), false);
+    assert.equal(hasAllQuizAccess({ allQuizAccess: true }), false);
+    assert.deepEqual(allowedQuizCategories({ ...tester, allQuizAccess: false }, "toan"), []);
+  } finally { sqlite.close(); }
+});
+
+test("all-quiz permission is a current Firestore boolean, cannot be forged through tokens or requests, and never grants admin operations", async () => {
+  const { db, sqlite } = database();
+  let permission;
+  let status = "active";
+  const firebase = {
+    getAuthUser: async () => ({ validSince: "0" }),
+    getProfile: async () => ({ fields: {
+      role: { stringValue: "student" }, status: { stringValue: status },
+      classIds: { arrayValue: { values: [{ stringValue: "lop-7" }] } },
+      ...(permission ? { allQuizAccess: permission } : {}),
+    } }),
+  };
+  const claims = { sub: "all-quiz-http-student", auth_time: 100, allQuizAccess: true };
+  const handler = makeHandler({ makeFirebaseClient: () => firebase, verifyIdToken: async () => claims });
+  const request = (operation, data = {}) => handler(new Request(`https://example.test/api/quiz/${operation}`, {
+    method: "POST", headers: { Origin: "https://site.test", Authorization: "Bearer token", "Content-Type": "application/json" }, body: JSON.stringify({ ...data, allQuizAccess: true }),
+  }), { ALLOWED_ORIGIN: "https://site.test", QUIZ_DB: db });
+  try {
+    const teacher = makeQuizService(db, adminUser);
+    const twelve = (await teacher.save({ quiz: fixture() })).quiz;
+    const seven = (await teacher.save({ quiz: { ...fixture(), category: "Lớp 7" } })).quiz;
+    for (const value of [undefined, { booleanValue: false }, { stringValue: "true" }, { integerValue: "1" }]) {
+      permission = value;
+      assert.equal((await requireQuizUser("token", firebase, async () => claims)).allQuizAccess, false);
+      assert.deepEqual((await (await request("list", { subject: "toan" })).json()).quizzes.map(q => q.id), [seven.id]);
+      assert.equal((await request("detail", { id: twelve.id })).status, 403);
+      assert.equal((await request("start", { id: twelve.id })).status, 403);
+    }
+    permission = { booleanValue: true };
+    const user = await requireQuizUser("token", firebase, async () => claims);
+    assert.equal(user.allQuizAccess, true);
+    assert.equal(user.admin, false);
+    assert.equal(user.role, "student");
+    assert.deepEqual(user.classIds, ["lop-7"]);
+    assert.deepEqual((await (await request("list", { subject: "toan" })).json()).quizzes.map(q => q.id).sort(), [seven.id, twelve.id].sort());
+    assert.equal((await request("detail", { id: twelve.id })).status, 200);
+    for (const operation of ["listAdmin", "adminDetail", "save", "results", "tuitionMonth"])
+      assert.equal((await request(operation, { id: twelve.id })).status, 403);
+    permission = { booleanValue: false };
+    assert.equal((await request("detail", { id: twelve.id })).status, 403);
+    permission = { booleanValue: true };
+    status = "disabled";
+    assert.equal((await request("list", { subject: "toan" })).status, 403);
   } finally { sqlite.close(); }
 });
 

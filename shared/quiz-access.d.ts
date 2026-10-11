@@ -2,6 +2,7 @@ export interface QuizAccessAccount {
   admin?: boolean;
   role?: string;
   classIds?: readonly unknown[];
+  allQuizAccess?: boolean;
 }
 export const quizSubjectCategories: {
   readonly toan: readonly string[];
@@ -11,6 +12,9 @@ export const quizSubjectCategories: {
   readonly "giai-tri": readonly string[];
 };
 export function quizSchoolGrades(account?: QuizAccessAccount | null): number[];
+export function hasAllQuizAccess(
+  account?: QuizAccessAccount | null,
+): boolean;
 export function allowedQuizCategories(
   account: QuizAccessAccount | null | undefined,
   subject: string,

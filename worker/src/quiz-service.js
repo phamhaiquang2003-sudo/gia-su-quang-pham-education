@@ -3,6 +3,7 @@ import { MAX_SELF_RETAKES } from "../../shared/quiz-retakes.js";
 import {
   allowedQuizCategories,
   canAccessQuiz,
+  hasAllQuizAccess,
   quizClassAccessMessage,
 } from "../../shared/quiz-access.js";
 import {
@@ -183,7 +184,8 @@ export function makeQuizService(db, user, now = () => Date.now()) {
       if (!user.admin && !categories.length)
         return { quizzes: [], serverNow: now() };
       const unrestrictedCategory =
-        user.admin || ["giai-tri", "tsa-hsa-spt"].includes(data.subject);
+        hasAllQuizAccess(user) ||
+        ["giai-tri", "tsa-hsa-spt"].includes(data.subject);
       const classFilter = unrestrictedCategory
         ? ""
         : ` AND category IN (${categories.map(() => "?").join(",")})`;

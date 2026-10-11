@@ -110,6 +110,8 @@ Kho bài và menu môn học được lọc theo lớp đã gán trong `users/{u
 
 Quyền lớp được kiểm tra trên Worker từ hồ sơ Firebase hiện tại, kể cả khi học sinh mở liên kết trực tiếp, gửi yêu cầu bắt đầu/làm lại hoặc tải tệp đề. Bộ lọc lớp áp dụng trước giới hạn 200 đề của kho. Các lượt đã bắt đầu vẫn có thể tiếp tục/xem lại snapshot của chính mình; lượt mới và làm lại phải phù hợp với lớp hiện tại.
 
+Tài khoản học sinh thử nghiệm có thể được cấp `users/{uid}.allQuizAccess: true` bằng Firebase Admin. Quyền này mở toàn bộ môn, danh mục và đề đã xuất bản ở mọi lớp, kể cả đề chưa phân lớp, trong khi tài khoản vẫn có vai trò học sinh. Lịch mở/đóng, số lần làm lại, quyền xem đáp án và dữ liệu cá nhân vẫn áp dụng như với học sinh. Worker đọc quyền từ hồ sơ hiện tại, không lấy từ token hay nội dung yêu cầu. Firestore Rules không cho trình duyệt tự thêm hoặc sửa quyền này. Xóa trường hoặc đặt `false` để trở lại giới hạn theo lớp.
+
 Đăng nhập → mở kho môn học → **Mở bài tập** → **Bắt đầu làm bài**. Đồng hồ mới chạy khi bắt đầu; mỗi tài khoản có **1 lượt đầu và tối đa 2 lần tự làm lại/đề** (tổng cộng 3 lượt). Giáo viên có thể cấp thêm lượt sau giới hạn này. Bấm số câu để chuyển nhanh; dấu cờ **Đánh dấu xem lại** độc lập với trạng thái đã trả lời và không ảnh hưởng điểm.
 
 Câu trả lời và dấu cờ tự lưu sau khoảng 0,9 giây ngừng thay đổi. Khi mất mạng, trang giữ bản chưa đồng bộ trên thiết bị và thử lại; trạng thái lưu hiển thị trên trang. Tải lại trang lấy cùng lượt làm và thời hạn từ máy chủ. Trước khi nộp sớm có thông báo số câu chưa hoàn tất/đánh dấu.

@@ -54,6 +54,7 @@ export async function requireQuizUser(
     role: profile.role,
     displayName: profile.displayName || profile.username || "",
     username: profile.username || "",
+    allQuizAccess: doc?.fields?.allQuizAccess?.booleanValue === true,
     classIds: quizSchoolGrades({
       classIds: (doc?.fields?.classIds?.arrayValue?.values || []).map(
         (value) => value.stringValue,

@@ -51,6 +51,7 @@ export default function ExercisePage() {
     session.profile?.uid,
     session.profile?.role,
     session.profile?.classIds,
+    session.profile?.allQuizAccess,
   ]);
   const subjectAccessible = canAccessQuizSubject(session.profile, subject.id);
   const availableSubjects = subjectsForAccount(session.profile);

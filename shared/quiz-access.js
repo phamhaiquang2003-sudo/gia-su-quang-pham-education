@@ -24,11 +24,19 @@ export function quizSchoolGrades(account) {
     .map((id) => Number(id.slice(4)));
 }
 
+export function hasAllQuizAccess(account) {
+  return (
+    account?.admin === true ||
+    account?.role === "admin" ||
+    (account?.role === "student" && account?.allQuizAccess === true)
+  );
+}
+
 export function allowedQuizCategories(account, subject) {
   const categories = Object.hasOwn(quizSubjectCategories, subject)
     ? quizSubjectCategories[subject]
     : [];
-  if (account?.admin === true || account?.role === "admin") return categories;
+  if (hasAllQuizAccess(account)) return categories;
   if (account?.role !== "student") return [];
   if (subject === "giai-tri") return categories;
   const grades = quizSchoolGrades(account);
@@ -47,8 +55,7 @@ export function canAccessQuizSubject(account, subject) {
 
 export function canAccessQuiz(account, quiz) {
   return (
-    account?.admin === true ||
-    account?.role === "admin" ||
+    hasAllQuizAccess(account) ||
     (["giai-tri", "tsa-hsa-spt"].includes(quiz.subject) &&
       canAccessQuizSubject(account, quiz.subject)) ||
     allowedQuizCategories(account, quiz.subject).includes(quiz.category)

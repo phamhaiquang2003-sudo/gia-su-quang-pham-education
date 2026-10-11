@@ -25,6 +25,7 @@ export interface AccountProfile {
   role: "student" | "admin";
   status: "active" | "disabled";
   classIds: string[];
+  allQuizAccess?: boolean;
   createdAt?: Timestamp;
 }
 
