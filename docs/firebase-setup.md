@@ -79,7 +79,8 @@ Chỉ thêm `role: admin` bằng Firestore Console chưa đủ quyền quản tr
 Mở `quan-tri.html` trên website và đăng nhập bằng tài khoản quản trị đã được cấp quyền. Không cần mở tệp `.bat` để thêm tài khoản.
 
 - **Thêm tài khoản:** nhập username, mật khẩu ban đầu, họ tên và **Chọn lớp** từ **Lớp 6 đến Lớp 12**. Role luôn là học sinh. Lớp được lưu trong `users/{uid}.classIds`, ví dụ `["lop-12"]`. Ghi lại thông tin đăng nhập để gửi riêng cho học sinh.
-- **Danh sách:** tải 50 hồ sơ mỗi trang; có nút tải thêm và hiển thị lớp đã chọn bên cạnh tên đăng nhập. Quản trị viên được hiển thị nhưng không thể bị sửa/xóa từ trang học sinh.
+- **Danh sách:** chọn **Lọc theo lớp → Tất cả lớp** hoặc **Lớp 6–12**; hiển thị lớp bên cạnh tên đăng nhập và số tài khoản đã tải. Danh sách sắp xếp theo tên đăng nhập, hiển thị 50 hồ sơ mỗi trang; **Tải thêm** tiếp tục đúng lớp đang chọn. Chuyển lớp đặt lại trang đầu; **Tải lại** cập nhật lớp đang chọn. Quản trị viên được hiển thị ở danh sách tất cả nhưng không thể bị sửa/xóa từ trang học sinh.
+- Bộ lọc dùng truy vấn `classIds array-contains` và chỉ mục mảng mặc định của Firestore. Khi chọn một lớp, tải toàn bộ hồ sơ khớp lớp để sắp xếp theo tên đăng nhập và phân trang trên trình duyệt; vì vậy bộ lọc bao gồm cả học sinh ngoài trang đầu của danh sách tất cả. Danh sách tất cả vẫn phân trang trực tiếp trên Firestore.
 - **Khóa:** đổi trạng thái Firestore ngay để thu hồi quyền, khóa Auth và thu hồi refresh token qua Worker.
 - **Mở khóa:** mở Auth rồi kích hoạt hồ sơ qua Worker; học sinh đăng nhập lại.
 - **Cấp lại mật khẩu:** cập nhật Auth và thu hồi phiên cũ qua Worker. Thao tác không tự mở khóa tài khoản đang khóa; mật khẩu giữ nguyên khoảng trắng và cần 8–128 ký tự.

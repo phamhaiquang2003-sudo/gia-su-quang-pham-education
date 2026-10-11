@@ -6,6 +6,7 @@ import {
   orderBy,
   query,
   startAfter,
+  where,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
 import {
@@ -61,6 +62,10 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
   const [results, setResults] = useState<CreationResult[]>([]);
   const [students, setStudents] = useState<AccountProfile[]>([]);
+  const [filteredStudents, setFilteredStudents] = useState<AccountProfile[]>([]);
+  const [studentClassFilter, setStudentClassFilter] = useState<SchoolClassId | "">(
+    "",
+  );
   const [cursor, setCursor] = useState<QueryDocumentSnapshot>();
   const [hasMore, setHasMore] = useState(false);
   const [loadingList, setLoadingList] = useState(false);
@@ -74,31 +79,59 @@ export default function AdminPage() {
   useEffect(() => {
     if (!session.loading && !session.profile) {
       setStudents([]);
+      setFilteredStudents([]);
       setPassword("");
       setNewPassword("");
       setSelected(null);
     }
   }, [session.loading, session.profile]);
 
-  async function loadStudents(more = false) {
+  async function loadStudents(more = false, filter: SchoolClassId | "" = "") {
     if (loadingList || session.profile?.role !== "admin") return;
     setLoadingList(true);
     setMessage("");
     try {
-      const constraints = [
-        orderBy("username"),
-        ...(more && cursor ? [startAfter(cursor)] : []),
-        limit(50),
-      ];
-      const snapshot = await getDocs(
-        query(collection(getFirebase().db, "users"), ...constraints),
-      );
-      const page = snapshot.docs.map(
-        (item) => ({ ...item.data(), uid: item.id }) as AccountProfile,
-      );
-      setStudents((previous) => (more ? [...previous, ...page] : page));
-      setCursor(snapshot.docs.at(-1));
-      setHasMore(snapshot.size === 50);
+      if (filter) {
+        // Read all matches so username sorting and pagination cover the whole
+        // class, using Firestore's built-in array index.
+        const matches = more
+          ? filteredStudents
+          : (
+              await getDocs(
+                query(
+                  collection(getFirebase().db, "users"),
+                  where("classIds", "array-contains", filter),
+                ),
+              )
+            ).docs
+              .map(
+                (item) => ({ ...item.data(), uid: item.id }) as AccountProfile,
+              )
+              .sort((a, b) =>
+                a.username === b.username ? 0 : a.username < b.username ? -1 : 1,
+              );
+        const visibleCount = more ? students.length + 50 : 50;
+        setFilteredStudents(matches);
+        setStudents(matches.slice(0, visibleCount));
+        setCursor(undefined);
+        setHasMore(matches.length > visibleCount);
+      } else {
+        const constraints = [
+          orderBy("username"),
+          ...(more && cursor ? [startAfter(cursor)] : []),
+          limit(50),
+        ];
+        const snapshot = await getDocs(
+          query(collection(getFirebase().db, "users"), ...constraints),
+        );
+        const page = snapshot.docs.map(
+          (item) => ({ ...item.data(), uid: item.id }) as AccountProfile,
+        );
+        setStudents((previous) => (more ? [...previous, ...page] : page));
+        setFilteredStudents([]);
+        setCursor(snapshot.docs.at(-1));
+        setHasMore(snapshot.size === 50);
+      }
       setLoadedList(true);
     } catch (error) {
       setMessage(accountError(error));
@@ -156,7 +189,7 @@ export default function AdminPage() {
       );
       setNewPassword("");
       setSelected(null);
-      await loadStudents();
+      await loadStudents(false, studentClassFilter);
     } catch (error) {
       setMessage(accountError(error));
     } finally {
@@ -241,13 +274,13 @@ export default function AdminPage() {
                           : event.key === "End"
                             ? "list"
                             : null;
-                  if (next && !busy) {
+                  if (next && !busy && !loadingList) {
                     event.preventDefault();
                     document.getElementById(`tab-${next}`)?.click();
                     document.getElementById(`tab-${next}`)?.focus();
                   }
                 }}
-                disabled={busy}
+                disabled={busy || loadingList}
                 className={
                   tab === value ? "account-button" : "account-button-secondary"
                 }
@@ -255,8 +288,9 @@ export default function AdminPage() {
                   setTab(value);
                   setMessage("");
                   setResults([]);
-                  if (value === "list" || value === "tuition")
-                    void loadStudents();
+                  if (value === "list")
+                    void loadStudents(false, studentClassFilter);
+                  else if (value === "tuition") void loadStudents();
                 }}
               >
                 <Icon className="size-4" />
@@ -396,7 +430,9 @@ export default function AdminPage() {
                   <h2 className="text-lg font-semibold">Danh sách tài khoản</h2>
                   <button
                     className="account-button-secondary"
-                    onClick={() => void loadStudents()}
+                    onClick={() =>
+                      void loadStudents(false, studentClassFilter)
+                    }
                     disabled={loadingList || busy}
                   >
                     <RefreshCw
@@ -405,8 +441,47 @@ export default function AdminPage() {
                     Tải lại
                   </button>
                 </div>
+                <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+                  <label className="account-label w-full sm:w-64">
+                    Lọc theo lớp
+                    <select
+                      className="account-input"
+                      aria-label="Lọc theo lớp"
+                      value={studentClassFilter}
+                      disabled={loadingList || busy}
+                      onChange={(event) => {
+                        const filter = event.target.value as SchoolClassId | "";
+                        setStudentClassFilter(filter);
+                        setStudents([]);
+                        setFilteredStudents([]);
+                        setCursor(undefined);
+                        setHasMore(false);
+                        setLoadedList(false);
+                        void loadStudents(false, filter);
+                      }}
+                    >
+                      <option value="">Tất cả lớp</option>
+                      {schoolClasses.map((schoolClass) => (
+                        <option key={schoolClass.id} value={schoolClass.id}>
+                          {schoolClass.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <p role="status" className="text-sm text-slate-600">
+                    {loadingList
+                      ? "Đang tải danh sách tài khoản…"
+                      : loadedList
+                        ? `Đã tải ${students.length} tài khoản${studentClassFilter ? ` · ${schoolClassLabel(studentClassFilter)}` : ""}${hasMore ? " · Còn tài khoản để tải thêm" : ""}.`
+                        : ""}
+                  </p>
+                </div>
                 {loadedList && !students.length && (
-                  <p className="text-slate-600">Chưa có tài khoản nào.</p>
+                  <p className="text-slate-600">
+                    {studentClassFilter
+                      ? "Chưa có tài khoản thuộc lớp này."
+                      : "Chưa có tài khoản nào."}
+                  </p>
                 )}
                 <div className="space-y-3">
                   {students.map((student) => (
@@ -471,7 +546,7 @@ export default function AdminPage() {
                   <button
                     className="account-button-secondary mt-5"
                     disabled={loadingList || busy}
-                    onClick={() => void loadStudents(true)}
+                    onClick={() => void loadStudents(true, studentClassFilter)}
                   >
                     Tải thêm
                   </button>
