@@ -100,6 +100,16 @@ Trong **Thông tin đề**, chọn **Trắc nghiệm · Chấm tự động** đ
 
 ### Học sinh
 
+Kho bài và menu môn học được lọc theo lớp đã gán trong `users/{uid}.classIds`:
+
+- Toán/Vật lý: chỉ đề thuộc **Lớp 6–12** khớp lớp của học sinh; **Thi thử TNTHPT** dành cho **Lớp 12**.
+- KHTN: đề cùng lớp trong **Lớp 6–9**.
+- **TSA/HSA/SPT**: cả ba danh mục dành cho học sinh **Lớp 10, 11 và 12**.
+- **Giải trí**: tất cả học sinh, kể cả tài khoản chưa được gán lớp.
+- Học sinh chưa có lớp chỉ có mục Giải trí; cần giáo viên cập nhật lớp để mở kho môn học. Quản trị xem và làm thử tất cả đề.
+
+Quyền lớp được kiểm tra trên Worker từ hồ sơ Firebase hiện tại, kể cả khi học sinh mở liên kết trực tiếp, gửi yêu cầu bắt đầu/làm lại hoặc tải tệp đề. Bộ lọc lớp áp dụng trước giới hạn 200 đề của kho. Các lượt đã bắt đầu vẫn có thể tiếp tục/xem lại snapshot của chính mình; lượt mới và làm lại phải phù hợp với lớp hiện tại.
+
 Đăng nhập → mở kho môn học → **Mở bài tập** → **Bắt đầu làm bài**. Đồng hồ mới chạy khi bắt đầu; mỗi tài khoản có **1 lượt đầu và tối đa 2 lần tự làm lại/đề** (tổng cộng 3 lượt). Giáo viên có thể cấp thêm lượt sau giới hạn này. Bấm số câu để chuyển nhanh; dấu cờ **Đánh dấu xem lại** độc lập với trạng thái đã trả lời và không ảnh hưởng điểm.
 
 Câu trả lời và dấu cờ tự lưu sau khoảng 0,9 giây ngừng thay đổi. Khi mất mạng, trang giữ bản chưa đồng bộ trên thiết bị và thử lại; trạng thái lưu hiển thị trên trang. Tải lại trang lấy cùng lượt làm và thời hạn từ máy chủ. Trước khi nộp sớm có thông báo số câu chưa hoàn tất/đánh dấu.
@@ -108,7 +118,7 @@ Sau khi nộp hoặc hết giờ, phần **Xem lại câu hỏi và bài làm** 
 
 Hết giờ, khóa trả lời và chấm **các câu đã được máy chủ lưu trước hạn**, kể cả khi yêu cầu gửi đáp án đến muộn. Trang đang mở tự nộp; tác vụ máy chủ chạy mỗi 5 phút hoàn tất các lượt hết hạn theo từng đợt khi học sinh đã đóng trang. Khi offline, việc ghi kết quả có thể trễ và cần nhiều đợt nếu có nhiều lượt chờ, nhưng thời hạn được giữ nguyên. Mở lại bài hoặc giáo viên tải kết quả cũng hoàn tất các lượt đã hết hạn. Kết quả đã nộp không thể sửa; muốn trả lời lại, học sinh bắt đầu lượt làm lại mới.
 
-Đề hiện giao cho tất cả tài khoản hoạt động. Có thể **ẩn đề** khỏi kho; các lượt đã bắt đầu vẫn tiếp tục/xem kết quả. Sửa đề không thay đổi nội dung/đáp án của lượt đã bắt đầu, vì mỗi lượt lưu bản chụp riêng. Giáo viên có thể cấp lượt làm lại cho từng tài khoản hoặc xóa vĩnh viễn đề.
+Đề xuất bản được giao theo môn/danh mục và lớp của tài khoản. Có thể **ẩn đề** khỏi kho; các lượt đã bắt đầu vẫn tiếp tục/xem kết quả. Sửa đề không thay đổi nội dung/đáp án của lượt đã bắt đầu, vì mỗi lượt lưu bản chụp riêng. Giáo viên có thể cấp lượt làm lại cho từng tài khoản hoặc xóa vĩnh viễn đề.
 
 ### Học sinh tự làm lại tối đa 2 lần
 
@@ -131,7 +141,7 @@ Học sinh tải lại trang đề (hoặc bấm **Kiểm tra lượt làm lại
 - Firebase Auth + hồ sơ Firestore tiếp tục xác thực tài khoản/claim quản trị, trạng thái hoạt động, khóa Auth và thu hồi phiên.
 - Worker `phq-education-admin` nhận các thao tác `/api/quiz/*`; chỉ quản trị được lưu/xem đáp án và xem toàn bộ kết quả. Học sinh chỉ xem lượt làm của chính mình.
 - Cloudflare **D1 Free** `phq-education-exercises`, binding `QUIZ_DB`, lưu đề, tệp nhị phân, lượt làm, đáp án và kết quả. Không dùng Firebase Storage, Cloud Functions hoặc Blaze.
-- Tệp chưa xuất bản chỉ quản trị truy cập. Với đề có mật khẩu, học sinh chỉ được đọc tệp của đề sau khi đã bắt đầu đúng mật khẩu. Ảnh đáp án/lời giải chỉ được đọc sau khi nộp và phiên bản của lượt làm cho phép công bố đáp án. Tệp của phiên bản cũ vẫn truy cập được qua lượt làm của chính học sinh.
+- Tệp đề xuất bản chỉ được đọc khi đề phù hợp với lớp và đang trong lịch mở, hoặc qua snapshot lượt làm của chính học sinh. Tệp chưa xuất bản chỉ quản trị truy cập nếu chưa có lượt làm. Ảnh đáp án/lời giải chỉ được đọc sau khi nộp và phiên bản của lượt làm cho phép công bố đáp án. Tệp của phiên bản cũ vẫn truy cập được qua lượt làm của chính học sinh.
 - Dữ liệu gửi học sinh trước nộp không chứa đáp án/lời giải; điểm tính trên Worker. Đáp án giáo viên soạn chỉ lưu trong vùng quản trị và trên máy chủ.
 - Các thay đổi tiến độ dùng số phiên bản; hai cửa sổ sửa cùng lượt sẽ yêu cầu tải lại để tránh ghi đè âm thầm. Nộp lặp lại trả về cùng kết quả.
 - Firestore Rules không cần mở thêm quyền cho kho đề này.

@@ -6,7 +6,7 @@ import AccountMenu from "@/components/AccountMenu";
 import {
   getSubject,
   subjectHref,
-  subjects,
+  subjectsForAccount,
   TUTOR_CONTACT_VISIBLE,
   ZALO_CONTACT_URL,
   type SubjectId,
@@ -51,6 +51,7 @@ export default function App({
   const desktopBreakpoint = profile ? "min-[1440px]:flex" : "lg:flex";
   const mobileBreakpoint = profile ? "min-[1440px]:hidden" : "lg:hidden";
   const requiresLogin = !profile;
+  const availableSubjects = subjectsForAccount(profile);
 
   function accountAction(hero = false) {
     const classes = hero
@@ -192,7 +193,7 @@ export default function App({
               >
                 Trang chủ
               </a>
-              {subjects.map((item) =>
+              {availableSubjects.map((item) =>
                 profile ? (
                   <a
                     key={item.id}
@@ -268,7 +269,7 @@ export default function App({
                     >
                       Trang chủ
                     </a>
-                    {subjects.map((item) =>
+                    {availableSubjects.map((item) =>
                       profile ? (
                         <a
                           key={item.id}

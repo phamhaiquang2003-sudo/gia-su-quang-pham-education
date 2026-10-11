@@ -1,6 +1,11 @@
 import { ServiceError } from "./errors.js";
 import { MAX_SELF_RETAKES } from "../../shared/quiz-retakes.js";
 import {
+  allowedQuizCategories,
+  canAccessQuiz,
+  quizClassAccessMessage,
+} from "../../shared/quiz-access.js";
+import {
   DOC_MIME,
   DOCX_MIME,
   isWordMime,
@@ -46,6 +51,14 @@ const summary = (row) => ({
 });
 
 export function makeQuizService(db, user, now = () => Date.now()) {
+  const requireClassAccess = (quiz) => {
+    if (!canAccessQuiz(user, quiz))
+      throw new ServiceError(
+        "permission-denied",
+        quizClassAccessMessage(user, quiz.subject),
+        403,
+      );
+  };
   const admin = () => {
     if (!user.admin)
       throw new ServiceError(
@@ -166,11 +179,19 @@ export function makeQuizService(db, user, now = () => Date.now()) {
 
   const service = {
     async list(data) {
+      const categories = allowedQuizCategories(user, data.subject);
+      if (!user.admin && !categories.length)
+        return { quizzes: [], serverNow: now() };
+      const unrestrictedCategory =
+        user.admin || ["giai-tri", "tsa-hsa-spt"].includes(data.subject);
+      const classFilter = unrestrictedCategory
+        ? ""
+        : ` AND category IN (${categories.map(() => "?").join(",")})`;
       const rows = await db
         .prepare(
-          "SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at,json_extract(body,'$.opensAt') AS opens_at,json_extract(body,'$.closesAt') AS closes_at,json_extract(body,'$.gradingMode') AS grading_mode FROM quizzes WHERE status='published' AND subject=? ORDER BY created_at DESC LIMIT 200",
+          `SELECT id,title,subject,category,status,revision,question_count,duration_minutes,created_at,updated_at,json_extract(body,'$.opensAt') AS opens_at,json_extract(body,'$.closesAt') AS closes_at,json_extract(body,'$.gradingMode') AS grading_mode FROM quizzes WHERE status='published' AND subject=?${classFilter} ORDER BY created_at DESC LIMIT 200`,
         )
-        .bind(data.subject)
+        .bind(data.subject, ...(unrestrictedCategory ? [] : categories))
         .all();
       return { quizzes: rows.results.map(summary), serverNow: now() };
     },
@@ -428,6 +449,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
         )
         .bind(row.id, user.uid)
         .first();
+      if (!attempt) requireClassAccess(row);
       if (attempt) attempt = await expire(attempt);
       if (row.status !== "published" && !attempt && !user.admin)
         throw new ServiceError(
@@ -462,6 +484,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
     },
     async retake(data) {
       const row = await quizRow(data.id);
+      requireClassAccess(row);
       checkId(data.attemptId);
       let attempt = await db
         .prepare(
@@ -612,6 +635,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
           quiz: publicQuiz(JSON.parse(old.snapshot)),
           serverNow: now(),
         };
+      requireClassAccess(row);
       if (row.status !== "published")
         throw new ServiceError(
           "permission-denied",
@@ -988,6 +1012,7 @@ export function makeQuizService(db, user, now = () => Date.now()) {
           .all();
         const access = candidates.results.some((row) => {
           const quiz = JSON.parse(row.body);
+          if (!row.is_attempt && !canAccessQuiz(user, quiz)) return false;
           if (!row.is_attempt && quizAvailability(quiz, now()) !== "open")
             return false;
           const visible =

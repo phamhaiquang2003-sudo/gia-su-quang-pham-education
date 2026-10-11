@@ -1,16 +1,11 @@
+import {
+  canAccessQuizSubject,
+  quizSubjectCategories,
+  type QuizAccessAccount,
+} from "../../shared/quiz-access.js";
+
 export const ZALO_CONTACT_URL = "https://zalo.me/0365900419";
 export const TUTOR_CONTACT_VISIBLE = false;
-
-const schoolCategories = [
-  "Thi thử TNTHPT",
-  "Lớp 12",
-  "Lớp 11",
-  "Lớp 10",
-  "Lớp 9",
-  "Lớp 8",
-  "Lớp 7",
-  "Lớp 6",
-];
 
 export const subjects = [
   {
@@ -18,21 +13,21 @@ export const subjects = [
     label: "Toán",
     title: "Bài tập Toán",
     description: "Tổng hợp các bài kiểm tra và đề thi môn Toán.",
-    categories: schoolCategories,
+    categories: quizSubjectCategories.toan,
   },
   {
     id: "vat-ly",
     label: "Vật lý",
     title: "Bài tập Vật lý",
     description: "Tổng hợp các bài kiểm tra và đề thi môn Vật lý.",
-    categories: schoolCategories,
+    categories: quizSubjectCategories["vat-ly"],
   },
   {
     id: "khtn",
     label: "KHTN",
     title: "Bài tập Khoa học tự nhiên",
     description: "Tổng hợp các bài kiểm tra và đề thi môn Khoa học tự nhiên.",
-    categories: ["Lớp 9", "Lớp 8", "Lớp 7", "Lớp 6"],
+    categories: quizSubjectCategories.khtn,
   },
   {
     id: "tsa-hsa-spt",
@@ -40,18 +35,24 @@ export const subjects = [
     title: "Luyện thi TSA/HSA/SPT",
     description:
       "Tổng hợp bài luyện đánh giá tư duy và đánh giá năng lực TSA, HSA, SPT.",
-    categories: ["TSA", "HSA", "SPT"],
+    categories: quizSubjectCategories["tsa-hsa-spt"],
   },
   {
     id: "giai-tri",
     label: "Giải trí",
     title: "Góc giải trí",
     description: "Các hoạt động và câu hỏi thư giãn sau giờ học.",
-    categories: ["Đố vui", "Tư duy logic", "Khám phá khoa học"],
+    categories: quizSubjectCategories["giai-tri"],
   },
 ] as const;
 
 export type SubjectId = (typeof subjects)[number]["id"];
+
+export function subjectsForAccount(account?: QuizAccessAccount | null) {
+  return account
+    ? subjects.filter((subject) => canAccessQuizSubject(account, subject.id))
+    : subjects;
+}
 
 export function getSubject(id: string | null) {
   return subjects.find((subject) => subject.id === id) || subjects[0];

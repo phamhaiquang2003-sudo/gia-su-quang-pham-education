@@ -1,4 +1,5 @@
 import { ServiceError } from "./errors.js";
+import { quizSchoolGrades } from "../../shared/quiz-access.js";
 
 export async function requireQuizUser(
   token,
@@ -53,5 +54,10 @@ export async function requireQuizUser(
     role: profile.role,
     displayName: profile.displayName || profile.username || "",
     username: profile.username || "",
+    classIds: quizSchoolGrades({
+      classIds: (doc?.fields?.classIds?.arrayValue?.values || []).map(
+        (value) => value.stringValue,
+      ),
+    }).map((grade) => `lop-${grade}`),
   };
 }

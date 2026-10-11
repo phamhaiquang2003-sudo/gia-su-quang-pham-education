@@ -17,6 +17,120 @@ import { makeHandler } from "../src/index.js";
 import { makeProfileService, studyStreak } from "../src/profile-service.js";
 import { DOC_MIME, DOCX_MIME } from "../src/word-files.js";
 import { parseQuickAnswerKey } from "../../shared/quiz-forms.js";
+import {
+  allowedQuizCategories,
+  canAccessQuizSubject,
+} from "../../shared/quiz-access.js";
+
+test("grade-based catalogues isolate school classes, reserve national mock exams for grade 12, allow senior assessments and entertainment for everyone", async () => {
+  const { db, sqlite } = database();
+  try {
+    const teacher = makeQuizService(db, adminUser);
+    const school = [];
+    for (const subject of ["toan", "vat-ly", "khtn"])
+      for (let grade = 6; grade <= 12; grade++)
+        if (subject !== "khtn" || grade <= 9)
+          school.push((await teacher.save({ quiz: { ...fixture(), subject, category: `Lớp ${grade}`, title: `${subject} ${grade}` } })).quiz);
+    const mock = (await teacher.save({ quiz: { ...fixture(), category: "Thi thử TNTHPT" } })).quiz;
+    const assessment = (await teacher.save({ quiz: { ...fixture(), subject: "tsa-hsa-spt", category: "TSA" } })).quiz;
+    const entertainment = (await teacher.save({ quiz: { ...fixture(), subject: "giai-tri", category: "" } })).quiz;
+    const unclassified = (await teacher.save({ quiz: { ...fixture(), category: "" } })).quiz;
+    for (let grade = 6; grade <= 12; grade++) {
+      const user = { ...studentUser, uid: `grade-${grade}`, classIds: [`lop-${grade}`] };
+      const student = makeQuizService(db, user);
+      for (const subject of ["toan", "vat-ly", "khtn"]) {
+        const expected = school.filter(q => q.subject === subject && q.category === `Lớp ${grade}`).map(q => q.id);
+        if (subject === "toan" && grade === 12) expected.push(mock.id);
+        const listed = await student.list({ subject, classIds: ["lop-12"], category: "Lớp 12" });
+        assert.deepEqual(listed.quizzes.map(q => q.id).sort(), expected.sort());
+      }
+      assert.equal(canAccessQuizSubject(user, "khtn"), grade <= 9);
+      assert.equal(canAccessQuizSubject(user, "tsa-hsa-spt"), grade >= 10);
+      assert.deepEqual((await student.list({ subject: "tsa-hsa-spt" })).quizzes.map(q => q.id), grade >= 10 ? [assessment.id] : []);
+      assert.deepEqual((await student.list({ subject: "giai-tri" })).quizzes.map(q => q.id), [entertainment.id]);
+      for (const quiz of [...school, mock, assessment, unclassified]) {
+        const allowed = quiz.id !== unclassified.id && (quiz.subject === "tsa-hsa-spt" ? grade >= 10 : quiz.category === `Lớp ${grade}` || (quiz.id === mock.id && grade === 12));
+        if (allowed) assert.equal((await student.detail({ id: quiz.id })).quiz.id, quiz.id);
+        else {
+          await assert.rejects(student.detail({ id: quiz.id }), e => e.status === 403);
+          await assert.rejects(student.start({ id: quiz.id, classIds: ["lop-12"] }), e => e.status === 403);
+        }
+      }
+    }
+    const unassigned = makeQuizService(db, { ...studentUser, uid: "unassigned-grade", classIds: [] });
+    for (const subject of ["toan", "vat-ly", "khtn", "tsa-hsa-spt"])
+      assert.deepEqual((await unassigned.list({ subject })).quizzes, []);
+    assert.equal((await unassigned.start({ id: entertainment.id })).quiz.id, entertainment.id);
+    await assert.rejects(unassigned.detail({ id: school[0].id }), e => e.status === 403 && /chưa được gán lớp/.test(e.message));
+    assert.equal((await teacher.detail({ id: unclassified.id })).quiz.id, unclassified.id);
+    assert.equal((await teacher.list({ subject: "khtn" })).quizzes.length, 4);
+    assert.deepEqual(allowedQuizCategories(studentUser, "toan"), ["Thi thử TNTHPT", "Lớp 12"]);
+  } finally { sqlite.close(); }
+});
+
+test("class filtering precedes the catalogue limit even when over 200 newer quizzes belong to other grades", async () => {
+  const { db, sqlite } = database();
+  let now = 1;
+  try {
+    const teacher = makeQuizService(db, adminUser, () => now);
+    const own = (await teacher.save({ quiz: fixture() })).quiz;
+    now = 1000;
+    for (let i = 0; i < 205; i++)
+      await teacher.save({ quiz: { ...fixture(), category: "Lớp 11", title: `Other grade ${i}` } });
+    assert.deepEqual((await makeQuizService(db, studentUser).list({ subject: "toan" })).quizzes.map(q => q.id), [own.id]);
+    assert.equal((await teacher.list({ subject: "toan" })).quizzes.length, 200);
+  } finally { sqlite.close(); }
+});
+
+test("class restrictions protect question and document files while own historical snapshots remain reviewable and cannot grant a new out-of-grade retake", async () => {
+  const { db, sqlite } = database();
+  try {
+    const teacher = makeQuizService(db, adminUser);
+    const image = (await teacher.upload(teacherUpload(submissionPng, "image/png", "Question.png"))).file;
+    const input = fixture(); input.questions[0].imageId = image.id;
+    const quiz = (await teacher.save({ quiz: input })).quiz;
+    const seventh = makeQuizService(db, { ...studentUser, uid: "seventh", classIds: ["lop-7"] });
+    await assert.rejects(seventh.file({ id: image.id }), e => e.status === 403);
+    const student = makeQuizService(db, studentUser);
+    const started = await student.start({ id: quiz.id });
+    const reclassified = makeQuizService(db, { ...studentUser, classIds: ["lop-11"] });
+    assert.deepEqual((await reclassified.list({ subject: "toan" })).quizzes, []);
+    assert.equal((await reclassified.detail({ id: quiz.id })).attempt.id, started.attempt.id);
+    assert.equal((await reclassified.start({ id: quiz.id })).attempt.id, started.attempt.id);
+    assert.equal((await reclassified.file({ id: image.id })).status, 200);
+    const submitted = await reclassified.submit({ id: started.attempt.id, revision: started.attempt.revision, answers: { single: "B" } });
+    await assert.rejects(reclassified.retake({ id: quiz.id, attemptId: submitted.attempt.id, revision: submitted.attempt.revision }), e => e.status === 403);
+    assert.equal((await reclassified.detail({ id: quiz.id })).attempt.id, submitted.attempt.id);
+    assert.equal((await teacher.file({ id: image.id })).status, 200);
+  } finally { sqlite.close(); }
+});
+
+test("HTTP access uses the current Firestore class array rather than token claims or submitted classes, and reflects class changes without refreshing the token", async () => {
+  const { db, sqlite } = database();
+  let classValues = [{ stringValue: "lop-7" }, { integerValue: "12" }, { stringValue: "lop-99" }];
+  const firebase = {
+    getAuthUser: async () => ({ validSince: "0" }),
+    getProfile: async () => ({ fields: { role: { stringValue: "student" }, status: { stringValue: "active" }, classIds: { arrayValue: { values: classValues } } } }),
+  };
+  const claims = { sub: "http-grade-student", auth_time: 100, classIds: ["lop-12"] };
+  const handler = makeHandler({ makeFirebaseClient: () => firebase, verifyIdToken: async () => claims });
+  const request = (operation, data) => handler(new Request(`https://example.test/api/quiz/${operation}`, { method: "POST", headers: { Origin: "https://site.test", Authorization: "Bearer token", "Content-Type": "application/json" }, body: JSON.stringify(data) }), { ALLOWED_ORIGIN: "https://site.test", QUIZ_DB: db });
+  try {
+    const teacher = makeQuizService(db, adminUser);
+    const twelve = (await teacher.save({ quiz: fixture() })).quiz;
+    const seven = (await teacher.save({ quiz: { ...fixture(), category: "Lớp 7" } })).quiz;
+    assert.deepEqual((await requireQuizUser("token", firebase, async () => claims)).classIds, ["lop-7"]);
+    const list = await request("list", { subject: "toan", classIds: ["lop-12"] });
+    assert.deepEqual((await list.json()).quizzes.map(q => q.id), [seven.id]);
+    assert.equal((await request("detail", { id: twelve.id })).status, 403);
+    assert.equal((await request("start", { id: twelve.id, classIds: ["lop-12"] })).status, 403);
+    classValues = [{ stringValue: "lop-12" }];
+    assert.equal((await request("detail", { id: seven.id })).status, 403);
+    assert.equal((await request("start", { id: twelve.id })).status, 200);
+    classValues = [];
+    assert.deepEqual((await (await request("list", { subject: "toan" })).json()).quizzes, []);
+  } finally { sqlite.close(); }
+});
 
 const wordWorksheet = Buffer.from(
   readFileSync(
@@ -1266,6 +1380,7 @@ const studentUser = {
   role: "student",
   displayName: "Học sinh",
   username: "student",
+  classIds: ["lop-12"],
 };
 
 test("retired quiz passwords from cached drafts are discarded on save and never returned to students", () => {
@@ -1610,7 +1725,7 @@ test("self-retake HTTP endpoint accepts active student identities without admin 
     let disabled = false, status = "active";
     const firebase = {
       getAuthUser: async () => ({ validSince: "10", disabled }),
-      getProfile: async () => ({ fields: { role: { stringValue: "student" }, status: { stringValue: status }, username: { stringValue: studentUser.username }, displayName: { stringValue: studentUser.displayName } } }),
+      getProfile: async () => ({ fields: { role: { stringValue: "student" }, status: { stringValue: status }, username: { stringValue: studentUser.username }, displayName: { stringValue: studentUser.displayName }, classIds: { arrayValue: { values: [{ stringValue: "lop-12" }] } } } }),
     };
     const handler = makeHandler({ makeFirebaseClient: () => firebase, verifyIdToken: async () => ({ sub: studentUser.uid, auth_time: 100 }) });
     const env = { ALLOWED_ORIGIN: "https://lumenpelagi.vercel.app", QUIZ_DB: db };

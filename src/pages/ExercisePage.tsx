@@ -15,7 +15,7 @@ import StarryBackground from "@/components/StarryBackground";
 import {
   getSubject,
   subjectHref,
-  subjects,
+  subjectsForAccount,
   TUTOR_CONTACT_VISIBLE,
   ZALO_CONTACT_URL,
 } from "@/lib/subjects";
@@ -25,6 +25,12 @@ import { quizLoginHref } from "@/lib/quiz-login";
 import QuizPlayer from "@/components/QuizPlayer";
 import QuizScheduleInfo from "@/components/QuizScheduleInfo";
 import AccountMenu from "@/components/AccountMenu";
+import {
+  allowedQuizCategories,
+  canAccessQuiz,
+  canAccessQuizSubject,
+  quizClassAccessMessage,
+} from "../../shared/quiz-access.js";
 
 export default function ExercisePage() {
   const session = useAccount();
@@ -41,10 +47,19 @@ export default function ExercisePage() {
   const [catalogueNow, setCatalogueNow] = useState(0);
   const catalogueClock = useRef({ server: 0, local: 0 });
   const quizId = new URLSearchParams(window.location.search).get("de");
+  const accountAccessKey = JSON.stringify([
+    session.profile?.uid,
+    session.profile?.role,
+    session.profile?.classIds,
+  ]);
+  const subjectAccessible = canAccessQuizSubject(session.profile, subject.id);
+  const availableSubjects = subjectsForAccount(session.profile);
+  const availableCategories = allowedQuizCategories(session.profile, subject.id);
   const filtered = Boolean(search.trim() || categories.length);
   const visible = quizzes
     .filter(
       (q) =>
+        canAccessQuiz(session.profile, q) &&
         (!search.trim() ||
           q.title
             .toLocaleLowerCase("vi")
@@ -60,10 +75,11 @@ export default function ExercisePage() {
     );
 
   useEffect(() => {
-    if (!session.profile || quizId) return;
+    if (!session.profile || quizId || !subjectAccessible) return;
     let cancelled = false;
     setLoadingQuizzes(true);
     setQuizError("");
+    setQuizzes([]);
     quizApi<{ quizzes: QuizSummary[]; serverNow?: number }>("list", {
       subject: subject.id,
     })
@@ -87,7 +103,14 @@ export default function ExercisePage() {
     return () => {
       cancelled = true;
     };
-  }, [session.profile?.uid, subject.id, quizId, reload]);
+  }, [accountAccessKey, subject.id, subjectAccessible, quizId, reload]);
+  useEffect(() => {
+    setCategories((previous) =>
+      previous.filter((category) =>
+        allowedQuizCategories(session.profile, subject.id).includes(category),
+      ),
+    );
+  }, [accountAccessKey, subject.id]);
   useEffect(() => {
     if (quizId || !quizzes.some((quiz) => quiz.opensAt || quiz.closesAt))
       return;
@@ -217,7 +240,7 @@ export default function ExercisePage() {
             <a href={import.meta.env.BASE_URL} className="exercise-nav-link">
               Trang chủ
             </a>
-            {subjects.map((item) => (
+            {availableSubjects.map((item) => (
               <a
                 key={item.id}
                 href={subjectHref(item.id)}
@@ -253,7 +276,26 @@ export default function ExercisePage() {
           </p>
         </section>
 
-        <div className="grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8">
+        {!subjectAccessible && (
+          <section role="status" className="exercise-panel p-6 sm:p-8">
+            <h2 className="text-xl font-semibold">
+              Mục này không dành cho lớp của bạn
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-slate-200">
+              {quizClassAccessMessage(session.profile, subject.id)}
+            </p>
+            <p className="mt-4 text-sm text-slate-200">
+              Chọn một môn trong menu để xem bài tập phù hợp.
+            </p>
+          </section>
+        )}
+        <div
+          className={
+            subjectAccessible
+              ? "grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8"
+              : "hidden"
+          }
+        >
           <aside
             aria-label="Bộ lọc bài tập"
             className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1"
@@ -292,7 +334,7 @@ export default function ExercisePage() {
                   Danh mục
                 </legend>
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
-                  {subject.categories.map((category) => (
+                  {availableCategories.map((category) => (
                     <label
                       key={category}
                       className="flex cursor-pointer items-center gap-3 text-sm leading-relaxed text-slate-200"
