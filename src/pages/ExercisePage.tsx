@@ -15,7 +15,7 @@ import StarryBackground from "@/components/StarryBackground";
 import {
   getSubject,
   subjectHref,
-  subjectsForAccount,
+  subjects,
   TUTOR_CONTACT_VISIBLE,
   ZALO_CONTACT_URL,
 } from "@/lib/subjects";
@@ -25,12 +25,7 @@ import { quizLoginHref } from "@/lib/quiz-login";
 import QuizPlayer from "@/components/QuizPlayer";
 import QuizScheduleInfo from "@/components/QuizScheduleInfo";
 import AccountMenu from "@/components/AccountMenu";
-import {
-  allowedQuizCategories,
-  canAccessQuiz,
-  canAccessQuizSubject,
-  quizClassAccessMessage,
-} from "../../shared/quiz-access.js";
+import { canAccessQuiz } from "../../shared/quiz-access.js";
 
 export default function ExercisePage() {
   const session = useAccount();
@@ -53,9 +48,6 @@ export default function ExercisePage() {
     session.profile?.classIds,
     session.profile?.allQuizAccess,
   ]);
-  const subjectAccessible = canAccessQuizSubject(session.profile, subject.id);
-  const availableSubjects = subjectsForAccount(session.profile);
-  const availableCategories = allowedQuizCategories(session.profile, subject.id);
   const filtered = Boolean(search.trim() || categories.length);
   const visible = quizzes
     .filter(
@@ -76,7 +68,7 @@ export default function ExercisePage() {
     );
 
   useEffect(() => {
-    if (!session.profile || quizId || !subjectAccessible) return;
+    if (!session.profile || quizId) return;
     let cancelled = false;
     setLoadingQuizzes(true);
     setQuizError("");
@@ -104,14 +96,14 @@ export default function ExercisePage() {
     return () => {
       cancelled = true;
     };
-  }, [accountAccessKey, subject.id, subjectAccessible, quizId, reload]);
+  }, [accountAccessKey, subject.id, quizId, reload]);
   useEffect(() => {
     setCategories((previous) =>
       previous.filter((category) =>
-        allowedQuizCategories(session.profile, subject.id).includes(category),
+        subject.categories.includes(category),
       ),
     );
-  }, [accountAccessKey, subject.id]);
+  }, [subject.id]);
   useEffect(() => {
     if (quizId || !quizzes.some((quiz) => quiz.opensAt || quiz.closesAt))
       return;
@@ -241,7 +233,7 @@ export default function ExercisePage() {
             <a href={import.meta.env.BASE_URL} className="exercise-nav-link">
               Trang chủ
             </a>
-            {availableSubjects.map((item) => (
+            {subjects.map((item) => (
               <a
                 key={item.id}
                 href={subjectHref(item.id)}
@@ -277,26 +269,7 @@ export default function ExercisePage() {
           </p>
         </section>
 
-        {!subjectAccessible && (
-          <section role="status" className="exercise-panel p-6 sm:p-8">
-            <h2 className="text-xl font-semibold">
-              Mục này không dành cho lớp của bạn
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-200">
-              {quizClassAccessMessage(session.profile, subject.id)}
-            </p>
-            <p className="mt-4 text-sm text-slate-200">
-              Chọn một môn trong menu để xem bài tập phù hợp.
-            </p>
-          </section>
-        )}
-        <div
-          className={
-            subjectAccessible
-              ? "grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8"
-              : "hidden"
-          }
-        >
+        <div className="grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8">
           <aside
             aria-label="Bộ lọc bài tập"
             className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1"
@@ -335,7 +308,7 @@ export default function ExercisePage() {
                   Danh mục
                 </legend>
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
-                  {availableCategories.map((category) => (
+                  {subject.categories.map((category) => (
                     <label
                       key={category}
                       className="flex cursor-pointer items-center gap-3 text-sm leading-relaxed text-slate-200"
@@ -488,14 +461,14 @@ export default function ExercisePage() {
                   Kho bài tập · {subject.label}
                 </p>
                 <h2 className="font-display text-3xl sm:text-4xl">
-                  {quizzes.length
+                  {filtered
                     ? "Không tìm thấy bài phù hợp"
-                    : "Chưa có đề bài"}
+                    : "Chưa có bài tập phù hợp"}
                 </h2>
                 <p className="mt-4 max-w-md text-sm leading-relaxed text-slate-200">
-                  {quizzes.length
+                  {filtered
                     ? "Thử thay đổi từ khóa hoặc xóa bộ lọc để xem các bài khác."
-                    : `Giáo viên đang chuẩn bị nội dung cho mục ${subject.label}. Các bài tập sẽ xuất hiện tại đây khi được đăng tải.`}
+                    : "Các bài tập phù hợp với lớp và quyền truy cập của tài khoản sẽ xuất hiện tại đây khi được giáo viên đăng tải."}
                 </p>
                 {filtered && (
                   <Button

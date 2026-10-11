@@ -1,8 +1,4 @@
-import {
-  canAccessQuizSubject,
-  quizSubjectCategories,
-  type QuizAccessAccount,
-} from "../../shared/quiz-access.js";
+import { quizSubjectCategories } from "../../shared/quiz-access.js";
 
 export const ZALO_CONTACT_URL = "https://zalo.me/0365900419";
 export const TUTOR_CONTACT_VISIBLE = false;
@@ -47,12 +43,6 @@ export const subjects = [
 ] as const;
 
 export type SubjectId = (typeof subjects)[number]["id"];
-
-export function subjectsForAccount(account?: QuizAccessAccount | null) {
-  return account
-    ? subjects.filter((subject) => canAccessQuizSubject(account, subject.id))
-    : subjects;
-}
 
 export function getSubject(id: string | null) {
   return subjects.find((subject) => subject.id === id) || subjects[0];

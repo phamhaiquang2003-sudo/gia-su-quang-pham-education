@@ -100,13 +100,15 @@ Trong **Thông tin đề**, chọn **Trắc nghiệm · Chấm tự động** đ
 
 ### Học sinh
 
-Kho bài và menu môn học được lọc theo lớp đã gán trong `users/{uid}.classIds`:
+Menu môn học và các danh mục luôn hiển thị đầy đủ cho học sinh. Danh sách bài tập bên trong được lọc theo lớp đã gán trong `users/{uid}.classIds`:
 
 - Toán/Vật lý: chỉ đề thuộc **Lớp 6–12** khớp lớp của học sinh; **Thi thử TNTHPT** dành cho **Lớp 12**.
 - KHTN: đề cùng lớp trong **Lớp 6–9**.
 - **TSA/HSA/SPT**: cả ba danh mục dành cho học sinh **Lớp 10, 11 và 12**.
 - **Giải trí**: tất cả học sinh, kể cả tài khoản chưa được gán lớp.
-- Học sinh chưa có lớp chỉ có mục Giải trí; cần giáo viên cập nhật lớp để mở kho môn học. Quản trị xem và làm thử tất cả đề.
+- Học sinh chưa có lớp chỉ xem được bài tập Giải trí; cần giáo viên cập nhật lớp để mở bài tập của các môn học khác. Quản trị xem và làm thử tất cả đề.
+
+Khi chọn môn hoặc danh mục không thuộc lớp của học sinh, trang vẫn hiển thị menu, tìm kiếm, danh mục và sắp xếp; danh sách không có bài tập ngoài quyền truy cập. Học sinh có thể chọn lại môn/lớp phù hợp để xem bài của mình.
 
 Quyền lớp được kiểm tra trên Worker từ hồ sơ Firebase hiện tại, kể cả khi học sinh mở liên kết trực tiếp, gửi yêu cầu bắt đầu/làm lại hoặc tải tệp đề. Bộ lọc lớp áp dụng trước giới hạn 200 đề của kho. Các lượt đã bắt đầu vẫn có thể tiếp tục/xem lại snapshot của chính mình; lượt mới và làm lại phải phù hợp với lớp hiện tại.
 
