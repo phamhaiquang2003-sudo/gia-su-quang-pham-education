@@ -215,6 +215,14 @@ export default function App({
                   </DialogTrigger>
                 ),
               )}
+              {profile?.role === "admin" && (
+                <a
+                  href={`${import.meta.env.BASE_URL}quan-tri.html`}
+                  className="text-sm font-semibold text-foreground outline-none transition-colors hover:text-sky-200 focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Trang quản trị
+                </a>
+              )}
               {TUTOR_CONTACT_VISIBLE && (
                 <a
                   href={ZALO_CONTACT_URL}
@@ -290,6 +298,14 @@ export default function App({
                           </button>
                         </DialogTrigger>
                       ),
+                    )}
+                    {profile?.role === "admin" && (
+                      <a
+                        href={`${import.meta.env.BASE_URL}quan-tri.html`}
+                        className="shrink-0 rounded-lg px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-white/10"
+                      >
+                        Trang quản trị
+                      </a>
                     )}
                     {TUTOR_CONTACT_VISIBLE && (
                       <a

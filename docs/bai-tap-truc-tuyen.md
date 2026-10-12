@@ -2,7 +2,7 @@
 
 ## Dùng trên website
 
-1. Đăng nhập tài khoản quản trị, mở `quan-tri.html` → **Bài tập**.
+1. Đăng nhập tài khoản quản trị, bấm **Trang quản trị** trong menu trang chủ hoặc kho bài tập → **Bài tập**. Trên điện thoại, mở menu điều hướng để thấy mục **Trang quản trị**. Đường dẫn trực tiếp là `quan-tri.html`.
 2. Điền tên đề, môn học, danh mục, hướng dẫn và thời gian từ **1–360 phút**.
 3. Đề mới mặc định **soạn từng câu trực tiếp**: nhập nội dung hoặc dán ảnh chụp cả câu hỏi và các lựa chọn. Khi lựa chọn A/B/C/D hoặc các ý Đúng/Sai đã nằm trong ảnh câu hỏi, được để trống nội dung các lựa chọn/ý, chỉ tích đáp án đúng để chấm. Không cần chọn cách đưa đề lên.
 4. Mỗi câu có dạng **A/B/C/D**, **Đúng/Sai (4 ý)** hoặc **trả lời ngắn**. Nhập đáp án đúng, điểm trọng số và lời giải nếu có.

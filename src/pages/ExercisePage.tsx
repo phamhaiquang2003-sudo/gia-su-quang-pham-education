@@ -243,6 +243,14 @@ export default function ExercisePage() {
                 {item.label}
               </a>
             ))}
+            {session.profile.role === "admin" && (
+              <a
+                href={`${import.meta.env.BASE_URL}quan-tri.html`}
+                className="exercise-nav-link font-semibold"
+              >
+                Trang quản trị
+              </a>
+            )}
             {TUTOR_CONTACT_VISIBLE && (
               <a href={ZALO_CONTACT_URL} className="exercise-nav-link">
                 Liên hệ gia sư
