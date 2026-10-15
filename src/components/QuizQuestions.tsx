@@ -1,6 +1,7 @@
 import { Flag } from "lucide-react";
 import QuizFile from "./QuizFile";
 import QuizEssayAnswer from "./QuizEssayAnswer";
+import MathText from "./MathText";
 import type { Answers, Question } from "@/lib/quizzes";
 
 export default function QuizQuestions({
@@ -57,7 +58,7 @@ export default function QuizQuestions({
           </div>
           {q.prompt && (
             <p className="mb-5 whitespace-pre-wrap break-words leading-relaxed">
-              {q.prompt}
+              <MathText text={q.prompt} />
             </p>
           )}
           {q.imageId && (
@@ -90,7 +91,7 @@ export default function QuizQuestions({
                     <div className="min-w-0 flex-1 space-y-3">
                       {choice && (
                         <p className="whitespace-pre-wrap break-words">
-                          {choice}
+                          <MathText text={choice} />
                         </p>
                       )}
                       {q.choiceImageIds?.[i] && (
@@ -115,7 +116,7 @@ export default function QuizQuestions({
                     className="rounded-xl border border-white/15 p-4"
                   >
                     <p className="mb-3 whitespace-pre-wrap break-words text-sm">
-                      {"abcd"[i]}. {statement}
+                      {"abcd"[i]}. <MathText text={statement} />
                     </p>
                     {q.statementImageIds?.[i] && (
                       <div className="mb-3">

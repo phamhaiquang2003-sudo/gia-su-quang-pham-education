@@ -1,5 +1,6 @@
 import { displayAnswer, type Quiz, type QuizResult } from "@/lib/quizzes";
 import QuizFile from "./QuizFile";
+import MathText from "./MathText";
 
 export default function QuizResultView({
   result,
@@ -75,7 +76,7 @@ export default function QuizResultView({
             </div>
             {question?.prompt && (
               <p className="mt-4 whitespace-pre-wrap break-words leading-relaxed">
-                {question.prompt}
+                <MathText text={question.prompt} />
               </p>
             )}
             {question?.imageId && (
@@ -105,7 +106,7 @@ export default function QuizResultView({
                       <div className="min-w-0 flex-1 space-y-3">
                         {choice && (
                           <p className="whitespace-pre-wrap break-words">
-                            {choice}
+                            <MathText text={choice} />
                           </p>
                         )}
                         {question.choiceImageIds?.[i] && (
@@ -142,7 +143,7 @@ export default function QuizResultView({
                       className="space-y-3 rounded-xl border border-current/15 p-3"
                     >
                       <p className="whitespace-pre-wrap break-words">
-                        {"abcd"[i]}. {statement}
+                        {"abcd"[i]}. <MathText text={statement} />
                       </p>
                       {question.statementImageIds?.[i] && (
                         <QuizFile
@@ -175,7 +176,7 @@ export default function QuizResultView({
             )}
             {detail.explanation && (
               <p className="mt-3 whitespace-pre-wrap break-words opacity-80">
-                Lời giải: {detail.explanation}
+                Lời giải: <MathText text={detail.explanation} />
               </p>
             )}
             {detail.explanationImageId && (

@@ -28,6 +28,16 @@ Nếu học sinh chưa đăng nhập, bấm **Đăng nhập ngay**, nhập tài 
 
 Mỗi câu có thể có ảnh câu hỏi, 4 ảnh lựa chọn/ý và ảnh lời giải, thêm bằng **Dán ảnh từ clipboard** hoặc **Ctrl + V**. Mỗi đề tối đa 100 câu. Ảnh lớn được trình duyệt tự nén trước khi gửi. Bản đang soạn được giữ trong tab trình duyệt; bấm **Lưu nháp** để lưu lên máy chủ.
 
+### Viết phân số và công thức đẹp
+
+Trong ô **Nội dung câu hỏi**, **Lựa chọn A/B/C/D**, **Ý Đúng/Sai** và **Lời giải**, gõ phân số theo cú pháp `\frac{tử}{mẫu}`. Học sinh sẽ thấy phân số xếp tầng (tử trên, mẫu dưới, có gạch ngang) ở trang làm bài, trang xem lại và bản xem trước. Ví dụ:
+
+- `\frac{1}{x²}` → phân số 1 trên x².
+- `y = \frac{2x − 1}{x + 3}` → biểu thức có phân số.
+- `\frac{1}{2√x}`, `−\frac{3}{(x − 2)²}`, `\frac{x·cos x − sin x}{x²}`.
+
+Có thể dùng lẫn chữ thường, dấu mũ Unicode (`x²`, `sin²x`) và ký hiệu (`√`, `−`, `·`, `π`) như bình thường. Ô soạn thảo vẫn hiển thị nguyên cú pháp `\frac{...}{...}`; nội dung không có cú pháp này hiển thị y như trước.
+
 Khi chỉnh sửa đề cũ dạng tệp, phần **Tệp đề PDF / Word / ảnh** và phiếu trả lời theo thứ tự trong tệp vẫn có sẵn. Tệp tối đa **1,8 MB**, 8 tệp đề và 608 tệp tổng cộng/đề. Nội dung câu/lựa chọn/ý được để trống nếu đã có trong tệp. Với Word, học sinh bấm **Tải file Word** để mở trên máy; PDF và ảnh xem trực tiếp trong trang.
 
 ### Dán ảnh chụp màn hình, không cần lưu về máy

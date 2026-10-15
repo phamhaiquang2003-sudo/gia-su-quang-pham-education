@@ -2,6 +2,7 @@ import type { Attempt, Quiz } from "@/lib/quizzes";
 import QuizFile from "./QuizFile";
 import QuizEssayAnswer from "./QuizEssayAnswer";
 import QuizResultView from "./QuizResultView";
+import MathText from "./MathText";
 
 export default function QuizManualReview({
   attempt,
@@ -37,7 +38,7 @@ export default function QuizManualReview({
             <h3 className="mb-3 font-semibold">Câu {index + 1}</h3>
             {question.prompt && (
               <p className="mb-3 whitespace-pre-wrap break-words">
-                {question.prompt}
+                <MathText text={question.prompt} />
               </p>
             )}
             {question.imageId && (
