@@ -131,6 +131,9 @@
 .mobile-navigation nav {
   max-height: calc(100svh - 7rem);
   overflow-y: auto;
+  background: rgb(0 32 50 / 90%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .mobile-navigation[open] .menu-open-icon,

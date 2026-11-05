@@ -48,8 +48,6 @@ export default function App({
   const [section, setSection] = useState<SubjectId>("toan");
   const selectedSubject = getSubject(section);
   const greeting = profile ? `Xin chào, ${profile.displayName}` : "Đăng nhập";
-  const desktopBreakpoint = profile ? "min-[1440px]:flex" : "lg:flex";
-  const mobileBreakpoint = profile ? "min-[1440px]:hidden" : "lg:hidden";
   const requiresLogin = !profile;
 
   function accountAction(hero = false) {
@@ -170,7 +168,7 @@ export default function App({
           />
 
           <header
-            className={`relative z-20 mx-auto flex w-full items-center justify-between gap-4 py-6 ${profile ? "max-w-[1600px] flex-wrap px-4 sm:flex-nowrap sm:px-8" : "max-w-7xl px-8"}`}
+            className={`relative z-20 mx-auto flex w-full items-center justify-between gap-4 py-6 ${profile ? "max-w-[1600px] flex-wrap px-4 sm:px-8 xl:flex-nowrap" : "max-w-7xl px-8"}`}
           >
             <a
               href="#home"
@@ -183,7 +181,7 @@ export default function App({
 
             <nav
               aria-label="Main navigation"
-              className={`liquid-glass hidden shrink-0 items-center gap-4 whitespace-nowrap rounded-full px-5 py-3 ${desktopBreakpoint} xl:gap-7 xl:px-7`}
+              className={`liquid-glass hidden shrink-0 items-center gap-4 whitespace-nowrap rounded-full px-5 py-3 lg:flex xl:gap-5 xl:px-6 2xl:gap-7 2xl:px-7 ${profile ? "order-3 w-full justify-center xl:order-none xl:w-auto" : ""}`}
             >
               <a
                 href="#home"
@@ -239,7 +237,7 @@ export default function App({
               {accountAction()}
               <details
                 ref={mobileMenuRef}
-                className={`mobile-navigation shrink-0 ${mobileBreakpoint}`}
+                className="mobile-navigation shrink-0 lg:hidden"
                 onKeyDown={(event) => {
                   if (event.key === "Escape" && mobileMenuRef.current) {
                     mobileMenuRef.current.open = false;
@@ -281,7 +279,7 @@ export default function App({
                         <a
                           key={item.id}
                           href={subjectHref(item.id)}
-                          className="shrink-0 rounded-lg px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                          className="shrink-0 rounded-lg px-4 py-2.5 text-sm text-slate-200 transition-colors hover:text-foreground"
                         >
                           {item.label}
                         </a>
@@ -292,7 +290,7 @@ export default function App({
                             onClick={(event) =>
                               selectSection(item.id, event.currentTarget)
                             }
-                            className="shrink-0 cursor-pointer rounded-lg px-4 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:text-foreground"
+                            className="shrink-0 cursor-pointer rounded-lg px-4 py-2.5 text-left text-sm text-slate-200 transition-colors hover:text-foreground"
                           >
                             {item.label}
                           </button>
