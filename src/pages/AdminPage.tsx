@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import {
   CalendarDays,
+  CalendarClock,
   Eye,
   EyeOff,
   FileText,
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 import QuizAdmin from "@/components/QuizAdmin";
 import TuitionAdmin from "@/components/TuitionAdmin";
+import ScheduleAdmin from "@/components/ScheduleAdmin";
 import AccountGate from "@/components/AccountGate";
 import AccountMenu from "@/components/AccountMenu";
 import { Button } from "@/components/ui/button";
@@ -47,7 +49,7 @@ import {
   type SchoolClassId,
 } from "@/lib/school-classes";
 
-type Tab = "quizzes" | "tuition" | "add" | "list";
+type Tab = "quizzes" | "schedule" | "tuition" | "add" | "list";
 type Action = "disable" | "enable" | "resetPassword" | "delete";
 
 export default function AdminPage() {
@@ -207,7 +209,7 @@ export default function AdminPage() {
   return (
     <AccountGate {...session} admin>
       <main className="account-page min-h-svh px-4 py-8 sm:py-12">
-        <div className="mx-auto max-w-5xl">
+        <div className={`mx-auto ${tab === "schedule" ? "max-w-[1600px]" : "max-w-5xl"}`}>
           <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <a href={import.meta.env.BASE_URL} aria-label="Về trang chủ">
@@ -222,7 +224,7 @@ export default function AdminPage() {
                   PHQ Education — Quản trị
                 </h1>
                 <p className="mt-1 text-sm text-slate-600">
-                  Bài tập, buổi học và tài khoản ·{" "}
+                  Bài tập, lịch học, buổi học và tài khoản ·{" "}
                   {session.profile?.displayName}
                 </p>
               </div>
@@ -249,6 +251,7 @@ export default function AdminPage() {
             {(
               [
                 ["quizzes", "Bài tập", FileText],
+                ["schedule", "Lịch học", CalendarClock],
                 ["tuition", "Thống kê buổi học", CalendarDays],
                 ["add", "Thêm tài khoản", Plus],
                 ["list", "Danh sách tài khoản", Users],
@@ -262,7 +265,7 @@ export default function AdminPage() {
                 aria-controls={`panel-${value}`}
                 tabIndex={tab === value ? 0 : -1}
                 onKeyDown={(event) => {
-                  const values: Tab[] = ["quizzes", "tuition", "add", "list"];
+                  const values: Tab[] = ["quizzes", "schedule", "tuition", "add", "list"];
                   const position = values.indexOf(value);
                   const next =
                     event.key === "ArrowRight"
@@ -290,7 +293,7 @@ export default function AdminPage() {
                   setResults([]);
                   if (value === "list")
                     void loadStudents(false, studentClassFilter);
-                  else if (value === "tuition") void loadStudents();
+                  else if (value === "tuition" || value === "schedule") void loadStudents();
                 }}
               >
                 <Icon className="size-4" />
@@ -307,6 +310,18 @@ export default function AdminPage() {
           >
             {tab === "quizzes" && session.profile && (
               <QuizAdmin uid={session.profile.uid} />
+            )}
+            {tab === "schedule" && session.profile && (
+              <ScheduleAdmin
+                key={session.profile.uid}
+                uid={session.profile.uid}
+                students={students}
+                loadingStudents={loadingList}
+                hasMoreStudents={hasMore}
+                onLoadMoreStudents={() => void loadStudents(true)}
+                onRefreshStudents={() => void loadStudents()}
+                onBusyChange={setBusy}
+              />
             )}
             {tab === "tuition" && session.profile && (
               <TuitionAdmin

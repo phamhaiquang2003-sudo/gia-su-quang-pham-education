@@ -4,6 +4,7 @@ import { makeFirebase, verifyToken } from "./firebase.js";
 import { requireQuizUser } from "./quiz-auth.js";
 import { makeProfileService } from "./profile-service.js";
 import { makeTuitionService } from "./tuition-service.js";
+import { makeScheduleService } from "./schedule-service.js";
 import {
   makeQuizService,
   readLimitedBody,
@@ -16,6 +17,7 @@ const tuitionOperations = [
   "tuitionSave",
   "tuitionDelete",
 ];
+const scheduleOperations = ["scheduleList", "scheduleSave", "scheduleDelete"];
 
 export function makeHandler({
   makeFirebaseClient = makeFirebase,
@@ -122,6 +124,7 @@ export function makeHandler({
             "upload",
             "manualGrade",
             ...tuitionOperations,
+            ...scheduleOperations,
           ].includes(quizOperation),
         );
         const profileOperations = [
@@ -129,11 +132,13 @@ export function makeHandler({
           "profileAvatar",
           "profileAvatarUpload",
         ];
-        const service = tuitionOperations.includes(quizOperation)
-          ? makeTuitionService(env.QUIZ_DB, user, firebase)
-          : profileOperations.includes(quizOperation)
-            ? makeProfileService(env.QUIZ_DB, user)
-            : makeQuizService(env.QUIZ_DB, user);
+        const service = scheduleOperations.includes(quizOperation)
+          ? makeScheduleService(env.QUIZ_DB, user, firebase)
+          : tuitionOperations.includes(quizOperation)
+            ? makeTuitionService(env.QUIZ_DB, user, firebase)
+            : profileOperations.includes(quizOperation)
+              ? makeProfileService(env.QUIZ_DB, user)
+              : makeQuizService(env.QUIZ_DB, user);
         const operations = [
           "list",
           "listAdmin",
@@ -156,6 +161,7 @@ export function makeHandler({
           "manualGrade",
           ...profileOperations,
           ...tuitionOperations,
+          ...scheduleOperations,
         ];
         if (!operations.includes(quizOperation))
           throw new ServiceError("not-found", "Không tìm thấy chức năng.", 404);
