@@ -212,8 +212,8 @@ export default function ScheduleAdmin({ uid, students, loadingStudents, hasMoreS
         <DialogContent className="account-page max-h-[90svh] max-w-2xl overflow-y-auto">
           <DialogTitle>{editing ? 'Chỉnh sửa buổi học' : 'Thêm buổi học'}</DialogTitle>
           <DialogDescription>Đặt lịch theo giờ Việt Nam (UTC+7). Không tự ghi học phí.</DialogDescription>
-          {draft && <form onSubmit={save}>
-            <fieldset disabled={busy} className="mt-5 space-y-4">
+          {draft && <form onSubmit={save} className="min-w-0">
+            <fieldset disabled={busy} className="mt-5 min-w-0 space-y-4">
               <label className="account-label">Tên buổi học<input className="account-input" required maxLength={160} placeholder="Ví dụ: Toán 11 – Bảo Hân" value={draft.title} onChange={e => update({title:e.target.value})} /></label>
               <div className="grid min-w-0 gap-3 sm:grid-cols-3">
                 <label className="account-label min-w-0">Ngày học<input type="date" className="account-input min-w-0" required min="2000-01-01" max="2100-12-31" value={draft.date} onChange={e => update({date:e.target.value, ...(!editing && !draft.weekly && validScheduleDate(e.target.value) ? {weekdays:[scheduleWeekday(e.target.value)],until:clampDate(addScheduleDays(e.target.value,28))} : {})})} /></label>
@@ -224,7 +224,7 @@ export default function ScheduleAdmin({ uid, students, loadingStudents, hasMoreS
                 <label className="account-label">Môn học<select className="account-input" value={draft.subject} onChange={e => update({subject:e.target.value as ScheduleSubject})}>{subjectOptions.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
                 <label className="account-label">Trạng thái<select className="account-input" value={draft.status} onChange={e => update({status:e.target.value as ScheduleStatus})}>{scheduleStatuses.map(s => <option key={s} value={s}>{scheduleStatusLabels[s]}</option>)}</select></label>
               </div>
-              <fieldset className="rounded-xl border border-slate-200 p-3"><legend className="px-1 text-sm font-semibold"><Users className="mr-1 inline size-4" />Học sinh tham gia (tùy chọn)</legend>
+              <fieldset className="min-w-0 rounded-xl border border-slate-200 p-3"><legend className="max-w-full px-1 text-sm font-semibold"><Users className="mr-1 inline size-4" />Học sinh tham gia (tùy chọn)</legend>
                 <p className="mb-3 text-xs text-slate-500">Chọn tối đa 30 học sinh; để trống nếu là lịch cá nhân hoặc nhóm chưa có tài khoản.</p>
                 <div className="max-h-40 space-y-2 overflow-y-auto">{accounts.map(student => <label key={student.uid} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.studentUids.includes(student.uid)} onChange={e => update({studentUids:e.target.checked?[...draft.studentUids,student.uid]:draft.studentUids.filter(id=>id!==student.uid)})} />{student.displayName} <span className="text-xs text-slate-500">@{student.username}</span></label>)}{!accounts.length && <p className="text-sm text-slate-500">{loadingStudents?'Đang tải học sinh…':'Chưa có học sinh trong danh sách.'}</p>}</div>
                 {hasMoreStudents && <button type="button" className="mt-3 text-sm font-semibold text-sky-700" disabled={loadingStudents} onClick={onLoadMoreStudents}>{loadingStudents?'Đang tải…':'Tải thêm học sinh'}</button>}
